@@ -8,12 +8,12 @@ An AI-powered autonomous research agent that designs, trains, evaluates, and ite
 
 ## Team
 
-| Name | Role |
-|------|------|
-| TBD  | TBD  |
-| TBD  | TBD  |
-| TBD  | TBD  |
-| TBD  | TBD  |
+| Name | GitHub | Role |
+|------|--------|------|
+| Maximilian Noelle-Wying | [@Trumbly](https://github.com/Trumbly) | Owner |
+| Lorena Leicht | [@Lorry171717](https://github.com/Lorry171717) | Collaborator |
+| Sebastian Mis | [@SebastianMis23](https://github.com/SebastianMis23) | Collaborator |
+| Danish Mujtaba Qureshi | [@danish-m-qureshi](https://github.com/danish-m-qureshi) | Collaborator |
 
 ## Project Structure
 
