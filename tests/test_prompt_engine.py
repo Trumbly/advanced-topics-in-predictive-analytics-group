@@ -146,3 +146,42 @@ class TestPromptEngineFill:
         template = engine.load(minimal_template_yaml)
         system, user = engine.fill(template, {"name": "x", "score": "1"})
         assert "x" in user
+
+    def test_propose_architecture_fallback_requests_json(self) -> None:
+        """Regression: the cold-start fallback for propose_architecture was
+        pure English prose, so the LLM on the very first experiment replied
+        with natural-language text and the JSON parser choked every time
+        ('exp_001 is always broken'). The fallback MUST instruct the LLM to
+        return valid JSON and include a concrete example.
+        """
+        engine = PromptEngine()
+        template = engine.load("config/prompts/propose_architecture.yaml")
+        assert template.fallback_when_no_memory is not None
+
+        _, user = engine.fill(template, slots={}, use_fallback=True)
+
+        # The fallback text must tell the LLM to return JSON
+        assert "JSON" in user
+        assert '"architecture"' in user
+        assert '"hyperparams"' in user
+        # And it must parse as real JSON (so the example is actually valid)
+        import json
+        import re
+        # Find the first balanced {...} block in the fallback
+        start = user.find("{")
+        depth = 0
+        end = -1
+        for i in range(start, len(user)):
+            if user[i] == "{":
+                depth += 1
+            elif user[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        assert end != -1, "fallback has no balanced JSON object"
+        parsed = json.loads(user[start : end + 1])
+        # Must have the keys the downstream code expects
+        assert "architecture" in parsed
+        assert "hyperparams" in parsed
+        assert "augmentation" in parsed

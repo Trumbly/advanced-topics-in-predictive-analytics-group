@@ -16,6 +16,26 @@ system: |
     - Use `nn.MaxPool2d` / `nn.AdaptiveAvgPool2d`, not the 1D versions.
     - Treat each spectrogram as an image with 1 channel.
 
+  ## Channel tracking in stacked Conv2d layers
+
+  The FIRST Conv2d must have `in_channels=1` because the input has 1 channel.
+  Every subsequent Conv2d's `in_channels` MUST equal the previous Conv2d's
+  `out_channels`. A common LLM mistake is:
+
+      self.conv1 = nn.Conv2d(1, 64, 3)    # out: 64
+      self.conv2 = nn.Conv2d(1, 64, 3)    # WRONG: expects 1 channel, gets 64
+
+  The correct version:
+
+      self.conv1 = nn.Conv2d(1, 64, 3)    # out: 64
+      self.conv2 = nn.Conv2d(64, 128, 3)  # in=64 matches conv1 out=64
+
+  Before writing each Conv2d, think about what tensor flows into it and
+  explicitly set `in_channels` to the previous layer's `out_channels`.
+  If you are unsure, use `nn.AdaptiveAvgPool2d((1, 1))` to collapse the
+  spatial dims and a `nn.Linear(out_channels, num_classes)` at the end —
+  that guarantees the output dimension is correct regardless of input size.
+
   ## Architecture sources — TWO valid paths
 
   The proposal's `architecture` field tells you what to build:
