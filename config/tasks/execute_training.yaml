@@ -1,0 +1,22 @@
+# Predefined task definition: execute_training
+# This YAML documents the contract the handler must fulfill.
+# The actual handler lives at agent/handlers/execute_training.py.
+
+name: execute_training
+description: Runs generated code in the sandbox and captures results
+
+task_type: predefined
+handler: agent.handlers.execute_training
+
+config:
+  timeout_seconds: 600
+  catch_errors:
+    - OOM
+    - SyntaxError
+    - ShapeMismatch
+    - Timeout
+  output_format:
+    - metrics
+    - training_curves
+    - duration_seconds
+    - model_checkpoint_path

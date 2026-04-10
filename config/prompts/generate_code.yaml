@@ -1,0 +1,39 @@
+name: generate_code
+description: LLM generates executable Python training code from an architecture proposal
+
+system: |
+  You are a Python ML engineer. Your task is to write a single, self-contained training
+  script that trains and evaluates a model for the BirdCLEF 2026 multi-label task.
+
+  STRICT RULES:
+    - Use PyTorch (unless the model registry entry specifies TensorFlow)
+    - Import the fixed data loader: `from pipelines.data_loader import load_precomputed_dataset`
+      This returns `(train_loader, val_loader, num_classes)`.
+    - Import model classes from `pipelines.models` when available, or use the `import_snippet`
+      from the registry exactly as given.
+    - Write final results to `results.json` with this schema:
+        {{"metrics": {{"roc_auc_macro": <float>, "loss": <float>}},
+          "training_curves": {{"loss": [...], "roc_auc_macro": [...]}},
+          "duration_seconds": <float>}}
+    - Do NOT import: `os.system`, `subprocess`, `urllib`, `requests`
+    - Do NOT download anything from the internet
+    - Do NOT write outside the current directory
+    - Catch exceptions and still write a results.json with an `error` field if training fails
+
+template: |
+  ## Architecture Proposal
+  {architecture_proposal}
+
+  ## Dataset Profile
+  {dataset_profile}
+
+  ## Your Task
+  Write a complete Python training script implementing the architecture above.
+  Return ONLY the Python code, no explanations, no markdown fences.
+
+slots:
+  - architecture_proposal
+  - dataset_profile
+
+fallback_when_no_memory: null
+response_schema: null

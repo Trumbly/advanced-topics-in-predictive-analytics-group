@@ -1,0 +1,38 @@
+# Exploration pipeline — broad search, small models, few epochs.
+# Used in Phase 1 of a Study to quickly probe architecture families.
+# Identical structure to default_pipeline, but with tighter compute budget
+# overrides at the step level.
+
+name: exploration_birdclef
+description: Broad, cheap exploration — small models, few epochs, fast feedback
+
+steps:
+  - task_name: propose_architecture
+    task_type: llm
+    prompt_template: config/prompts/propose_architecture.yaml
+    config:
+      hint: "Propose the smallest architecture that could plausibly work. Prioritize speed over score."
+
+  - task_name: generate_code
+    task_type: llm
+    prompt_template: config/prompts/generate_code.yaml
+
+  - task_name: validate_code
+    task_type: predefined
+    handler: agent.handlers.validate_code
+
+  - task_name: execute_training
+    task_type: predefined
+    handler: agent.handlers.execute_training
+    config:
+      timeout_seconds: 180                # cap at 3 min for exploration
+      max_epochs_override: 3
+      data_subset_fraction: 0.1           # use 10% of data for fast iteration
+
+  - task_name: capture_metrics
+    task_type: predefined
+    handler: agent.handlers.capture_metrics
+
+  - task_name: analyze_results
+    task_type: llm
+    prompt_template: config/prompts/analyze_results.yaml
