@@ -32,15 +32,20 @@ course project but is noted as future work in the plan.
 
 from __future__ import annotations
 
+import logging
 import os
 import signal
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import IO, Callable
 
 from agent.models import TaskError
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +161,25 @@ class ExecutionResult:
 
 @dataclass
 class CodeExecutor:
-    """Writes code to a sandbox dir and runs it as a subprocess."""
+    """Writes code to a sandbox dir and runs it as a subprocess.
+
+    Streams stdout/stderr live into log files AND into the agent's logger
+    so the operator can watch what the generated training script is doing
+    in real time. A heartbeat thread prints a "still running" line every
+    few seconds so the operator can distinguish a slow-but-alive process
+    from a hung one.
+    """
 
     sandbox_root: Path = Path("sandbox")
     timeout_seconds: int = 600
     python_executable: str = field(default_factory=lambda: sys.executable)
     repo_root: Path = field(default_factory=lambda: Path.cwd())
+    stream_output: bool = True
+    """If True, live-stream subprocess stdout/stderr into the logger."""
+    heartbeat_seconds: float = 10.0
+    """Interval for the 'still running...' heartbeat. 0 disables."""
+    log_line_prefix: str = "      │ "
+    """Prefix for every streamed line (indented under the task marker)."""
 
     def run(
         self,
@@ -184,8 +202,15 @@ class CodeExecutor:
         stdout_path = workdir / "stdout.log"
         stderr_path = workdir / "stderr.log"
 
+        # Line buffers that the reader threads append into. Use plain lists
+        # (thread-safe enough for append from a single producer per list).
+        stdout_lines: list[str] = []
+        stderr_lines: list[str] = []
+
         start = time.monotonic()
         timed_out = False
+        process: subprocess.Popen[str] | None = None
+
         try:
             # Run in its own process group so we can kill the whole tree on timeout.
             # On Windows, `preexec_fn=os.setsid` is not available — fall back to
@@ -196,28 +221,24 @@ class CodeExecutor:
             # would be re-resolved relative to cwd by the subprocess,
             # producing the classic duplicated-path bug:
             #   sandbox/study_x/exp_1/sandbox/study_x/exp_1/code.py
+            #
+            # bufsize=1 + text=True gives line-buffered output so the reader
+            # threads see each print() as soon as the child flushes.
             popen_kwargs: dict[str, object] = {
                 "cwd": str(workdir),
                 "env": env,
                 "stdout": subprocess.PIPE,
                 "stderr": subprocess.PIPE,
                 "text": True,
+                "bufsize": 1,
             }
             if os.name != "nt":
                 popen_kwargs["preexec_fn"] = os.setsid  # type: ignore[assignment]
 
             process = subprocess.Popen(
-                [self.python_executable, "code.py"],
+                [self.python_executable, "-u", "code.py"],
                 **popen_kwargs,  # type: ignore[arg-type]
             )
-            try:
-                stdout, stderr = process.communicate(timeout=self.timeout_seconds)
-                exit_code = process.returncode
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                self._kill_process_tree(process)
-                stdout, stderr = process.communicate()
-                exit_code = -1
         except Exception as exc:  # noqa: BLE001 — any spawn error is captured
             duration = time.monotonic() - start
             err = TaskError(
@@ -235,16 +256,72 @@ class CodeExecutor:
                 timed_out=False,
             )
 
+        assert process is not None
+        assert process.stdout is not None
+        assert process.stderr is not None
+
+        # Start the live reader threads. Each reader drains one pipe into
+        # its corresponding buffer and (optionally) forwards lines to the
+        # logger so the operator can watch progress in real time.
+        stop_event = threading.Event()
+        stdout_reader = threading.Thread(
+            target=self._stream_reader,
+            args=(process.stdout, stdout_lines, "stdout", stop_event),
+            daemon=True,
+        )
+        stderr_reader = threading.Thread(
+            target=self._stream_reader,
+            args=(process.stderr, stderr_lines, "stderr", stop_event),
+            daemon=True,
+        )
+        stdout_reader.start()
+        stderr_reader.start()
+
+        # Heartbeat thread — ticks every `heartbeat_seconds` and prints how
+        # long the subprocess has been running. Disabled if heartbeat_seconds <= 0.
+        heartbeat = None
+        if self.heartbeat_seconds > 0:
+            heartbeat = threading.Thread(
+                target=self._heartbeat,
+                args=(process, start, experiment_id, stop_event),
+                daemon=True,
+            )
+            heartbeat.start()
+
+        # Wait for the child to finish, honoring our timeout.
+        try:
+            process.wait(timeout=self.timeout_seconds)
+            exit_code = process.returncode
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            self._kill_process_tree(process)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+            exit_code = -1
+
+        # Tell threads to stop and join them. Reader threads exit naturally
+        # once the pipes close, but we still want bounded-time joins.
+        stop_event.set()
+        stdout_reader.join(timeout=5)
+        stderr_reader.join(timeout=5)
+        if heartbeat is not None:
+            heartbeat.join(timeout=2)
+
         duration = time.monotonic() - start
 
-        stdout_path.write_text(stdout or "")
-        stderr_path.write_text(stderr or "")
+        stdout_text = "".join(stdout_lines)
+        stderr_text = "".join(stderr_lines)
+
+        stdout_path.write_text(stdout_text)
+        stderr_path.write_text(stderr_text)
 
         results_json = workdir / "results.json"
         results_json_path = results_json if results_json.exists() else None
 
         if exit_code != 0 or timed_out:
-            error = classify_error(stderr or "", timed_out=timed_out)
+            error = classify_error(stderr_text, timed_out=timed_out)
         elif results_json_path is None:
             # Exit 0 but the script never produced a results.json — this is
             # a silent failure. Make it LOUD so the LLM learns to always
@@ -257,21 +334,72 @@ class CodeExecutor:
                     "results.json file in the working directory. Make sure "
                     "your code writes `results.json` at the end of training."
                 ),
-                traceback=_tail(stdout or "", 10) or None,
+                traceback=_tail(stdout_text, 10) or None,
             )
         else:
             error = None
 
         return ExecutionResult(
             exit_code=exit_code,
-            stdout=stdout or "",
-            stderr=stderr or "",
+            stdout=stdout_text,
+            stderr=stderr_text,
             duration_seconds=duration,
             workdir=workdir,
             results_json_path=results_json_path,
             error=error,
             timed_out=timed_out,
         )
+
+    # -- streaming helpers --------------------------------------------------
+
+    def _stream_reader(
+        self,
+        stream: IO[str],
+        buffer: list[str],
+        label: str,
+        stop_event: threading.Event,
+    ) -> None:
+        """Read lines from `stream` into `buffer` and optionally the logger."""
+        try:
+            for line in iter(stream.readline, ""):
+                buffer.append(line)
+                if self.stream_output:
+                    # Strip trailing newline for logger, but keep it in buffer
+                    text = line.rstrip("\n")
+                    if text:
+                        if label == "stderr":
+                            logger.warning("%s%s", self.log_line_prefix, text)
+                        else:
+                            logger.info("%s%s", self.log_line_prefix, text)
+                if stop_event.is_set():
+                    break
+        except Exception:  # noqa: BLE001 — reader must not crash
+            pass
+        finally:
+            try:
+                stream.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _heartbeat(
+        self,
+        process: subprocess.Popen[str],
+        start: float,
+        experiment_id: str,
+        stop_event: threading.Event,
+    ) -> None:
+        """Print a 'still running' line at a fixed interval."""
+        interval = max(1.0, self.heartbeat_seconds)
+        while not stop_event.wait(interval):
+            if process.poll() is not None:
+                return
+            elapsed = time.monotonic() - start
+            logger.info(
+                "%s... still running (%.0fs elapsed, timeout at %ds)",
+                self.log_line_prefix,
+                elapsed,
+                self.timeout_seconds,
+            )
 
     # -- helpers ------------------------------------------------------------
 

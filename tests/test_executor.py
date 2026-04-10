@@ -231,3 +231,89 @@ print('done')
         # With the fix, stderr is empty and exit_code is 0.
         assert result.exit_code == 0
         assert "sandbox/exp_rel/sandbox/exp_rel" not in result.stderr
+
+    def test_stdout_is_streamed_to_logger(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Regression for "stuck on execute_training": the subprocess's
+        stdout must be forwarded to the `agent.executor` logger in real
+        time, not buffered until the process exits. We can't easily assert
+        timing in a unit test, but we can assert the lines DO reach the
+        logger by the time .run() returns."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+            heartbeat_seconds=0,  # off for deterministic output
+        )
+        code = (
+            "import json, pathlib, sys\n"
+            "print('epoch 1: loss=0.9')\n"
+            "sys.stdout.flush()\n"
+            "print('epoch 2: loss=0.5')\n"
+            "sys.stdout.flush()\n"
+            "pathlib.Path('results.json').write_text("
+            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+        )
+        with caplog.at_level("INFO", logger="agent.executor"):
+            result = executor.run(code, experiment_id="exp_stream")
+        assert result.succeeded
+        # Both progress lines must have made it into the logger
+        all_log_text = "\n".join(r.getMessage() for r in caplog.records)
+        assert "epoch 1: loss=0.9" in all_log_text
+        assert "epoch 2: loss=0.5" in all_log_text
+
+    def test_stderr_is_streamed_as_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """stderr lines from the subprocess should surface as WARNING
+        on the agent.executor logger so they stand out in the terminal."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+            heartbeat_seconds=0,
+        )
+        code = (
+            "import sys, json, pathlib\n"
+            "print('WARN: class 42 has no positives', file=sys.stderr)\n"
+            "sys.stderr.flush()\n"
+            "pathlib.Path('results.json').write_text("
+            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+        )
+        with caplog.at_level("INFO", logger="agent.executor"):
+            result = executor.run(code, experiment_id="exp_stderr_stream")
+        assert result.succeeded
+        warnings = [
+            r for r in caplog.records
+            if r.name == "agent.executor" and r.levelname == "WARNING"
+        ]
+        assert any("WARN: class 42" in r.getMessage() for r in warnings)
+
+    def test_stream_output_can_be_disabled(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """With stream_output=False the subprocess output is still captured
+        into the result, but nothing is forwarded to the logger."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+            stream_output=False,
+            heartbeat_seconds=0,
+        )
+        code = (
+            "import json, pathlib\n"
+            "print('silent output')\n"
+            "pathlib.Path('results.json').write_text("
+            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+        )
+        with caplog.at_level("INFO", logger="agent.executor"):
+            result = executor.run(code, experiment_id="exp_silent_stream")
+        assert result.succeeded
+        assert "silent output" in result.stdout  # captured in result
+        forwarded = [
+            r for r in caplog.records
+            if r.name == "agent.executor" and "silent output" in r.getMessage()
+        ]
+        assert not forwarded  # but NOT forwarded to the logger
