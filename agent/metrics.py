@@ -37,6 +37,20 @@ class MetricsParseError(ValueError):
     """Raised when a results.json file cannot be parsed into TrainingResults."""
 
 
+class ScriptReportedError(MetricsParseError):
+    """Raised when results.json contains an explicit `error` field.
+
+    This means the LLM-generated training script caught an exception in its
+    own try/except block and wrote a failure payload. We want the LLM's
+    own error message to flow back up to the orchestrator so the next
+    experiment can learn from it.
+    """
+
+    def __init__(self, script_error: str, *, path: Path) -> None:
+        super().__init__(f"{path}: script reported error: {script_error}")
+        self.script_error = script_error
+
+
 @dataclass
 class MetricsCollector:
     """Parses results.json and optionally computes deltas vs. a baseline."""
@@ -65,6 +79,14 @@ class MetricsCollector:
             raise MetricsParseError(
                 f"{path}: expected a JSON object, got {type(raw).__name__}"
             )
+
+        # If the script wrote `{"error": "..."}`, surface that cleanly
+        # instead of complaining about missing metrics. The script hit its
+        # own except branch and reported a real failure — we want the
+        # orchestrator + memory to see the actual error message.
+        if "error" in raw and not raw.get("metrics"):
+            script_error = str(raw["error"])
+            raise ScriptReportedError(script_error, path=path)
 
         metrics_raw = raw.get("metrics", {})
         if not isinstance(metrics_raw, dict):
@@ -150,4 +172,4 @@ def _safe_float(value: Any, *, default: float | None) -> float | None:
         return default
 
 
-__all__ = ["MetricsCollector", "MetricsParseError"]
+__all__ = ["MetricsCollector", "MetricsParseError", "ScriptReportedError"]

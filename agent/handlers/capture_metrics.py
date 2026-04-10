@@ -8,15 +8,22 @@ dict for the orchestrator to read.
 If parsing fails (missing file, bad JSON, missing required metrics) the
 task is marked FAILED with a `MetricsParseError`-derived TaskError so
 the LLM can react.
+
+Whenever we successfully read the raw JSON, we also stash the full file
+content in `task.output["raw_results"]`. That way the experiment log
+contains everything the training script reported — including the error
+message if the script hit its own except branch — without having to
+reach into the sandbox directory later.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from agent.metrics import MetricsCollector, MetricsParseError
+from agent.metrics import MetricsCollector, MetricsParseError, ScriptReportedError
 from agent.models import Task, TaskError, TaskStatus
 
 
@@ -55,19 +62,50 @@ def run(
             "Previous task did not produce a results.json path",
         )
 
+    results_path_obj = Path(results_path)
+    raw_results = _safe_load_raw(results_path_obj)
+
+    # Embed the raw contents in task.output so the experiment log captures
+    # everything the script reported, even when parsing fails.
+    task.output = {
+        "results_json_path": str(results_path),
+        "raw_results": raw_results,
+    }
+
     try:
-        training_results = collector.parse_results(Path(results_path))
+        training_results = collector.parse_results(results_path_obj)
+    except ScriptReportedError as e:
+        # The LLM script caught its own exception and wrote {"error": "..."}.
+        # Surface that cleanly with the script's message, not a confusing
+        # "missing required metrics" error.
+        return _fail(task, "ScriptReportedError", e.script_error)
     except MetricsParseError as e:
         return _fail(task, "MetricsParseError", str(e))
 
-    # Store the parsed results for the orchestrator to lift onto the Experiment
-    task.output = {
-        "results_json_path": str(results_path),
-        "training_results": training_results.model_dump(mode="json"),
-    }
+    # Add the parsed results on top of the raw payload
+    task.output["training_results"] = training_results.model_dump(mode="json")
     task.status = TaskStatus.COMPLETED
     task.completed_at = _now()
     return task
+
+
+def _safe_load_raw(path: Path) -> dict[str, Any] | str | None:
+    """Best-effort load of results.json for logging.
+
+    Returns the parsed dict if possible, a raw text blob if JSON is broken,
+    or None if the file does not exist. Never raises.
+    """
+    if not path.exists():
+        return None
+    try:
+        text = path.read_text()
+    except OSError:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Truncate very long non-JSON content so we don't bloat the log
+        return text[:2000] + ("..." if len(text) > 2000 else "")
 
 
 def _fail(task: Task, error_type: str, message: str) -> Task:

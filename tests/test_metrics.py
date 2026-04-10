@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agent.metrics import MetricsCollector, MetricsParseError
+from agent.metrics import MetricsCollector, MetricsParseError, ScriptReportedError
 from agent.models import TrainingResults
 
 
@@ -97,6 +97,33 @@ class TestParseResults:
         )
         results = MetricsCollector().parse_results(path)
         assert "bogus" not in results.metrics
+
+    def test_script_error_key_surfaces_cleanly(self, tmp_path: Path) -> None:
+        """Regression: when LLM code hits its own except branch and writes
+        `{"error": "..."}`, we must surface the actual error — not report
+        a confusing 'missing required metrics' message."""
+        path = _write_results(
+            tmp_path / "results.json",
+            {"error": "RuntimeError: shape mismatch (32,1,128,313) vs (32,3,224,224)"},
+        )
+        with pytest.raises(ScriptReportedError) as exc_info:
+            MetricsCollector().parse_results(path)
+        assert exc_info.value.script_error.startswith("RuntimeError")
+        # ScriptReportedError IS a MetricsParseError subclass — callers can
+        # still catch MetricsParseError for a uniform fallback path.
+        assert isinstance(exc_info.value, MetricsParseError)
+
+    def test_empty_metrics_with_error_key_reports_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Reality check: the failing runs in the production logs wrote
+        `{"metrics": {}, "error": "..."}`. The error takes precedence."""
+        path = _write_results(
+            tmp_path / "results.json",
+            {"metrics": {}, "error": "NameError: CnnSmallV1 is not defined"},
+        )
+        with pytest.raises(ScriptReportedError, match="NameError"):
+            MetricsCollector().parse_results(path)
 
 
 class TestComputeDelta:
