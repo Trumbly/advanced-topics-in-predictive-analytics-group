@@ -23,14 +23,12 @@ Supporting models:
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -106,8 +104,8 @@ class ComputeBudget(AgentBaseModel):
 
     max_experiments: int = 20
     max_wallclock_minutes: int = 240
-    max_experiment_seconds: int = 600
-    max_epochs_per_run: int = 15
+    max_experiment_seconds: int = 7200      # 2 hours — real BirdCLEF training is slow
+    max_epochs_per_run: int = 1             # fast-iteration mode
 
 
 class Study(AgentBaseModel):
@@ -118,13 +116,19 @@ class Study(AgentBaseModel):
     their own subdirectories under the study.
     """
 
-    study_id: str = Field(description="Unique identifier, e.g. 'study_20260411_baseline'")
+    study_id: str = Field(
+        description="Unique identifier, e.g. 'study_20260411_baseline'"
+    )
     name: str
-    hypothesis: str = Field(description="Plain-text description of what this study tests")
+    hypothesis: str = Field(
+        description="Plain-text description of what this study tests"
+    )
     mode: StudyMode
     compute_budget: ComputeBudget
 
-    pipeline_config_path: Path = Field(description="Path to the pipeline YAML definition")
+    pipeline_config_path: Path = Field(
+        description="Path to the pipeline YAML definition"
+    )
     prompt_template_paths: dict[str, Path] = Field(
         default_factory=dict,
         description="Mapping of task_name → prompt YAML path (overrides pipeline defaults)",
@@ -190,8 +194,12 @@ class Experiment(AgentBaseModel):
 
     experiment_id: str = Field(description="Unique within a study, e.g. 'exp_001'")
     study_id: str
-    llm_model: str = Field(description="e.g. 'gemma4:e4b' — which LLM drove this experiment")
-    task_ids: list[str] = Field(default_factory=list, description="Ordered list of Task IDs")
+    llm_model: str = Field(
+        description="e.g. 'gemma4:e4b' — which LLM drove this experiment"
+    )
+    task_ids: list[str] = Field(
+        default_factory=list, description="Ordered list of Task IDs"
+    )
 
     config: ModelConfig | None = None
     results: TrainingResults | None = None
@@ -211,7 +219,9 @@ class Experiment(AgentBaseModel):
 class TaskError(AgentBaseModel):
     """Classified error captured when a task fails."""
 
-    error_type: str = Field(description="e.g. 'OOM', 'SyntaxError', 'ShapeMismatch', 'Timeout'")
+    error_type: str = Field(
+        description="e.g. 'OOM', 'SyntaxError', 'ShapeMismatch', 'Timeout'"
+    )
     message: str
     traceback: str | None = None
 
@@ -226,7 +236,9 @@ class Task(AgentBaseModel):
     task_id: str = Field(description="e.g. 'exp_001_task_01_propose_architecture'")
     experiment_id: str
     task_type: TaskType
-    task_name: str = Field(description="e.g. 'propose_architecture', 'execute_training'")
+    task_name: str = Field(
+        description="e.g. 'propose_architecture', 'execute_training'"
+    )
     status: TaskStatus = TaskStatus.PENDING
 
     # LLM task fields
@@ -301,7 +313,9 @@ class ModelRegistryEntry(AgentBaseModel):
     pretrained_on: str = Field(description="e.g. 'imagenet', 'audioset', 'none'")
     suitability_notes: str = Field(description="Free-text guidance for the LLM")
     framework: str = Field(description="'torch' or 'tensorflow'")
-    import_snippet: str = Field(description="Exact Python code to instantiate the model")
+    import_snippet: str = Field(
+        description="Exact Python code to instantiate the model"
+    )
 
 
 class ModelRegistryFile(AgentBaseModel):
