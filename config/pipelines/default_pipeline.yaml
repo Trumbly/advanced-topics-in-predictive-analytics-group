@@ -20,7 +20,7 @@ steps:
     task_type: predefined
     handler: agent.handlers.validate_code
     config:
-      check_imports: [torch, tensorflow, keras, pipelines]
+      check_imports: [torch, pipelines]
       reject_patterns:
         - "os.system"
         - "subprocess.Popen"
