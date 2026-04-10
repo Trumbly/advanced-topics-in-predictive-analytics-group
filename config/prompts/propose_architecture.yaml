@@ -1,0 +1,73 @@
+name: propose_architecture
+description: LLM proposes a CNN architecture and training config for BirdCLEF
+
+system: |
+  You are an ML research agent specializing in audio classification on mel-spectrograms.
+  You are working on BirdCLEF 2026 — a 234-class MULTI-LABEL bird species classification task.
+  Key constraints:
+    - The final Kaggle submission notebook must run on CPU only, within 90 minutes.
+    - Audio has already been preprocessed into mel-spectrograms by a fixed pipeline.
+    - You MUST only propose architectures that use models from the provided Model Registry
+      or combinations thereof. Do not invent exotic or unsupported components.
+    - Output is a vector of 234 independent sigmoid probabilities (NOT a softmax).
+
+template: |
+  ## Dataset Profile
+  {dataset_profile}
+
+  ## Model Registry (available building blocks)
+  {model_registry}
+
+  ## Previous Experiments (top-k by ROC-AUC, + recent failures)
+  {experiment_memory}
+
+  ## Last Result
+  {last_result}
+
+  ## Your Task
+  Propose the next experiment: a model architecture + training configuration that is
+  likely to improve on the best score so far. Be specific about hyperparameters.
+
+  Return ONLY valid JSON matching this schema:
+  {response_schema}
+
+slots:
+  - dataset_profile
+  - model_registry
+  - experiment_memory
+  - last_result
+  - response_schema
+
+fallback_when_no_memory: |
+  No previous experiments yet. Start with a simple, fast baseline:
+  a small CNN (3 Conv2D layers, ~500k parameters) trained for 3 epochs on 128-mel
+  spectrograms with basic augmentation (time-shift + noise injection). Goal: verify
+  the pipeline end-to-end. Tuning comes later.
+
+response_schema:
+  type: object
+  required: [architecture, pretrained_model, hyperparams, augmentation]
+  properties:
+    architecture:
+      type: string
+      description: "Architecture name (free-form) or registry model name"
+    pretrained_model:
+      type: [string, "null"]
+      description: "Name of a model from the registry, or null for from-scratch"
+    hyperparams:
+      type: object
+      required: [lr, batch_size, epochs, optimizer]
+      properties:
+        lr: {type: number}
+        batch_size: {type: integer}
+        epochs: {type: integer}
+        optimizer: {type: string}
+        weight_decay: {type: number}
+        dropout: {type: number}
+    augmentation:
+      type: object
+      properties:
+        time_shift: {type: boolean}
+        noise_injection: {type: boolean}
+        mixup: {type: number}
+        specaugment: {type: boolean}
