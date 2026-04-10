@@ -303,6 +303,28 @@ class TestOrchestratorSmoke:
         assert len(final_study.experiment_ids) == 0
         assert backend.calls == []
 
+    def test_cold_start_prompt_requests_json(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """Regression: when memory is empty, the orchestrator routes
+        propose_architecture through the `use_fallback=True` path. That
+        fallback text must contain explicit JSON instructions so the LLM
+        doesn't reply with English prose (which was causing exp_001 to
+        ALWAYS fail before this fix)."""
+        study.compute_budget.max_experiments = 1
+        responses = _round_trip_responses(score=0.5)
+        orch, backend = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        # The first LLM call is propose_architecture
+        first_call_messages = backend.calls[0]["messages"]
+        user_msg = next(
+            m["content"] for m in first_call_messages if m["role"] == "user"
+        )
+        assert "JSON" in user_msg
+        assert '"architecture"' in user_msg
+        assert '"hyperparams"' in user_msg
+
 
 # ---------------------------------------------------------------------------
 # Regression: validate_code between generate_code and execute_training

@@ -120,14 +120,28 @@ class Orchestrator:
         """
         self._start_wallclock = time.monotonic()
 
+        logger.info("=" * 66)
+        logger.info("Starting study: %s", self.study.name)
+        logger.info("  id:       %s", self.study.study_id)
+        logger.info("  pipeline: %s", self.study.pipeline_config_path)
+        logger.info("  model:    %s", self.llm_client.model)
+        logger.info(
+            "  budget:   %d experiments, %d min wallclock",
+            self.study.compute_budget.max_experiments,
+            self.study.compute_budget.max_wallclock_minutes,
+        )
+        logger.info("  steps:    %s", [s.task_name for s in self.pipeline.steps])
+        logger.info("=" * 66)
+
         if not self.pipeline.steps:
             self.study.status = StudyStatus.ABORTED
             self._save_study()
             return self.study, StopReason.NO_PIPELINE_STEPS
 
         stop_reason: str = StopReason.MAX_EXPERIMENTS
+        max_exp = self.study.compute_budget.max_experiments
 
-        for _ in range(self.study.compute_budget.max_experiments):
+        for i in range(max_exp):
             if self._abort_requested:
                 stop_reason = StopReason.USER_ABORT
                 break
@@ -135,10 +149,27 @@ class Orchestrator:
                 stop_reason = StopReason.WALLCLOCK
                 break
 
+            logger.info("")
+            logger.info("──── Experiment %d/%d ────", i + 1, max_exp)
             experiment = self._make_experiment()
             self._run_experiment(experiment)
             self._update_best(experiment)
             self._save_study()
+
+        logger.info("")
+        logger.info("=" * 66)
+        logger.info("Study finished: %s", stop_reason)
+        logger.info("  experiments run: %d", len(self.study.experiment_ids))
+        if self.study.best_experiment_id:
+            logger.info(
+                "  best: %s @ %s=%.4f",
+                self.study.best_experiment_id,
+                self.memory.score_metric,
+                self.study.best_score or 0.0,
+            )
+        else:
+            logger.info("  best: (none — no successful experiments)")
+        logger.info("=" * 66)
 
         if self._abort_requested:
             self.study.status = StudyStatus.ABORTED
@@ -187,6 +218,14 @@ class Orchestrator:
             )
             experiment.task_ids.append(task.task_id)
 
+            logger.info(
+                "  [%s] %s (%s) ...",
+                experiment.experiment_id,
+                step.task_name,
+                step.task_type.value if hasattr(step.task_type, "value") else step.task_type,
+            )
+            task_start = time.monotonic()
+
             try:
                 if step.task_type == TaskType.LLM.value or step.task_type == TaskType.LLM:
                     self._run_llm_task(task, step, experiment, previous_task_output)
@@ -207,6 +246,9 @@ class Orchestrator:
                 )
                 task.completed_at = _now()
 
+            task_duration = time.monotonic() - task_start
+            self._log_task_outcome(task, task_duration)
+
             self.experiment_logger.write_task(task)
 
             # Lift relevant outputs onto the Experiment
@@ -224,6 +266,11 @@ class Orchestrator:
                 self._mark_experiment_failed(experiment, task)
                 self.experiment_logger.write_experiment(experiment)
                 self.memory.append(experiment)
+                logger.info(
+                    "  [%s] FAILED after %s",
+                    experiment.experiment_id,
+                    step.task_name,
+                )
                 return
 
         # All steps succeeded
@@ -231,6 +278,78 @@ class Orchestrator:
         experiment.completed_at = _now()
         self.experiment_logger.write_experiment(experiment)
         self.memory.append(experiment)
+        score = None
+        if experiment.results:
+            score = experiment.results.metrics.get(self.memory.score_metric)
+        if score is not None:
+            logger.info(
+                "  [%s] COMPLETED | %s=%.4f",
+                experiment.experiment_id,
+                self.memory.score_metric,
+                score,
+            )
+        else:
+            logger.info("  [%s] COMPLETED (no score)", experiment.experiment_id)
+
+    # -- task logging -------------------------------------------------------
+
+    def _log_task_outcome(self, task: Task, duration: float) -> None:
+        """Print a one-line summary of what a task just did."""
+        status = task.status.value if hasattr(task.status, "value") else task.status
+
+        if status == TaskStatus.COMPLETED.value:
+            extra = self._task_success_extra(task)
+            suffix = f" | {extra}" if extra else ""
+            logger.info("    ✓ %s (%.1fs)%s", task.task_name, duration, suffix)
+        else:
+            err = task.error
+            if err is not None:
+                msg = err.message.splitlines()[0][:120]
+                logger.info(
+                    "    ✗ %s (%.1fs) | %s: %s",
+                    task.task_name,
+                    duration,
+                    err.error_type,
+                    msg,
+                )
+            else:
+                logger.info(
+                    "    ✗ %s (%.1fs) | status=%s",
+                    task.task_name,
+                    duration,
+                    status,
+                )
+
+    def _task_success_extra(self, task: Task) -> str:
+        """Return a short extra blurb describing what a successful task
+        produced, for the progress log."""
+        if task.task_name == "propose_architecture":
+            cfg = task.output.get("architecture_proposal") or {}
+            arch = cfg.get("architecture") if isinstance(cfg, dict) else None
+            return f"arch={arch}" if arch else ""
+
+        if task.task_name == "generate_code":
+            code = task.output.get("code", "")
+            if isinstance(code, str):
+                return f"{len(code)} bytes of code"
+            return ""
+
+        if task.task_name == "execute_training":
+            duration = task.output.get("duration_seconds")
+            if isinstance(duration, (int, float)):
+                return f"training took {duration:.1f}s"
+            return ""
+
+        if task.task_name == "capture_metrics":
+            training = task.output.get("training_results")
+            if isinstance(training, dict):
+                metrics = training.get("metrics", {})
+                if metrics:
+                    bits = [f"{k}={v:.4f}" for k, v in sorted(metrics.items())]
+                    return ", ".join(bits[:3])
+            return ""
+
+        return ""
 
     # -- task runners -------------------------------------------------------
 
@@ -469,8 +588,25 @@ class Orchestrator:
         if score is None:
             return
         if self.study.best_score is None or score > self.study.best_score:
+            previous = self.study.best_score
             self.study.best_score = score
             self.study.best_experiment_id = experiment.experiment_id
+            if previous is None:
+                logger.info(
+                    "  ⭐ new best: %s @ %s=%.4f",
+                    experiment.experiment_id,
+                    self.memory.score_metric,
+                    score,
+                )
+            else:
+                delta = score - previous
+                logger.info(
+                    "  ⭐ new best: %s @ %s=%.4f (+%.4f)",
+                    experiment.experiment_id,
+                    self.memory.score_metric,
+                    score,
+                    delta,
+                )
 
     def _wallclock_exceeded(self) -> bool:
         elapsed_min = (time.monotonic() - self._start_wallclock) / 60.0
