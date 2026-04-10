@@ -46,6 +46,13 @@ models/
 
 # Experiment logs (keep structure, ignore large outputs)
 experiments/*/outputs/
+experiments/studies/
+
+# Sandbox workdir
+sandbox/runs/
+
+# Pytest cache
+.pytest_cache/
 
 # Environment
 .env
