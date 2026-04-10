@@ -14,8 +14,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
-
 from agent.models import (
     ClassStats,
     ComputeBudget,
@@ -42,7 +40,7 @@ from agent.models import (
     TaskType,
     TrainingResults,
 )
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -152,8 +150,8 @@ class TestComputeBudget:
         budget = ComputeBudget()
         assert budget.max_experiments == 20
         assert budget.max_wallclock_minutes == 240
-        assert budget.max_experiment_seconds == 600
-        assert budget.max_epochs_per_run == 15
+        assert budget.max_experiment_seconds == 7200
+        assert budget.max_epochs_per_run == 1
 
     def test_override(self) -> None:
         budget = ComputeBudget(max_experiments=5, max_epochs_per_run=3)
@@ -254,8 +252,12 @@ class TestDatasetProfile:
             spectrogram_shape=(1, 128, 256),
             sample_rate=32_000,
             class_stats=[
-                ClassStats(class_id="sp_001", sample_count=500, avg_duration_seconds=7.2),
-                ClassStats(class_id="sp_002", sample_count=50, avg_duration_seconds=6.8),
+                ClassStats(
+                    class_id="sp_001", sample_count=500, avg_duration_seconds=7.2
+                ),
+                ClassStats(
+                    class_id="sp_002", sample_count=50, avg_duration_seconds=6.8
+                ),
             ],
             imbalance_ratio=10.0,
             min_class_samples=50,

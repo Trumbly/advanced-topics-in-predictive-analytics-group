@@ -86,7 +86,8 @@ system: |
   - Metric: macro-averaged ROC-AUC over classes that have at least one
     positive label. Use `sklearn.metrics.roc_auc_score` per column and
     take the mean. Skip columns with no positives to avoid the sklearn error.
-  - Respect the proposed `epochs` value but CAP at 10 if larger.
+  - Respect the proposed `epochs` value but CAP at 1 — we are running in
+    fast-iteration mode right now.
   - At the VERY END of the script, write `results.json` in the CURRENT
     directory. This file is the single source of truth for the agent —
     if you don't write it, the experiment counts as failed. Schema:
@@ -104,6 +105,29 @@ system: |
   - Do NOT download anything from the internet.
   - Do NOT write files outside the current directory.
 
+  ## Progress logging — IMPORTANT
+
+  The agent operator is watching the live terminal output to see whether
+  the training is progressing or hung. A silent script makes this
+  impossible. You MUST include the following `print(..., flush=True)`
+  calls so the operator can see progress in real time:
+
+    - Before loading data:        "loading data..."
+    - After load_precomputed_dataset:
+                                    "data loaded: <N> classes, <T> train, <V> val"
+    - After model instantiation:  "model built: <P> parameters"
+    - At the start of each epoch: "epoch <i+1>/<EPOCHS> starting..."
+    - Every ~10% of train batches:
+                                    "  epoch <i+1> [<pct>%] batch <b>/<N_batches> loss=<x>"
+    - Before validation:          "epoch <i+1>: running validation..."
+    - At the end of each epoch:   "epoch <i+1>/<EPOCHS> done: loss=<x> roc_auc_macro=<y>"
+    - On final completion:        "all done: final roc_auc_macro=<x>"
+    - On exception (inside except):
+                                    "training failed: <type>: <msg>"
+
+  ALWAYS pass `flush=True` to print() — without it, the output is block-
+  buffered and the operator sees nothing for minutes at a time.
+
   ## Variable scoping reminder
 
   Define `num_classes` at module scope — it comes from load_precomputed_dataset
@@ -116,7 +140,8 @@ system: |
 
   ## Skeleton (fill in the model-specific parts)
 
-  Use this exact structure unless you have a very good reason to deviate:
+  Use this exact structure unless you have a very good reason to deviate.
+  Every print() MUST use flush=True so the terminal sees progress live:
 
       import json
       import time
@@ -128,7 +153,7 @@ system: |
 
       # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
       BATCH_SIZE = 32
-      EPOCHS = 3                 # cap at 10
+      EPOCHS = 1                 # CAP at 1 — fast-iteration mode
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
 
@@ -141,23 +166,40 @@ system: |
       start = time.time()
       results = {}
       try:
+          print("loading data...", flush=True)
           train_loader, val_loader, num_classes = load_precomputed_dataset(
               batch_size=BATCH_SIZE,
               num_workers=0,
               augmentation=AUGMENTATION,
           )
+          print(
+              f"data loaded: {num_classes} classes, "
+              f"{len(train_loader.dataset)} train samples, "
+              f"{len(val_loader.dataset)} val samples",
+              flush=True,
+          )
 
           # Build the model here — num_classes is now defined at MODULE scope
           model = ...  # registry model OR your custom nn.Module instance
+          n_params = sum(p.numel() for p in model.parameters())
+          print(f"model built: {n_params:,} parameters", flush=True)
 
           optimizer = torch.optim.Adam(model.parameters(), lr=LR)
           criterion = nn.BCEWithLogitsLoss()
 
+          n_train_batches = len(train_loader)
+          log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
+
           curves = {"loss": [], "roc_auc_macro": []}
           for epoch in range(EPOCHS):
+              print(
+                  f"epoch {epoch + 1}/{EPOCHS} starting "
+                  f"({n_train_batches} batches)...",
+                  flush=True,
+              )
               model.train()
               epoch_losses = []
-              for x, y in train_loader:
+              for batch_idx, (x, y) in enumerate(train_loader):
                   optimizer.zero_grad()
                   logits = model(x)
                   loss = criterion(logits, y)
@@ -165,6 +207,16 @@ system: |
                   optimizer.step()
                   epoch_losses.append(float(loss.item()))
 
+                  if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                      pct = 100.0 * (batch_idx + 1) / n_train_batches
+                      print(
+                          f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                          f"batch {batch_idx + 1}/{n_train_batches} "
+                          f"loss={loss.item():.4f}",
+                          flush=True,
+                      )
+
+              print(f"epoch {epoch + 1}: running validation...", flush=True)
               model.eval()
               all_probs, all_targs = [], []
               with torch.no_grad():
@@ -184,6 +236,11 @@ system: |
 
               curves["loss"].append(epoch_loss)
               curves["roc_auc_macro"].append(val_auc)
+              print(
+                  f"epoch {epoch + 1}/{EPOCHS} done: "
+                  f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+                  flush=True,
+              )
 
           results = {
               "metrics": {
@@ -193,8 +250,13 @@ system: |
               "training_curves": curves,
               "duration_seconds": time.time() - start,
           }
+          print(
+              f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+              flush=True,
+          )
       except Exception as exc:
           results = {"error": f"{type(exc).__name__}: {exc}"}
+          print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
 
       with open("results.json", "w") as fh:
           json.dump(results, fh)

@@ -32,7 +32,7 @@ steps:
     task_type: predefined
     handler: agent.handlers.execute_training
     config:
-      timeout_seconds: 600
+      timeout_seconds: 7200                 # 2 hours — real BirdCLEF training on CPU is slow
       catch_errors: [OOM, SyntaxError, ShapeMismatch, Timeout]
 
   - task_name: capture_metrics
