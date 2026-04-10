@@ -302,3 +302,123 @@ class TestOrchestratorSmoke:
         assert stop_reason == StopReason.MAX_EXPERIMENTS
         assert len(final_study.experiment_ids) == 0
         assert backend.calls == []
+
+
+# ---------------------------------------------------------------------------
+# Regression: validate_code between generate_code and execute_training
+# must not shadow the generated code. Production bug seen in
+# study_20260410_131833_first_run where execute_training ran a file
+# containing only "cnn_small_v1" because the orchestrator pulled code
+# from the *previous* task's output (validate_code), not generate_code.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def pipeline_yaml_with_validate(tmp_path: Path) -> Path:
+    """Pipeline that includes validate_code between generate_code and
+    execute_training — the real default layout."""
+    data = {
+        "name": "orchestrator_test_with_validate",
+        "description": "Test pipeline with validate_code",
+        "steps": [
+            {
+                "task_name": "propose_architecture",
+                "task_type": "llm",
+                "prompt_template": "config/prompts/propose_architecture.yaml",
+            },
+            {
+                "task_name": "generate_code",
+                "task_type": "llm",
+                "prompt_template": "config/prompts/generate_code.yaml",
+            },
+            {
+                "task_name": "validate_code",
+                "task_type": "predefined",
+                "handler": "agent.handlers.validate_code",
+                "config": {"check_imports": ["json"]},
+            },
+            {
+                "task_name": "execute_training",
+                "task_type": "predefined",
+                "handler": "agent.handlers.execute_training",
+                "config": {"timeout_seconds": 30},
+            },
+            {
+                "task_name": "capture_metrics",
+                "task_type": "predefined",
+                "handler": "agent.handlers.capture_metrics",
+            },
+            {
+                "task_name": "analyze_results",
+                "task_type": "llm",
+                "prompt_template": "config/prompts/analyze_results.yaml",
+            },
+        ],
+    }
+    path = tmp_path / "pipeline_with_validate.yaml"
+    path.write_text(yaml.safe_dump(data))
+    return path
+
+
+class TestOrchestratorWithValidateCode:
+    def test_execute_training_sees_generate_code_output_not_validate(
+        self,
+        pipeline_yaml_with_validate: Path,
+        dataset_profile: Path,
+        tmp_path: Path,
+    ) -> None:
+        """Regression for the production bug: execute_training was running
+        `experiment.config.architecture` as code because it pulled from the
+        preceding task output (validate_code), which does not contain 'code'.
+        """
+        study = Study(
+            study_id="study_regression",
+            name="Regression",
+            hypothesis="validate_code must not shadow generate_code output",
+            mode=StudyMode.AUTONOMOUS,
+            compute_budget=ComputeBudget(
+                max_experiments=1,
+                max_wallclock_minutes=5,
+                max_experiment_seconds=30,
+                max_epochs_per_run=1,
+            ),
+            pipeline_config_path=pipeline_yaml_with_validate,
+            dataset_profile_path=dataset_profile,
+            model_registry_path=Path("registry/models.yaml"),
+            status=StudyStatus.ACTIVE,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        responses = _round_trip_responses(score=0.42)
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        final_study, _ = orch.run()
+
+        assert len(final_study.experiment_ids) == 1
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.COMPLETED.value, (
+            f"Experiment failed: {exp.status}. "
+            f"Most likely execute_training was handed the wrong code."
+        )
+        assert exp.results is not None
+        assert exp.results.metrics["roc_auc_macro"] == pytest.approx(0.42)
+
+        # Sanity: the execute_training task must have run the actual generated
+        # code, not a short fallback like "cnn_small_v1".
+        study_dir = tmp_path / "study_dir"
+        exec_task_file = next(
+            (study_dir / "experiments" / "exp_001" / "tasks").glob(
+                "*_execute_training.json"
+            )
+        )
+        import json as _json
+        task_data = _json.loads(exec_task_file.read_text())
+        code_used = task_data.get("code_used", "")
+        assert "results.json" in code_used, (
+            "execute_training.code_used does not look like real training code; "
+            f"got: {code_used[:200]!r}"
+        )
+        assert len(code_used) > 50, (
+            f"code_used is suspiciously short ({len(code_used)} chars): "
+            f"{code_used!r}"
+        )

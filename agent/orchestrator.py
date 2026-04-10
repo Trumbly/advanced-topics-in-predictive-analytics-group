@@ -168,6 +168,12 @@ class Orchestrator:
 
     def _run_experiment(self, experiment: Experiment) -> None:
         """Execute every pipeline step for one experiment."""
+        # Full output history keyed by task_name. Unlike "previous_task_output"
+        # (which only holds the *last* task's output), this lets downstream
+        # handlers look up specific earlier tasks by name, e.g.
+        # `outputs["generate_code"]["code"]` even when `validate_code`
+        # runs in between.
+        outputs_by_name: dict[str, dict[str, Any]] = {}
         previous_task_output: dict[str, Any] = {}
         task_counter = 0
 
@@ -185,7 +191,13 @@ class Orchestrator:
                 if step.task_type == TaskType.LLM.value or step.task_type == TaskType.LLM:
                     self._run_llm_task(task, step, experiment, previous_task_output)
                 else:
-                    self._run_predefined_task(task, step, experiment, previous_task_output)
+                    self._run_predefined_task(
+                        task,
+                        step,
+                        experiment,
+                        previous_task_output,
+                        outputs_by_name,
+                    )
             except Exception as exc:  # noqa: BLE001 — task failures must not kill the loop
                 logger.exception("Task %s crashed", task.task_id)
                 task.status = TaskStatus.FAILED
@@ -200,6 +212,7 @@ class Orchestrator:
             # Lift relevant outputs onto the Experiment
             self._apply_task_output_to_experiment(task, experiment)
             previous_task_output = dict(task.output)
+            outputs_by_name[step.task_name] = dict(task.output)
 
             # Stop the pipeline for this experiment on first hard failure
             if task.status in (
@@ -269,6 +282,7 @@ class Orchestrator:
         step: PipelineStep,
         experiment: Experiment,
         previous_task_output: dict[str, Any],
+        outputs_by_name: dict[str, dict[str, Any]],
     ) -> None:
         """Execute one predefined handler task."""
         if step.handler is None:
@@ -278,13 +292,25 @@ class Orchestrator:
 
         handler_fn = self._resolve_handler(step.handler)
 
-        # Most handlers need the code to execute — populate from the
-        # preceding generate_code task output.
+        # Both validate_code and execute_training need the code produced by
+        # the generate_code task. We look it up by name so intermediate
+        # tasks (e.g. validate_code between generate_code and execute_training)
+        # don't accidentally shadow the output.
+        generated_code = _lookup_generated_code(outputs_by_name)
+
         if step.task_name == "execute_training":
-            task.code_used = previous_task_output.get("code", "") or (
-                experiment.config.architecture if experiment.config else ""
-            )
-            code = task.code_used
+            if not generated_code:
+                task.status = TaskStatus.FAILED
+                task.error = TaskError(
+                    error_type="NoCode",
+                    message=(
+                        "execute_training could not find generated code from a "
+                        "preceding generate_code task. Check the pipeline order."
+                    ),
+                )
+                task.completed_at = _now()
+                return
+            task.code_used = generated_code
             handler_fn(
                 task,
                 config=step.config,
@@ -293,7 +319,7 @@ class Orchestrator:
             return
 
         if step.task_name == "validate_code":
-            task.code_used = previous_task_output.get("code", "")
+            task.code_used = generated_code
             handler_fn(task, config=step.config)
             return
 
@@ -459,6 +485,20 @@ class Orchestrator:
 def _load_pipeline(path: Path) -> PipelineDefinition:
     raw = yaml.safe_load(Path(path).read_text())
     return PipelineDefinition.model_validate(raw)
+
+
+def _lookup_generated_code(outputs_by_name: dict[str, dict[str, Any]]) -> str:
+    """Return the Python code produced by the generate_code task, if any.
+
+    We look up by task name so intermediate steps (validate_code between
+    generate_code and execute_training) do not shadow the output.
+    Returns an empty string if generate_code did not produce code.
+    """
+    gen = outputs_by_name.get("generate_code")
+    if not gen:
+        return ""
+    code = gen.get("code", "")
+    return code if isinstance(code, str) else ""
 
 
 def _parse_model_config(data: Any) -> ModelConfig:

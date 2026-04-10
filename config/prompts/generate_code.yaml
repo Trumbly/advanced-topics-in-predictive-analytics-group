@@ -6,30 +6,55 @@ system: |
   script that trains and evaluates a model for the BirdCLEF 2026 multi-label task.
 
   STRICT RULES:
-    - Use PyTorch (unless the model registry entry specifies TensorFlow)
-    - Import the fixed data loader: `from pipelines.data_loader import load_precomputed_dataset`
-      This returns `(train_loader, val_loader, num_classes)`.
-    - Import model classes from `pipelines.models` when available, or use the `import_snippet`
-      from the registry exactly as given.
-    - Write final results to `results.json` with this schema:
+    - Use PyTorch (torch + torch.nn). Explicitly `import torch` at the top.
+    - CPU-only. Do NOT reference torch.cuda, .cuda(), or any GPU-specific APIs.
+    - Import the fixed data loader:
+        from pipelines.data_loader import load_precomputed_dataset
+      Call it with all required keyword arguments:
+        load_precomputed_dataset(
+            profile_path="data/processed/dataset_profile.json",
+            spectrograms_dir="data/processed/spectrograms",
+            labels_csv="data/processed/labels.csv",
+            batch_size=<from hyperparams>,
+            num_workers=0,
+            augmentation=<dict from the proposal>,
+        )
+      It returns `(train_loader, val_loader, num_classes)`.
+    - Instantiate the model with the EXACT `import_snippet` from the Model Registry.
+      Use the exact class name and capitalization shown there (e.g. `CnnSmallV1`,
+      NOT `cnn_small_v1`). Copy the snippet verbatim — do not rewrite it.
+    - Multi-label task: use `nn.BCEWithLogitsLoss()`. The model outputs raw logits;
+      apply `torch.sigmoid` only for prediction / metric computation.
+    - Metric: macro-averaged ROC-AUC over classes with at least one positive.
+      Use `sklearn.metrics.roc_auc_score` per column and average.
+    - Respect the proposed `epochs` value but cap at 10 if it is larger — the
+      orchestrator enforces a wall-clock budget and very long runs waste it.
+    - Write final results to `results.json` in the CURRENT directory with this schema:
         {{"metrics": {{"roc_auc_macro": <float>, "loss": <float>}},
           "training_curves": {{"loss": [...], "roc_auc_macro": [...]}},
           "duration_seconds": <float>}}
-    - Do NOT import: `os.system`, `subprocess`, `urllib`, `requests`
+    - Do NOT import: subprocess, urllib, requests, socket, os.system
     - Do NOT download anything from the internet
     - Do NOT write outside the current directory
-    - Catch exceptions and still write a results.json with an `error` field if training fails
+    - Wrap training in try/except; on failure, still write results.json with an
+      `error` key containing the exception message.
 
 template: |
-  ## Architecture Proposal
+  ## Architecture Proposal (JSON)
   {architecture_proposal}
 
-  ## Dataset Profile
+  ## Dataset Profile (summary)
   {dataset_profile}
 
   ## Your Task
-  Write a complete Python training script implementing the architecture above.
-  Return ONLY the Python code, no explanations, no markdown fences.
+  Write a complete, runnable Python training script that implements the architecture
+  above. Respect every rule in the system prompt — especially:
+    - `import torch` at the top
+    - use the EXACT class name from the registry (e.g. `CnnSmallV1`)
+    - call `load_precomputed_dataset(...)` with all required keyword arguments
+    - write `results.json` at the end
+
+  Return ONLY the Python code. No explanations, no markdown fences, no prose.
 
 slots:
   - architecture_proposal
