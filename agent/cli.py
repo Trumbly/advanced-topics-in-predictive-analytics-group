@@ -59,24 +59,33 @@ def _now() -> datetime:
 def _setup_logging(level: str = "INFO") -> None:
     """Root logger config.
 
-    The agent.orchestrator logger gets a minimal format so its progress
-    lines stay readable. All other loggers keep the full timestamped
-    format for debugging.
+    The agent.orchestrator and agent.executor loggers get a minimal
+    "%(message)s" format so their progress lines stay readable in the
+    terminal. All other loggers keep the full timestamped format for
+    debugging. Chatty third-party loggers (httpx, urllib3) are bumped
+    up to WARNING to keep the output clean.
     """
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    # Replace the handler on the orchestrator logger with a clean formatter.
-    # We don't propagate to root so the default handler doesn't double-log.
-    orch_logger = logging.getLogger("agent.orchestrator")
-    orch_logger.propagate = False
-    orch_logger.setLevel(level)
-    if orch_logger.handlers:
-        orch_logger.handlers.clear()
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(message)s"))
-    orch_logger.addHandler(handler)
+
+    # Quiet down noisy third-party loggers (they ping every LLM call)
+    for noisy in ("httpx", "httpcore", "urllib3"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    # Replace the handler on the orchestrator and executor loggers with a
+    # clean formatter. We don't propagate to root so the default handler
+    # does not double-log.
+    for name in ("agent.orchestrator", "agent.executor"):
+        log = logging.getLogger(name)
+        log.propagate = False
+        log.setLevel(level)
+        if log.handlers:
+            log.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        log.addHandler(handler)
 
 
 # ---------------------------------------------------------------------------
