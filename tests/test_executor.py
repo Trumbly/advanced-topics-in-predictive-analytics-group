@@ -195,6 +195,46 @@ print('done')
         for key, val in env.items():
             assert val.startswith("/"), f"{key} is not absolute: {val}"
 
+    def test_thread_env_vars_are_set(self, tmp_path: Path) -> None:
+        """The executor must export OMP_NUM_THREADS, MKL_NUM_THREADS etc.
+        so PyTorch matrix ops don't silently run single-threaded on
+        conda/macOS default setups."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+        )
+        code = (
+            "import os, json, pathlib\n"
+            "vals = {\n"
+            "    k: os.environ.get(k) for k in (\n"
+            "        'OMP_NUM_THREADS', 'MKL_NUM_THREADS',\n"
+            "        'OPENBLAS_NUM_THREADS', 'VECLIB_MAXIMUM_THREADS',\n"
+            "        'NUMEXPR_NUM_THREADS',\n"
+            "    )\n"
+            "}\n"
+            "pathlib.Path('results.json').write_text(json.dumps({\n"
+            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'thread_vars': vals,\n"
+            "}))\n"
+        )
+        result = executor.run(code, experiment_id="exp_threads")
+        assert result.succeeded, f"stderr: {result.stderr}"
+        import json, os as host_os
+        data = json.loads(result.results_json_path.read_text())  # type: ignore[union-attr]
+        vars_ = data["thread_vars"]
+        expected = str(host_os.cpu_count() or 1)
+        for k in (
+            "OMP_NUM_THREADS",
+            "MKL_NUM_THREADS",
+            "OPENBLAS_NUM_THREADS",
+            "VECLIB_MAXIMUM_THREADS",
+            "NUMEXPR_NUM_THREADS",
+        ):
+            assert vars_[k] == expected, (
+                f"{k} should equal cpu_count ({expected}), got {vars_[k]!r}"
+            )
+
     def test_relative_sandbox_root_does_not_double_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

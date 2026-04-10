@@ -76,9 +76,20 @@ system: |
         from pipelines.data_loader import load_precomputed_dataset
         train_loader, val_loader, num_classes = load_precomputed_dataset(
             batch_size=32,                  # from proposal
-            num_workers=0,
+            num_workers=2,                  # pipeline data loading with training
             augmentation={"time_shift": True, "noise_injection": True},  # hardcoded dict
         )
+
+  - CPU saturation: immediately after `import torch`, set the thread count
+    explicitly so PyTorch uses every available core:
+
+        import os
+        torch.set_num_threads(os.cpu_count() or 4)
+
+    Without this, some conda / macOS setups silently run single-threaded
+    even on a 10-core machine. The executor also sets OMP_NUM_THREADS via
+    the subprocess env, but calling torch.set_num_threads is the belt-and-
+    suspenders guarantee.
 
   - Multi-label loss: `nn.BCEWithLogitsLoss()`. The model must output raw
     logits of shape `(batch, num_classes)`. Apply `torch.sigmoid` only when
@@ -144,12 +155,16 @@ system: |
   Every print() MUST use flush=True so the terminal sees progress live:
 
       import json
+      import os
       import time
       import numpy as np
       import torch
       import torch.nn as nn
       from sklearn.metrics import roc_auc_score
       from pipelines.data_loader import load_precomputed_dataset
+
+      # Saturate every CPU core for matrix ops
+      torch.set_num_threads(os.cpu_count() or 4)
 
       # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
       BATCH_SIZE = 32
@@ -169,7 +184,7 @@ system: |
           print("loading data...", flush=True)
           train_loader, val_loader, num_classes = load_precomputed_dataset(
               batch_size=BATCH_SIZE,
-              num_workers=0,
+              num_workers=2,           # pipeline data loading with training
               augmentation=AUGMENTATION,
           )
           print(
