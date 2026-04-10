@@ -48,8 +48,9 @@ models/
 experiments/*/outputs/
 experiments/studies/
 
-# Sandbox workdir
-sandbox/runs/
+# Sandbox workdir (all per-study subdirs are ignored)
+sandbox/*
+!sandbox/.gitkeep
 
 # Pytest cache
 .pytest_cache/
