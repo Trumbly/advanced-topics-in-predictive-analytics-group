@@ -1,5 +1,8 @@
 # Core ML
-tensorflow>=2.15.0
+# NOTE: TensorFlow is intentionally omitted — the agent uses PyTorch as its
+# default framework. If you want the LLM to be able to generate TF/Keras code,
+# install tensorflow separately into a Python 3.11/3.12 venv (TF does not yet
+# support Python 3.14 at the time of writing).
 torch>=2.2.0
 torchaudio>=2.2.0
 numpy>=1.24.0
