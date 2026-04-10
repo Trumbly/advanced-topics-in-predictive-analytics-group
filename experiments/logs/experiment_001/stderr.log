@@ -1,0 +1,32 @@
+/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/convolutional/base_conv.py:113: UserWarning: Do not pass an `input_shape`/`input_dim` argument to a layer. When using Sequential models, prefer using an `Input(shape)` object as the first layer in the model instead.
+  super().__init__(activity_regularizer=activity_regularizer, **kwargs)
+Traceback (most recent call last):
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_001/train.py", line 103, in <module>
+    run_experiment()
+    ~~~~~~~~~~~~~~^^
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_001/train.py", line 72, in run_experiment
+    model = build_cnn_model(input_shape, num_classes)
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_001/train.py", line 29, in build_cnn_model
+    model = Sequential([
+        # First Convolutional Block
+    ...<17 lines>...
+        Dense(num_classes, activation='softmax')
+    ])
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/models/sequential.py", line 76, in __init__
+    self._maybe_rebuild()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/models/sequential.py", line 149, in _maybe_rebuild
+    self.build(input_shape)
+    ~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/layer.py", line 233, in build_wrapper
+    original_build_method(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/models/sequential.py", line 195, in build
+    x = layer(x)
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/utils/traceback_utils.py", line 122, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/input_spec.py", line 203, in assert_input_compatibility
+    raise ValueError(
+    ...<5 lines>...
+    )
+ValueError: Input 0 with name 'None' of layer 'conv2d' is incompatible with the layer: expected min_ndim=4, found ndim=3. Full shape received: (None, 128, 256)

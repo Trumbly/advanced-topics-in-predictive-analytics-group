@@ -1,0 +1,3 @@
+Starting CNN training...
+Training finished in 85.92 seconds.
+Results saved to experiments/logs/experiment_002/results.json

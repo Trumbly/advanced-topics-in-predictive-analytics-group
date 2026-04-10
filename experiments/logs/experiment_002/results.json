@@ -1,0 +1,7 @@
+{
+  "val_accuracy": 0.0,
+  "approach": "Simple 2D CNN",
+  "notes": "Trained for 10 epochs. Used a standard CNN architecture on the spectrogram images. Time taken: 85.92s.",
+  "experiment_id": "experiment_002",
+  "status": "success"
+}

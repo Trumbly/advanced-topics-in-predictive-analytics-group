@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_004/train.py", line 51, in <module>
+    base_model = tf.keras.applications.EfficientNetB0(
+        weights='imagenet',
+        include_top=False,
+        input_shape=(128, 256, 1)
+    )
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/efficientnet.py", line 575, in EfficientNetB0
+    return EfficientNet(
+        1.0,
+    ...<11 lines>...
+        weights_name="b0",
+    )
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/efficientnet.py", line 289, in EfficientNet
+    input_shape = imagenet_utils.obtain_input_shape(
+        input_shape,
+    ...<4 lines>...
+        weights=weights,
+    )
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/imagenet_utils.py", line 386, in obtain_input_shape
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: The input must have 3 channels; Received `input_shape=(128, 256, 1)`

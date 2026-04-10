@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_005/train.py", line 83, in <module>
+    model = build_cnn_model(INPUT_SHAPE, NUM_CLASSES)
+  File "/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_005/train.py", line 51, in build_cnn_model
+    x = Conv2D(32, (3, 3), padding='same')(inputs)
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/utils/traceback_utils.py", line 122, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/input_spec.py", line 203, in assert_input_compatibility
+    raise ValueError(
+    ...<5 lines>...
+    )
+ValueError: Input 0 with name 'None' of layer 'conv2d' is incompatible with the layer: expected min_ndim=4, found ndim=3. Full shape received: (None, 128, 256)

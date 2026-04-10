@@ -1,0 +1,37 @@
+[
+  {
+    "experiment_id": "experiment_001",
+    "status": "failed",
+    "error": "models/sequential.py\", line 149, in _maybe_rebuild\n    self.build(input_shape)\n    ~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/layer.py\", line 233, in build_wrapper\n    original_build_method(*args, **kwargs)\n    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/models/sequential.py\", line 195, in build\n    x = layer(x)\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/utils/traceback_utils.py\", line 122, in error_handler\n    raise e.with_traceback(filtered_tb) from None\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/input_spec.py\", line 203, in assert_input_compatibility\n    raise ValueError(\n    ...<5 lines>...\n    )\nValueError: Input 0 with name 'None' of layer 'conv2d' is incompatible with the layer: expected min_ndim=4, found ndim=3. Full shape received: (None, 128, 256)\n",
+    "val_accuracy": 0.0,
+    "approach": "unknown"
+  },
+  {
+    "val_accuracy": 0.0,
+    "approach": "Simple 2D CNN",
+    "notes": "Trained for 10 epochs. Used a standard CNN architecture on the spectrogram images. Time taken: 85.92s.",
+    "experiment_id": "experiment_002",
+    "status": "success"
+  },
+  {
+    "experiment_id": "experiment_003",
+    "status": "failed",
+    "error": ".0 0.0 1.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 1.0 0.0 0.0 1.0 1.0 1.0 0.0 0.0 1.0 1.0 1.0 1.0 1.0 1.0 0.0 0.0 1.0 0.0 0.0', '1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 1.0 0.0 0.0 1.0 1.0 1.0 0.0 1.0 0.0 1.0 0.0 1.0 0.0 1.0 0.0 0.0 1.0 1.0 0.0 1.0 0.0 0.0 1.0 0.0 1.0 0.0 0.0 1.0 0.0 1.0 0.0 1.0 0.0 0.0 1.0 0.0 1.0 1.0 0.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 0.0 1.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 1.0 1.0 0.0 1.0 0.0 0.0 0.0 1.0 0.0 1.0 0.0 1.0 1.0 0.0 1.0 1.0 1.0 0.0 1.0 0.0 0.0 1.0 1.0 1.0 1.0 0.0 1.0 0.0 0.0 1.0 1.0 1.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 1.0 0.0 1.0 1.0 1.0 0.0 1.0 1.0 1.0 1.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 1.0 1.0 0.0 1.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 0.0 0.0 0.0 1.0 1.0 0.0 1.0 0.0 0.0 1.0 1.0 0.0 1.0 1.0 1.0 1.0 0.0 1.0 1.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 0.0 1.0 1.0 1.0 1.0 1.0 1.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 1.0 0.0']\n",
+    "val_accuracy": 0.0,
+    "approach": "unknown"
+  },
+  {
+    "experiment_id": "experiment_004",
+    "status": "failed",
+    "error": "rdclef-agent/experiments/logs/experiment_004/train.py\", line 51, in <module>\n    base_model = tf.keras.applications.EfficientNetB0(\n        weights='imagenet',\n        include_top=False,\n        input_shape=(128, 256, 1)\n    )\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/efficientnet.py\", line 575, in EfficientNetB0\n    return EfficientNet(\n        1.0,\n    ...<11 lines>...\n        weights_name=\"b0\",\n    )\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/efficientnet.py\", line 289, in EfficientNet\n    input_shape = imagenet_utils.obtain_input_shape(\n        input_shape,\n    ...<4 lines>...\n        weights=weights,\n    )\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/applications/imagenet_utils.py\", line 386, in obtain_input_shape\n    raise ValueError(\n    ...<2 lines>...\n    )\nValueError: The input must have 3 channels; Received `input_shape=(128, 256, 1)`\n",
+    "val_accuracy": 0.0,
+    "approach": "unknown"
+  },
+  {
+    "experiment_id": "experiment_005",
+    "status": "failed",
+    "error": "Traceback (most recent call last):\n  File \"/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_005/train.py\", line 83, in <module>\n    model = build_cnn_model(INPUT_SHAPE, NUM_CLASSES)\n  File \"/Users/danishmqureshi/birdclef-agent/experiments/logs/experiment_005/train.py\", line 51, in build_cnn_model\n    x = Conv2D(32, (3, 3), padding='same')(inputs)\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/utils/traceback_utils.py\", line 122, in error_handler\n    raise e.with_traceback(filtered_tb) from None\n  File \"/Users/danishmqureshi/birdclef_env/lib/python3.13/site-packages/keras/src/layers/input_spec.py\", line 203, in assert_input_compatibility\n    raise ValueError(\n    ...<5 lines>...\n    )\nValueError: Input 0 with name 'None' of layer 'conv2d' is incompatible with the layer: expected min_ndim=4, found ndim=3. Full shape received: (None, 128, 256)\n",
+    "val_accuracy": 0.0,
+    "approach": "unknown"
+  }
+]
