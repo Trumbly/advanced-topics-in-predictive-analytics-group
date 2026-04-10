@@ -1,0 +1,49 @@
+name: error_recovery
+description: LLM diagnoses a failed experiment and proposes a fixed retry
+
+system: |
+  You are debugging a failed ML training run on BirdCLEF 2026. An experiment crashed.
+  Your job is to diagnose the error and propose a minimal fix for the next attempt.
+  Focus on the error type — do not redesign the whole architecture unless the error
+  makes that unavoidable.
+
+template: |
+  ## Failed Experiment
+  Architecture: {architecture}
+  Code:
+  ```python
+  {code_used}
+  ```
+
+  ## Error
+  Type: {error_type}
+  Message: {error_message}
+  Traceback (tail):
+  {traceback_tail}
+
+  ## Your Task
+  1. In ONE sentence, explain the root cause of the error.
+  2. Return a JSON object with the minimal fix:
+     {{"fix_description": "...", "changes": {{"hyperparams": {{...}}, "architecture": "..."}}}}
+
+  Only include fields in `changes` that actually need to change.
+
+slots:
+  - architecture
+  - code_used
+  - error_type
+  - error_message
+  - traceback_tail
+
+fallback_when_no_memory: null
+response_schema:
+  type: object
+  required: [fix_description, changes]
+  properties:
+    fix_description: {type: string}
+    changes:
+      type: object
+      properties:
+        architecture: {type: string}
+        hyperparams: {type: object}
+        augmentation: {type: object}

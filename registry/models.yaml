@@ -1,0 +1,64 @@
+# Model Registry — catalog of architectures the agent may select from.
+#
+# The LLM is prompted with this catalog (via ModelRegistry.to_markdown) and
+# must propose models by `name`. This prevents hallucinated imports and
+# guarantees every selected model is known to work with the fixed pipeline.
+#
+# To add a new model:
+#   1. Append an entry below following the schema.
+#   2. Make sure the import_snippet is complete and self-contained.
+#   3. Make sure the input_shape matches the spectrogram shape produced by
+#      pipelines/audio_pipeline.py (or document the required reshape).
+
+models:
+
+  - name: cnn_small_v1
+    family: cnn
+    input_shape: [1, 128, 256]
+    output_dim: 234
+    parameters_millions: 0.5
+    pretrained_on: none
+    suitability_notes: >
+      Fast from-scratch baseline. 3 Conv2D blocks + global pool + linear head.
+      Trains in under 2 minutes on CPU. Use as a sanity check before touching
+      heavier architectures.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import CnnSmallV1
+      model = CnnSmallV1(num_classes=234, in_channels=1)
+
+  - name: efficientnet_b0
+    family: cnn
+    input_shape: [3, 224, 224]
+    output_dim: 234
+    parameters_millions: 5.3
+    pretrained_on: imagenet
+    suitability_notes: >
+      Strong transfer learning baseline. Requires the spectrogram to be resized
+      to 224x224 and stacked to 3 channels. Freeze the backbone for the first
+      few epochs, then fine-tune the last block.
+    framework: torch
+    import_snippet: |
+      import torch.nn as nn
+      import torchvision.models as m
+      backbone = m.efficientnet_b0(weights=m.EfficientNet_B0_Weights.IMAGENET1K_V1)
+      backbone.classifier[1] = nn.Linear(backbone.classifier[1].in_features, 234)
+      model = backbone
+
+  - name: resnet18
+    family: cnn
+    input_shape: [3, 224, 224]
+    output_dim: 234
+    parameters_millions: 11.7
+    pretrained_on: imagenet
+    suitability_notes: >
+      Reliable mid-sized CNN. Heavier than EfficientNet-B0 per forward pass
+      but easier to train stably. Good fallback when EfficientNet overfits
+      on the small labeled subset.
+    framework: torch
+    import_snippet: |
+      import torch.nn as nn
+      import torchvision.models as m
+      backbone = m.resnet18(weights=m.ResNet18_Weights.IMAGENET1K_V1)
+      backbone.fc = nn.Linear(backbone.fc.in_features, 234)
+      model = backbone

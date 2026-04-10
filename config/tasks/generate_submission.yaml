@@ -1,0 +1,14 @@
+name: generate_submission
+description: Exports the best model as a Kaggle-ready inference notebook
+
+task_type: predefined
+handler: agent.handlers.generate_submission
+
+config:
+  target_runtime_seconds: 5400            # 90 minutes — BirdCLEF constraint
+  cpu_only: true
+  template_notebook: notebooks/kaggle_submission_template.ipynb
+  forbid_imports:
+    - torch.cuda
+    - jax
+    - google.colab
