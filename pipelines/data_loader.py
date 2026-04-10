@@ -23,6 +23,7 @@ can be imported in a lightweight CI environment without torch.
 from __future__ import annotations
 
 import csv
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,54 @@ import numpy as np
 
 from agent.models import DatasetProfile
 from pipelines.audio_pipeline import AudioPipeline, AugmentationConfig
+
+
+# ---------------------------------------------------------------------------
+# Default path resolution
+# ---------------------------------------------------------------------------
+#
+# LLM-generated training scripts run inside a sandbox subprocess whose cwd
+# is `sandbox/<study_id>/<exp_id>/`. Relative paths like
+# `data/processed/dataset_profile.json` therefore do NOT resolve against
+# the repo root — they fail.
+#
+# The orchestrator's executor sets three environment variables to absolute
+# paths before spawning the subprocess:
+#
+#   BIRDCLEF_DATASET_PROFILE   -> absolute path to dataset_profile.json
+#   BIRDCLEF_SPECTROGRAMS_DIR  -> absolute path to spectrograms/
+#   BIRDCLEF_LABELS_CSV        -> absolute path to labels.csv
+#
+# `load_precomputed_dataset` reads these env vars when its path arguments
+# are not supplied, so LLM-generated code can simply call:
+#
+#     train_loader, val_loader, num_classes = load_precomputed_dataset(
+#         batch_size=32,
+#         augmentation={"time_shift": True, "noise_injection": True},
+#     )
+#
+# and forget about paths entirely.
+
+
+def _default_profile_path() -> Path:
+    return Path(
+        os.environ.get("BIRDCLEF_DATASET_PROFILE")
+        or "data/processed/dataset_profile.json"
+    )
+
+
+def _default_spectrograms_dir() -> Path:
+    return Path(
+        os.environ.get("BIRDCLEF_SPECTROGRAMS_DIR")
+        or "data/processed/spectrograms"
+    )
+
+
+def _default_labels_csv() -> Path:
+    return Path(
+        os.environ.get("BIRDCLEF_LABELS_CSV")
+        or "data/processed/labels.csv"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -118,9 +167,9 @@ class PrecomputedSpectrogramDataset:
 
 
 def load_precomputed_dataset(
-    profile_path: Path,
-    spectrograms_dir: Path,
-    labels_csv: Path,
+    profile_path: Path | str | None = None,
+    spectrograms_dir: Path | str | None = None,
+    labels_csv: Path | str | None = None,
     *,
     batch_size: int = 32,
     num_workers: int = 0,
@@ -132,16 +181,35 @@ def load_precomputed_dataset(
     This is the function the LLM-generated training code is expected to call.
     Returns `(train_loader, val_loader, num_classes)`.
 
+    Path arguments are optional. If omitted (or None), they fall back to
+    these env vars set by the orchestrator's executor:
+
+        profile_path      -> BIRDCLEF_DATASET_PROFILE
+        spectrograms_dir  -> BIRDCLEF_SPECTROGRAMS_DIR
+        labels_csv        -> BIRDCLEF_LABELS_CSV
+
+    This means LLM-generated code can simply call:
+
+        load_precomputed_dataset(batch_size=32, augmentation={...})
+
+    without worrying about path resolution across the sandbox cwd.
+
     The torch import happens inside this function, so `pipelines` can be
     imported in environments without torch (CI, unit tests for models).
     """
     import torch
     from torch.utils.data import DataLoader, Dataset
 
-    profile = DatasetProfile.from_json_file(Path(profile_path))
+    profile_path = Path(profile_path) if profile_path else _default_profile_path()
+    spectrograms_dir = (
+        Path(spectrograms_dir) if spectrograms_dir else _default_spectrograms_dir()
+    )
+    labels_csv = Path(labels_csv) if labels_csv else _default_labels_csv()
+
+    profile = DatasetProfile.from_json_file(profile_path)
 
     class_to_idx = {c.class_id: i for i, c in enumerate(profile.class_stats)}
-    labels = _load_multilabel(Path(labels_csv), class_to_idx)
+    labels = _load_multilabel(labels_csv, class_to_idx)
     sample_ids = sorted(labels.keys())
 
     aug_config = (

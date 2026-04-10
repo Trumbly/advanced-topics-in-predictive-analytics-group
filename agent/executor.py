@@ -132,7 +132,21 @@ class ExecutionResult:
 
     @property
     def succeeded(self) -> bool:
-        return self.exit_code == 0 and self.error is None
+        """A run only counts as successful if it produced a results.json.
+
+        Without this check, the orchestrator could call an experiment
+        "completed" even when the generated code silently exited 0 without
+        writing anything, and the real failure would only surface later in
+        capture_metrics with a misleading "NoResults" message. Requiring
+        results.json here gives the LLM a crisp, actionable error at the
+        point where it makes sense.
+        """
+        return (
+            self.exit_code == 0
+            and self.error is None
+            and self.results_json_path is not None
+            and self.results_json_path.exists()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -229,11 +243,24 @@ class CodeExecutor:
         results_json = workdir / "results.json"
         results_json_path = results_json if results_json.exists() else None
 
-        error = (
-            classify_error(stderr or "", timed_out=timed_out)
-            if (exit_code != 0 or timed_out)
-            else None
-        )
+        if exit_code != 0 or timed_out:
+            error = classify_error(stderr or "", timed_out=timed_out)
+        elif results_json_path is None:
+            # Exit 0 but the script never produced a results.json — this is
+            # a silent failure. Make it LOUD so the LLM learns to always
+            # write the results file, and the orchestrator surfaces a
+            # crisp NoResultsFile error instead of a confusing downstream one.
+            error = TaskError(
+                error_type="NoResultsFile",
+                message=(
+                    "Script exited with status 0 but did not produce a "
+                    "results.json file in the working directory. Make sure "
+                    "your code writes `results.json` at the end of training."
+                ),
+                traceback=_tail(stdout or "", 10) or None,
+            )
+        else:
+            error = None
 
         return ExecutionResult(
             exit_code=exit_code,
@@ -262,12 +289,30 @@ class CodeExecutor:
         env = os.environ.copy()
         # Make sure the generated code can import the repo's packages
         pypath = env.get("PYTHONPATH", "")
-        repo_root_str = str(self.repo_root.resolve())
+        repo_root = self.repo_root.resolve()
+        repo_root_str = str(repo_root)
         env["PYTHONPATH"] = (
             f"{repo_root_str}{os.pathsep}{pypath}" if pypath else repo_root_str
         )
         # Disable CUDA by default — BirdCLEF submission must be CPU-only
         env.setdefault("CUDA_VISIBLE_DEVICES", "")
+
+        # Expose absolute data paths so the sandboxed code (which runs with a
+        # different cwd) can find them. `load_precomputed_dataset` reads these
+        # env vars as defaults when its path arguments are not supplied.
+        env.setdefault(
+            "BIRDCLEF_DATASET_PROFILE",
+            str(repo_root / "data" / "processed" / "dataset_profile.json"),
+        )
+        env.setdefault(
+            "BIRDCLEF_SPECTROGRAMS_DIR",
+            str(repo_root / "data" / "processed" / "spectrograms"),
+        )
+        env.setdefault(
+            "BIRDCLEF_LABELS_CSV",
+            str(repo_root / "data" / "processed" / "labels.csv"),
+        )
+
         if extra:
             env.update(extra)
         return env
