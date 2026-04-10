@@ -286,3 +286,57 @@ class TestCaptureMetricsHandler:
         assert task.status == TaskStatus.FAILED.value
         assert task.error is not None
         assert task.error.error_type == "MetricsParseError"
+        # Raw content (even as truncated text blob) must be in the output
+        assert "raw_results" in task.output
+
+    def test_script_reported_error_surfaces_cleanly(self, tmp_path: Path) -> None:
+        """Regression: the LLM script caught its own error and wrote
+        `{"error": "..."}`. capture_metrics must (a) mark the task failed
+        with ScriptReportedError as the error_type, (b) carry the LLM's
+        actual error message (not 'missing required metrics'), and
+        (c) stash the raw results.json content in task.output for debugging."""
+        results_path = tmp_path / "results.json"
+        results_path.write_text(
+            json.dumps(
+                {
+                    "metrics": {},
+                    "error": "RuntimeError: shape mismatch on conv1",
+                }
+            )
+        )
+        task = _task()
+        capture_metrics.run(
+            task,
+            previous_task_output={"results_json_path": str(results_path)},
+        )
+        assert task.status == TaskStatus.FAILED.value
+        assert task.error is not None
+        assert task.error.error_type == "ScriptReportedError"
+        assert "shape mismatch" in task.error.message
+        assert "missing required metrics" not in task.error.message
+        # The raw JSON content must be preserved in the task log
+        raw = task.output.get("raw_results")
+        assert isinstance(raw, dict)
+        assert raw["error"] == "RuntimeError: shape mismatch on conv1"
+
+    def test_raw_results_embedded_on_success(self, tmp_path: Path) -> None:
+        """Even on success, the raw JSON content is embedded in task.output
+        so the experiment log captures everything the script wrote."""
+        results_path = tmp_path / "results.json"
+        payload = {
+            "metrics": {"roc_auc_macro": 0.7, "loss": 0.3},
+            "training_curves": {"loss": [1.0, 0.5, 0.3]},
+            "duration_seconds": 42.0,
+        }
+        results_path.write_text(json.dumps(payload))
+        task = _task()
+        capture_metrics.run(
+            task,
+            previous_task_output={"results_json_path": str(results_path)},
+        )
+        assert task.status == TaskStatus.COMPLETED.value
+        assert task.output["raw_results"] == payload
+        # Parsed training_results is also there
+        assert (
+            task.output["training_results"]["metrics"]["roc_auc_macro"] == 0.7
+        )

@@ -6,6 +6,16 @@ system: |
   that trains and evaluates the architecture from the proposal for the BirdCLEF
   2026 multi-label task.
 
+  ## Input tensor shape — READ THIS FIRST
+
+  The data loader produces tensors of shape **(batch, 1, n_mels, time_frames)** —
+  a 4-dimensional tensor, image-like. Typical values: (32, 1, 128, 313).
+  This means:
+    - Use `nn.Conv2d`, NOT `nn.Conv1d`. Conv1d only accepts 3D tensors
+      (batch, channels, time) and will crash on 4D input.
+    - Use `nn.MaxPool2d` / `nn.AdaptiveAvgPool2d`, not the 1D versions.
+    - Treat each spectrogram as an image with 1 channel.
+
   ## Architecture sources — TWO valid paths
 
   The proposal's `architecture` field tells you what to build:
@@ -25,6 +35,12 @@ system: |
           imported from `torch`, `torch.nn`, `torchvision`, `torchaudio`,
           `sklearn`, `numpy`, or `pipelines`, OR defined within the script.
         → The final logit vector MUST have length 234 (multi-label output).
+        → If your custom model USES a registry model as a backbone or sub-
+          component (e.g. `self.backbone = CnnSmallV1(...)`), you MUST
+          import it at the TOP of the file:
+              from pipelines.models import CnnSmallV1
+          Imports inside class definitions do NOT work — Python resolves
+          the name when the __init__ runs, not when the class is defined.
 
   ## Hard requirements (apply to BOTH paths)
 
