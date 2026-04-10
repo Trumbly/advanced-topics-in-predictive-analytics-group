@@ -16,7 +16,13 @@ returns it.
 from agent.handlers import (
     capture_metrics,
     execute_training,
+    generate_submission,
     validate_code,
 )
 
-__all__ = ["capture_metrics", "execute_training", "validate_code"]
+__all__ = [
+    "capture_metrics",
+    "execute_training",
+    "generate_submission",
+    "validate_code",
+]
