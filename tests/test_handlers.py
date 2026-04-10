@@ -92,6 +92,63 @@ class TestValidateCodePure:
         )
         assert result.ok
 
+    def test_custom_nn_module_architecture_allowed(self) -> None:
+        """Free-form architectures: the validator must accept a fully custom
+        nn.Module defined inline, without any reference to the model
+        registry. This is what the agent should produce when the LLM
+        designs a novel architecture from primitives.
+        """
+        custom = (
+            "import torch\n"
+            "import torch.nn as nn\n"
+            "import torch.nn.functional as F\n"
+            "import torchvision.models as tv_models\n"
+            "from pipelines.data_loader import load_precomputed_dataset\n"
+            "from sklearn.metrics import roc_auc_score\n"
+            "import numpy as np\n"
+            "import json\n"
+            "\n"
+            "class SEBlock(nn.Module):\n"
+            "    def __init__(self, channels, reduction=8):\n"
+            "        super().__init__()\n"
+            "        self.avg = nn.AdaptiveAvgPool2d(1)\n"
+            "        self.fc = nn.Sequential(\n"
+            "            nn.Linear(channels, channels // reduction),\n"
+            "            nn.ReLU(inplace=True),\n"
+            "            nn.Linear(channels // reduction, channels),\n"
+            "            nn.Sigmoid(),\n"
+            "        )\n"
+            "    def forward(self, x):\n"
+            "        b, c, _, _ = x.size()\n"
+            "        y = self.avg(x).view(b, c)\n"
+            "        y = self.fc(y).view(b, c, 1, 1)\n"
+            "        return x * y\n"
+            "\n"
+            "class CustomCnnWithSE(nn.Module):\n"
+            "    def __init__(self, num_classes=234):\n"
+            "        super().__init__()\n"
+            "        self.conv = nn.Conv2d(1, 32, 3, padding=1)\n"
+            "        self.se = SEBlock(32)\n"
+            "        self.pool = nn.AdaptiveAvgPool2d(1)\n"
+            "        self.head = nn.Linear(32, num_classes)\n"
+            "    def forward(self, x):\n"
+            "        x = F.relu(self.conv(x))\n"
+            "        x = self.se(x)\n"
+            "        x = self.pool(x).flatten(1)\n"
+            "        return self.head(x)\n"
+            "\n"
+            "model = CustomCnnWithSE(num_classes=234)\n"
+            "model.eval()\n"
+        )
+        result = validate_code.validate(
+            custom,
+            check_imports=("torch", "tensorflow", "keras", "pipelines"),
+        )
+        assert result.ok, (
+            f"Custom architecture should validate, got "
+            f"{result.error_type}: {result.message}"
+        )
+
     def test_extra_reject_pattern(self) -> None:
         result = validate_code.validate(
             "torch.cuda.is_available()\n",
