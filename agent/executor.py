@@ -47,6 +47,17 @@ from agent.models import TaskError
 
 logger = logging.getLogger(__name__)
 
+# psutil is optional — if it's not installed, the heartbeat simply omits
+# the CPU percentage from its message. We do NOT hard-fail on the import,
+# because the rest of the executor must work without it.
+try:
+    import psutil  # type: ignore[import-not-found]
+
+    _HAS_PSUTIL = True
+except ImportError:  # pragma: no cover — tested manually
+    psutil = None  # type: ignore[assignment]
+    _HAS_PSUTIL = False
+
 
 # ---------------------------------------------------------------------------
 # Error classification
@@ -388,18 +399,60 @@ class CodeExecutor:
         experiment_id: str,
         stop_event: threading.Event,
     ) -> None:
-        """Print a 'still running' line at a fixed interval."""
+        """Print a 'still running' line at a fixed interval.
+
+        When `psutil` is available, also reports SYSTEM-wide CPU utilization.
+        This answers the "is my training actually using all the CPUs"
+        question without needing a separate htop window. We deliberately
+        use system CPU% (not per-process) because:
+
+          1. It is simple and always accurate — no priming, no child
+             tracking, no race conditions.
+          2. Max is running the agent specifically to train models, so
+             if his system CPU is at 10% during execute_training, his
+             subprocess is not saturating the cores no matter what the
+             internal thread count says.
+          3. On macOS, psutil per-process CPU% has known issues with
+             multi-threaded processes (it often under-reports).
+        """
         interval = max(1.0, self.heartbeat_seconds)
+        n_cores = os.cpu_count() or 1
+        if _HAS_PSUTIL:
+            try:
+                n_cores = psutil.cpu_count(logical=True) or n_cores  # type: ignore[union-attr]
+            except Exception:  # noqa: BLE001
+                pass
+
         while not stop_event.wait(interval):
             if process.poll() is not None:
                 return
             elapsed = time.monotonic() - start
+            cpu_info = self._read_cpu_info(n_cores)
             logger.info(
-                "%s... still running (%.0fs elapsed, timeout at %ds)",
+                "%s... still running (%.0fs elapsed, timeout at %ds)%s",
                 self.log_line_prefix,
                 elapsed,
                 self.timeout_seconds,
+                cpu_info,
             )
+
+    @staticmethod
+    def _read_cpu_info(n_cores: int) -> str:
+        """Return a ' | CPU: x.x/N cores (y%)' suffix, or empty string.
+
+        Uses a 0.1s blocking measurement window which is short enough
+        to not noticeably delay the heartbeat but long enough to give
+        a real reading across all threads / processes on the system.
+        """
+        if not _HAS_PSUTIL:
+            return ""
+        try:
+            # System-wide CPU% over a 0.1s sample window
+            pct = psutil.cpu_percent(interval=0.1)  # type: ignore[union-attr]
+            cores_used = pct * n_cores / 100.0
+            return f" | CPU: {cores_used:.1f}/{n_cores} cores ({pct:.0f}%)"
+        except Exception:  # noqa: BLE001
+            return ""
 
     # -- helpers ------------------------------------------------------------
 
@@ -424,6 +477,18 @@ class CodeExecutor:
         )
         # Disable CUDA by default — BirdCLEF submission must be CPU-only
         env.setdefault("CUDA_VISIBLE_DEVICES", "")
+
+        # Saturate CPU cores during training. Without these, some conda /
+        # macOS setups silently default to OMP_NUM_THREADS=1 and PyTorch
+        # runs matrix ops on a single thread — the user sees their 10-core
+        # machine at ~10% utilization. Setting these ensures PyTorch's
+        # intra-op parallelism uses every available core.
+        cpu_count = str(os.cpu_count() or 1)
+        env.setdefault("OMP_NUM_THREADS", cpu_count)
+        env.setdefault("MKL_NUM_THREADS", cpu_count)
+        env.setdefault("OPENBLAS_NUM_THREADS", cpu_count)
+        env.setdefault("VECLIB_MAXIMUM_THREADS", cpu_count)  # macOS Accelerate
+        env.setdefault("NUMEXPR_NUM_THREADS", cpu_count)
 
         # Expose absolute data paths so the sandboxed code (which runs with a
         # different cwd) can find them. `load_precomputed_dataset` reads these
