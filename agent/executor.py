@@ -161,7 +161,7 @@ class CodeExecutor:
         Returns an `ExecutionResult` describing what happened. Never raises
         for subprocess failures — every failure is captured in the result.
         """
-        workdir = self._prepare_workdir(experiment_id)
+        workdir = self._prepare_workdir(experiment_id).resolve()
         code_path = workdir / "code.py"
         code_path.write_text(code)
 
@@ -176,6 +176,12 @@ class CodeExecutor:
             # Run in its own process group so we can kill the whole tree on timeout.
             # On Windows, `preexec_fn=os.setsid` is not available — fall back to
             # default behavior there (the project mainly targets macOS/Linux).
+            #
+            # IMPORTANT: we pass just "code.py" (not the joined path) because
+            # cwd is already set to workdir. Passing a joined relative path
+            # would be re-resolved relative to cwd by the subprocess,
+            # producing the classic duplicated-path bug:
+            #   sandbox/study_x/exp_1/sandbox/study_x/exp_1/code.py
             popen_kwargs: dict[str, object] = {
                 "cwd": str(workdir),
                 "env": env,
@@ -187,7 +193,7 @@ class CodeExecutor:
                 popen_kwargs["preexec_fn"] = os.setsid  # type: ignore[assignment]
 
             process = subprocess.Popen(
-                [self.python_executable, str(code_path)],
+                [self.python_executable, "code.py"],
                 **popen_kwargs,  # type: ignore[arg-type]
             )
             try:

@@ -138,3 +138,40 @@ print('done')
         assert stderr_file.exists()
         assert "hi" in stdout_file.read_text()
         assert "bye" in stderr_file.read_text()
+
+    def test_relative_sandbox_root_does_not_double_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Regression: if sandbox_root is relative (as used by the CLI),
+        the subprocess must not see a duplicated path. Previously we passed
+        `str(code_path)` which was re-resolved against the cwd=workdir,
+        producing `sandbox/x/sandbox/x/code.py`.
+
+        Reproduce by chdir'ing into a scratch dir and creating an executor
+        with a *relative* sandbox_root. The run must succeed.
+        """
+        monkeypatch.chdir(tmp_path)
+        executor = CodeExecutor(
+            sandbox_root=Path("sandbox"),  # deliberately relative
+            timeout_seconds=10,
+            python_executable=sys.executable,
+        )
+        code = (
+            "import json, pathlib\n"
+            "pathlib.Path('results.json').write_text("
+            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "print('ok')\n"
+        )
+        result = executor.run(code, experiment_id="exp_rel")
+        assert result.succeeded, (
+            f"Run failed with stderr:\n{result.stderr}\n"
+            f"exit_code={result.exit_code}"
+        )
+        assert "ok" in result.stdout
+        assert result.results_json_path is not None
+        assert result.results_json_path.exists()
+        # The key signal of the original bug was that the subprocess reported
+        # "can't open file '.../sandbox/exp_rel/sandbox/exp_rel/code.py'".
+        # With the fix, stderr is empty and exit_code is 0.
+        assert result.exit_code == 0
+        assert "sandbox/exp_rel/sandbox/exp_rel" not in result.stderr

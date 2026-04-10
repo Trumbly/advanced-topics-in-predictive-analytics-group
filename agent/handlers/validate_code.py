@@ -53,6 +53,12 @@ FORBIDDEN_IMPORTS: frozenset[str] = frozenset(
 
 # Substring patterns that indicate dangerous string-based calls. The
 # pipeline YAML can extend this list; these are the always-on baseline.
+#
+# NOTE: `eval(` and `exec(` are NOT in this list. They would false-positive on
+# perfectly legitimate method calls like `model.eval()` (PyTorch's way of
+# switching a model to inference mode) or `executor.exec(...)` (ThreadPool
+# methods). Instead we reject BARE `eval()` / `exec()` calls at the AST level
+# via `_FORBIDDEN_BARE_CALLS` below, which only fires on the builtin names.
 FORBIDDEN_PATTERNS: tuple[str, ...] = (
     "os.system",
     "os.popen",
@@ -62,11 +68,15 @@ FORBIDDEN_PATTERNS: tuple[str, ...] = (
     "os.rmdir",
     "shutil.rmtree",
     "__import__",
-    "eval(",
-    "exec(",
     "open('/etc/",
     'open("/etc/',
 )
+
+
+# Bare builtin names that must never be called as `name(...)`.
+# Detected via AST Call nodes whose func is an ast.Name with one of these ids,
+# so attribute calls like `model.eval()` are correctly ignored.
+_FORBIDDEN_BARE_CALLS: frozenset[str] = frozenset({"eval", "exec"})
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +183,22 @@ def validate(
                     message=f"Import from '{module}' is not allowed",
                 )
 
-    # 3. Forbidden string patterns (substring scan — catches tricks AST misses)
+    # 3. Bare builtin calls to eval() / exec() (AST-level, so method calls
+    #    like `model.eval()` and `executor.exec()` are correctly allowed)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in _FORBIDDEN_BARE_CALLS:
+                return ValidationResult(
+                    ok=False,
+                    error_type="ForbiddenBareCall",
+                    message=(
+                        f"Bare call to builtin '{node.func.id}()' is not allowed "
+                        f"(line {node.lineno}). Method calls like "
+                        f"'model.eval()' are fine."
+                    ),
+                )
+
+    # 4. Forbidden string patterns (substring scan — catches tricks AST misses)
     all_patterns = FORBIDDEN_PATTERNS + tuple(extra_reject_patterns)
     for pattern in all_patterns:
         if pattern in code:
@@ -183,7 +208,7 @@ def validate(
                 message=f"Forbidden pattern found: {pattern!r}",
             )
 
-    # 4. Expected imports (at least one must be present)
+    # 5. Expected imports (at least one must be present)
     if check_imports and not (set(check_imports) & imported_names):
         return ValidationResult(
             ok=False,
