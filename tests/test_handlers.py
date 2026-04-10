@@ -58,10 +58,39 @@ class TestValidateCodePure:
         assert not result.ok
         assert result.error_type == "ForbiddenPattern"
 
-    def test_forbidden_pattern_eval(self) -> None:
+    def test_bare_eval_call_rejected(self) -> None:
         result = validate_code.validate("x = eval('1+1')\n")
         assert not result.ok
-        assert result.error_type == "ForbiddenPattern"
+        assert result.error_type == "ForbiddenBareCall"
+        assert "eval" in result.message
+
+    def test_bare_exec_call_rejected(self) -> None:
+        result = validate_code.validate("exec('x = 1')\n")
+        assert not result.ok
+        assert result.error_type == "ForbiddenBareCall"
+
+    def test_model_eval_method_allowed(self) -> None:
+        """Regression: `model.eval()` is PyTorch's legitimate inference switch
+        and must not be rejected by the eval() check."""
+        code = (
+            "import torch\n"
+            "import torch.nn as nn\n"
+            "model = nn.Linear(10, 1)\n"
+            "model.eval()\n"
+            "with torch.no_grad():\n"
+            "    out = model(torch.randn(1, 10))\n"
+        )
+        result = validate_code.validate(code, check_imports=("torch",))
+        assert result.ok, f"model.eval() should pass, got {result.error_type}: {result.message}"
+
+    def test_attribute_exec_method_allowed(self) -> None:
+        """`something.exec(...)` (e.g. database cursors) must not trip the
+        bare-exec check."""
+        result = validate_code.validate(
+            "import torch\ncursor = None\ncursor and cursor.exec('SELECT 1')\n",
+            check_imports=("torch",),
+        )
+        assert result.ok
 
     def test_extra_reject_pattern(self) -> None:
         result = validate_code.validate(
