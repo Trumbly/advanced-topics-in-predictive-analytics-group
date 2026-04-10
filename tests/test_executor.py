@@ -139,6 +139,62 @@ print('done')
         assert "hi" in stdout_file.read_text()
         assert "bye" in stderr_file.read_text()
 
+    def test_exit_zero_but_no_results_is_failure(
+        self, executor: CodeExecutor
+    ) -> None:
+        """Regression: if a script exits 0 but does not produce results.json,
+        the run must be marked as failed with a clear NoResultsFile error,
+        not silently reported as succeeded. Previously this caused confusing
+        downstream failures in capture_metrics."""
+        code = "print('I did some work but forgot to write results.json')\n"
+        result = executor.run(code, experiment_id="exp_silent")
+        assert result.exit_code == 0
+        assert result.results_json_path is None
+        assert not result.succeeded
+        assert result.error is not None
+        assert result.error.error_type == "NoResultsFile"
+        assert "results.json" in result.error.message
+
+    def test_env_vars_for_data_paths_are_set(
+        self, tmp_path: Path
+    ) -> None:
+        """The executor must export BIRDCLEF_DATASET_PROFILE,
+        BIRDCLEF_SPECTROGRAMS_DIR, and BIRDCLEF_LABELS_CSV as ABSOLUTE paths
+        so sandboxed code can read data paths regardless of its cwd."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+            repo_root=tmp_path / "fake_repo",
+        )
+        code = (
+            "import os, json, pathlib\n"
+            "paths = {\n"
+            "    'profile': os.environ.get('BIRDCLEF_DATASET_PROFILE'),\n"
+            "    'spectrograms': os.environ.get('BIRDCLEF_SPECTROGRAMS_DIR'),\n"
+            "    'labels': os.environ.get('BIRDCLEF_LABELS_CSV'),\n"
+            "}\n"
+            "pathlib.Path('results.json').write_text(json.dumps({\n"
+            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'env': paths,\n"
+            "}))\n"
+        )
+        result = executor.run(code, experiment_id="exp_env")
+        assert result.succeeded, f"stderr: {result.stderr}"
+        import json
+        data = json.loads(result.results_json_path.read_text())  # type: ignore[union-attr]
+        env = data["env"]
+        assert env["profile"] is not None and env["profile"].endswith(
+            "dataset_profile.json"
+        )
+        assert env["spectrograms"] is not None and env["spectrograms"].endswith(
+            "spectrograms"
+        )
+        assert env["labels"] is not None and env["labels"].endswith("labels.csv")
+        # All three must be absolute paths
+        for key, val in env.items():
+            assert val.startswith("/"), f"{key} is not absolute: {val}"
+
     def test_relative_sandbox_root_does_not_double_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
