@@ -1,8 +1,9 @@
 # Core ML
-# NOTE: TensorFlow is intentionally omitted — the agent uses PyTorch as its
-# default framework. If you want the LLM to be able to generate TF/Keras code,
-# install tensorflow separately into a Python 3.11/3.12 venv (TF does not yet
-# support Python 3.14 at the time of writing).
+# NOTE: TensorFlow currently supports Python 3.9–3.12. If you hit
+# "No matching distribution found for tensorflow", you are likely on
+# Python 3.13+. Use a conda env with Python 3.11:
+#   conda create -n birdclef python=3.11 -y && conda activate birdclef
+tensorflow>=2.15.0
 torch>=2.2.0
 torchaudio>=2.2.0
 numpy>=1.24.0
