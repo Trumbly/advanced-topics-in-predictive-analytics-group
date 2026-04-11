@@ -57,3 +57,6 @@ sandbox/*
 
 # Environment
 .env
+
+# Claude Code — machine-specific launch configs (absolute python paths)
+.claude/

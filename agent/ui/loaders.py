@@ -80,6 +80,8 @@ class StudyDetail:
 
     study: Study
     experiments: list[Experiment]
+    completed_count: int
+    failed_count: int
     score_metric: str
     score_progression: list[dict[str, Any]]  # [{exp_id, score, status}]
     failure_breakdown: FailureBreakdown
@@ -287,7 +289,19 @@ def load_study_detail(
 
     score_progression: list[dict[str, Any]] = []
     running_best: float | None = None
+    completed_count = 0
+    failed_count = 0
     for exp in experiments:
+        status_str = (
+            exp.status.value
+            if hasattr(exp.status, "value")
+            else str(exp.status)
+        )
+        if status_str == "completed":
+            completed_count += 1
+        elif status_str in ("failed", "timeout"):
+            failed_count += 1
+
         score = None
         if exp.results and exp.results.metrics:
             score = exp.results.metrics.get(_SCORE_METRIC)
@@ -298,11 +312,7 @@ def load_study_detail(
                 "experiment_id": exp.experiment_id,
                 "score": score,
                 "best_so_far": running_best,
-                "status": (
-                    exp.status.value
-                    if hasattr(exp.status, "value")
-                    else str(exp.status)
-                ),
+                "status": status_str,
                 "architecture": (
                     exp.config.architecture if exp.config else None
                 ),
@@ -315,6 +325,8 @@ def load_study_detail(
     return StudyDetail(
         study=study,
         experiments=experiments,
+        completed_count=completed_count,
+        failed_count=failed_count,
         score_metric=_SCORE_METRIC,
         score_progression=score_progression,
         failure_breakdown=failure_breakdown,
