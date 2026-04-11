@@ -1,0 +1,214 @@
+"""FastAPI app factory for the BirdCLEF dashboard.
+
+`create_app(studies_root, sandbox_root)` returns a ready-to-serve
+`FastAPI` instance. Call it from the `agent ui` CLI command or from
+`uvicorn agent.ui:create_app --factory` for manual dev launches.
+
+The app is stateless — every request reads the JSON files under
+`studies_root` fresh. That means any study written to disk (live or
+past) shows up without restarting the server, and there is no
+orchestrator coupling.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from agent.ui.loaders import (
+    list_studies,
+    load_experiment_detail,
+    load_study_detail,
+)
+
+
+_UI_DIR = Path(__file__).parent
+_TEMPLATES_DIR = _UI_DIR / "templates"
+_STATIC_DIR = _UI_DIR / "static"
+
+
+def create_app(
+    studies_root: Path | str = Path("experiments/studies"),
+    sandbox_root: Path | str = Path("sandbox"),
+) -> FastAPI:
+    """Build the FastAPI app.
+
+    Parameters
+    ----------
+    studies_root:
+        Path to the directory containing per-study subdirectories.
+        Defaults to `experiments/studies` (the orchestrator default).
+    sandbox_root:
+        Path to the sandbox directory, where code.py / stdout.log /
+        stderr.log per experiment live. Defaults to `sandbox`.
+    """
+    studies_root = Path(studies_root).resolve()
+    sandbox_root = Path(sandbox_root).resolve()
+
+    app = FastAPI(
+        title="BirdCLEF Agent Dashboard",
+        description=(
+            "Read-only web UI for the autonomous BirdCLEF 2026 ML "
+            "research agent. Browses studies, experiments, generated "
+            "code, training curves, and the error-recovery task chain."
+        ),
+        version="0.1.0",
+    )
+
+    templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
+    # Expose Python helpers to templates.
+    templates.env.globals["format_score"] = _format_score
+    templates.env.globals["truncate"] = _truncate
+
+    if _STATIC_DIR.exists():
+        app.mount(
+            "/static",
+            StaticFiles(directory=str(_STATIC_DIR)),
+            name="static",
+        )
+
+    # ---- HTML routes ------------------------------------------------------
+
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request) -> Any:
+        studies = list_studies(studies_root)
+        return templates.TemplateResponse(
+            request,
+            "index.html",
+            {
+                "studies": studies,
+                "studies_root": str(studies_root),
+            },
+        )
+
+    @app.get("/studies/{study_id}", response_class=HTMLResponse)
+    def study_detail(request: Request, study_id: str) -> Any:
+        detail = load_study_detail(studies_root, study_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail=f"Study {study_id} not found")
+        return templates.TemplateResponse(
+            request,
+            "study.html",
+            {
+                "detail": detail,
+                "study": detail.study,
+            },
+        )
+
+    @app.get(
+        "/studies/{study_id}/experiments/{experiment_id}",
+        response_class=HTMLResponse,
+    )
+    def experiment_detail(
+        request: Request, study_id: str, experiment_id: str
+    ) -> Any:
+        detail = load_experiment_detail(
+            studies_root, sandbox_root, study_id, experiment_id
+        )
+        if detail is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Experiment {experiment_id} not found in {study_id}",
+            )
+        return templates.TemplateResponse(
+            request,
+            "experiment.html",
+            {
+                "detail": detail,
+                "study_id": study_id,
+            },
+        )
+
+    @app.get("/studies/{study_id}/report", response_class=HTMLResponse)
+    def study_report(request: Request, study_id: str) -> Any:
+        detail = load_study_detail(studies_root, study_id)
+        if detail is None or not detail.has_report:
+            raise HTTPException(status_code=404, detail="Report not found")
+        report_md = detail.report_path.read_text() if detail.report_path else ""
+        return templates.TemplateResponse(
+            request,
+            "report.html",
+            {
+                "study": detail.study,
+                "report_md": report_md,
+                "detail": detail,
+            },
+        )
+
+    # ---- JSON endpoints (chart data) -------------------------------------
+
+    @app.get("/api/studies/{study_id}/score_progression")
+    def api_score_progression(study_id: str) -> JSONResponse:
+        detail = load_study_detail(studies_root, study_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Study not found")
+        return JSONResponse(
+            {
+                "metric": detail.score_metric,
+                "points": detail.score_progression,
+            }
+        )
+
+    @app.get("/api/studies/{study_id}/failure_breakdown")
+    def api_failure_breakdown(study_id: str) -> JSONResponse:
+        detail = load_study_detail(studies_root, study_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Study not found")
+        return JSONResponse(
+            {
+                "total": detail.failure_breakdown.total_failed,
+                "by_error_type": detail.failure_breakdown.by_error_type,
+            }
+        )
+
+    @app.get(
+        "/api/studies/{study_id}/experiments/{experiment_id}/curves"
+    )
+    def api_training_curves(
+        study_id: str, experiment_id: str
+    ) -> JSONResponse:
+        detail = load_experiment_detail(
+            studies_root, sandbox_root, study_id, experiment_id
+        )
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        return JSONResponse(detail.training_curves)
+
+    @app.get("/api/healthz")
+    def healthz() -> JSONResponse:
+        return JSONResponse(
+            {
+                "ok": True,
+                "studies_root": str(studies_root),
+                "sandbox_root": str(sandbox_root),
+            }
+        )
+
+    return app
+
+
+# ---------------------------------------------------------------------------
+# Template globals
+# ---------------------------------------------------------------------------
+
+
+def _format_score(value: float | None, digits: int = 4) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.{digits}f}"
+
+
+def _truncate(text: str | None, max_len: int = 120) -> str:
+    if not text:
+        return ""
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1] + "…"
+
+
+__all__ = ["create_app"]
