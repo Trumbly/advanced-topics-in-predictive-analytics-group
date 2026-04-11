@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +76,16 @@ class FailureBreakdown:
 
 
 @dataclass
+class SubmissionRecord:
+    """One entry in the submission history for a study."""
+
+    filename: str
+    path: Path
+    size_bytes: int
+    created_at: str  # ISO string, mtime of the .ipynb file
+
+
+@dataclass
 class StudyDetail:
     """Everything the study detail page needs."""
 
@@ -87,6 +98,7 @@ class StudyDetail:
     failure_breakdown: FailureBreakdown
     has_report: bool
     report_path: Path | None
+    submissions: list[SubmissionRecord]
 
 
 @dataclass
@@ -321,6 +333,7 @@ def load_study_detail(
 
     failure_breakdown = _failure_breakdown(study_dir, experiments)
     report_path = study_dir / "report" / "report.md"
+    submissions = _list_submissions(study_dir)
 
     return StudyDetail(
         study=study,
@@ -332,7 +345,33 @@ def load_study_detail(
         failure_breakdown=failure_breakdown,
         has_report=report_path.exists(),
         report_path=report_path if report_path.exists() else None,
+        submissions=submissions,
     )
+
+
+def _list_submissions(study_dir: Path) -> list[SubmissionRecord]:
+    """Return the submission history for one study, newest first."""
+    submissions_dir = study_dir / "submissions"
+    if not submissions_dir.exists():
+        return []
+    records: list[SubmissionRecord] = []
+    for path in submissions_dir.glob("*.ipynb"):
+        try:
+            stat = path.stat()
+        except OSError:
+            continue
+        records.append(
+            SubmissionRecord(
+                filename=path.name,
+                path=path,
+                size_bytes=stat.st_size,
+                created_at=datetime.fromtimestamp(
+                    stat.st_mtime, tz=timezone.utc
+                ).isoformat(sep=" ", timespec="seconds"),
+            )
+        )
+    records.sort(key=lambda r: r.created_at, reverse=True)
+    return records
 
 
 # ---------------------------------------------------------------------------
@@ -428,6 +467,7 @@ __all__ = [
     "StudySummary",
     "StudyDetail",
     "ExperimentDetail",
+    "SubmissionRecord",
     "TaskView",
     "FailureBreakdown",
     "list_studies",

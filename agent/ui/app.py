@@ -20,6 +20,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from agent.models import Study
+from agent.submission import (
+    NoBestExperimentError,
+    SubmissionError,
+    SubmissionExporter,
+    SubmissionValidationError,
+)
 from agent.ui.loaders import (
     list_studies,
     load_experiment_detail,
@@ -186,6 +193,71 @@ def create_app(
                 "ok": True,
                 "studies_root": str(studies_root),
                 "sandbox_root": str(sandbox_root),
+            }
+        )
+
+    # ---- Kaggle submission -----------------------------------------------
+
+    @app.post("/api/studies/{study_id}/submit")
+    def api_submit_study(study_id: str) -> JSONResponse:
+        """Export the best experiment of `study_id` as a Kaggle notebook.
+
+        Wraps `SubmissionExporter.export_best` so the UI can offer a
+        single 'Export Kaggle submission' button. Returns the path of
+        the new notebook on success, or a 4xx with the validation
+        message on failure.
+        """
+        study_dir = studies_root / study_id
+        study_json = study_dir / "study.json"
+        if not study_json.exists():
+            raise HTTPException(status_code=404, detail=f"Study {study_id} not found")
+
+        try:
+            study = Study.from_json_file(study_json)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=500,
+                detail=f"Could not load study.json: {exc}",
+            ) from exc
+
+        if not study.best_experiment_id:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Study has no best_experiment_id yet — run or finish "
+                    "a study with at least one successful experiment first."
+                ),
+            )
+
+        exporter = SubmissionExporter()
+        try:
+            output_path = exporter.export_best(
+                study=study,
+                study_dir=study_dir,
+                sandbox_dir=sandbox_root / study_id,
+            )
+        except NoBestExperimentError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except SubmissionValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except SubmissionError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Update the study.json's `submissions` list so the UI sees the
+        # new entry on the next refresh. We do this defensively: the
+        # exporter doesn't touch study.json.
+        already = [Path(p) for p in study.submissions]
+        if output_path not in already:
+            study.submissions.append(output_path)
+            study_json.write_text(study.model_dump_json())
+
+        return JSONResponse(
+            {
+                "ok": True,
+                "study_id": study_id,
+                "best_experiment_id": study.best_experiment_id,
+                "submission_path": str(output_path),
+                "submission_filename": output_path.name,
             }
         )
 

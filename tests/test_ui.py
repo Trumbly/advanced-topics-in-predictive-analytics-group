@@ -409,3 +409,96 @@ class TestRoutes:
         r = client.get("/studies/study_b")
         assert r.status_code == 200
         assert "Study B" in r.text
+
+
+# ---------------------------------------------------------------------------
+# Kaggle submission
+# ---------------------------------------------------------------------------
+#
+# The Kaggle button on the study-detail page POSTs to
+#   /api/studies/{id}/submit
+# which wraps SubmissionExporter.export_best. These tests verify the
+# whole flow against the fake study tree: happy path (new notebook
+# file created), 404 for unknown studies, 409 when there's no
+# best_experiment_id.
+
+
+class TestKaggleSubmission:
+    def test_submit_happy_path_creates_notebook(
+        self, on_disk_studies: tuple[Path, Path], client: TestClient
+    ) -> None:
+        """Study A has best_experiment_id=exp_001 and a sandbox code.py
+        that passes SubmissionExporter validation. POSTing to
+        /api/studies/study_a/submit must write a .ipynb file under
+        study_a/submissions/ and return its path."""
+        studies_root, _ = on_disk_studies
+        r = client.post("/api/studies/study_a/submit")
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is True
+        assert body["best_experiment_id"] == "exp_001"
+        assert body["submission_filename"].endswith(".ipynb")
+        assert "exp_001" in body["submission_filename"]
+
+        # Notebook file exists on disk.
+        submission_path = Path(body["submission_path"])
+        assert submission_path.exists()
+        assert submission_path.parent == studies_root / "study_a" / "submissions"
+
+        # study.json was updated with the new submission entry.
+        study_json = json.loads(
+            (studies_root / "study_a" / "study.json").read_text()
+        )
+        assert len(study_json["submissions"]) == 1
+
+    def test_submit_404_for_unknown_study(
+        self, client: TestClient
+    ) -> None:
+        r = client.post("/api/studies/does_not_exist/submit")
+        assert r.status_code == 404
+
+    def test_submit_409_when_no_best(
+        self, client: TestClient
+    ) -> None:
+        """Study B has no best_experiment_id yet — submit must refuse
+        with HTTP 409 Conflict."""
+        r = client.post("/api/studies/study_b/submit")
+        assert r.status_code == 409
+
+    def test_submissions_appear_in_loader_after_export(
+        self,
+        on_disk_studies: tuple[Path, Path],
+        client: TestClient,
+    ) -> None:
+        """After a successful POST, `load_study_detail().submissions`
+        must list the new notebook — that's what the study detail
+        page reads to render the Kaggle submissions card."""
+        studies_root, _ = on_disk_studies
+
+        # Before export
+        detail = load_study_detail(studies_root, "study_a")
+        assert detail is not None
+        assert len(detail.submissions) == 0
+
+        # Export
+        r = client.post("/api/studies/study_a/submit")
+        assert r.status_code == 200
+
+        # After export
+        detail2 = load_study_detail(studies_root, "study_a")
+        assert detail2 is not None
+        assert len(detail2.submissions) == 1
+        sub = detail2.submissions[0]
+        assert sub.filename.endswith(".ipynb")
+        assert sub.size_bytes > 0
+
+    def test_study_detail_page_renders_kaggle_button_when_best_exists(
+        self, client: TestClient
+    ) -> None:
+        """The Kaggle button is only rendered when `best_experiment_id`
+        is set — study_a has it, study_b doesn't."""
+        r = client.get("/studies/study_a")
+        assert "Export Kaggle submission" in r.text
+
+        r = client.get("/studies/study_b")
+        assert "Export Kaggle submission" not in r.text
