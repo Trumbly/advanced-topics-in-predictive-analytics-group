@@ -30,7 +30,7 @@ from agent.models import (
     StudyStatus,
     Study,
 )
-from agent.orchestrator import Orchestrator, StopReason
+from agent.orchestrator import Orchestrator, StopReason, _parse_model_config
 from agent.prompt_engine import PromptEngine
 from registry import ModelRegistry
 
@@ -298,6 +298,263 @@ class TestOrchestratorSmoke:
         final_study, _ = orch.run()
         assert len(final_study.experiment_ids) == 1
         assert final_study.best_experiment_id is None
+
+    def test_empty_proposal_dict_marks_experiment_failed(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """An empty dict `{}` is valid JSON but not a valid proposal.
+        This is the exp_023 scenario — previously the task was marked
+        COMPLETED and the experiment crashed later. Now it must fail
+        the propose_architecture task right away so recovery can run."""
+        study.compute_budget.max_experiments = 1
+        study.compute_budget.max_recovery_attempts = 0  # no recovery
+        responses = ["{}"]
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.FAILED.value
+
+    def test_proposal_with_null_architecture_marks_experiment_failed(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """`{"architecture": null}` — another exp_023 flavor."""
+        study.compute_budget.max_experiments = 1
+        study.compute_budget.max_recovery_attempts = 0
+        responses = ['{"architecture": null, "hyperparams": {}}']
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.FAILED.value
+
+    def test_proposal_with_placeholder_architecture_rejected(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """`"architecture": "unknown"` is a placeholder that historically
+        slipped through — now it must be rejected."""
+        study.compute_budget.max_experiments = 1
+        study.compute_budget.max_recovery_attempts = 0
+        responses = ['{"architecture": "unknown", "hyperparams": {}}']
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.FAILED.value
+
+
+class TestParseModelConfig:
+    """Unit tests for the strict `_parse_model_config` helper."""
+
+    def test_rejects_non_dict(self) -> None:
+        with pytest.raises(ValueError, match="Expected dict"):
+            _parse_model_config("not a dict")
+        with pytest.raises(ValueError, match="Expected dict"):
+            _parse_model_config(None)
+        with pytest.raises(ValueError, match="Expected dict"):
+            _parse_model_config(["list", "not", "dict"])
+
+    def test_rejects_empty_dict(self) -> None:
+        with pytest.raises(ValueError, match="architecture"):
+            _parse_model_config({})
+
+    def test_rejects_null_architecture(self) -> None:
+        with pytest.raises(ValueError, match="architecture"):
+            _parse_model_config({"architecture": None})
+
+    def test_rejects_empty_string_architecture(self) -> None:
+        with pytest.raises(ValueError, match="architecture"):
+            _parse_model_config({"architecture": ""})
+
+    def test_rejects_placeholder_architecture(self) -> None:
+        for placeholder in ("unknown", "null", "none", "?", "UNKNOWN"):
+            with pytest.raises(ValueError, match="placeholder"):
+                _parse_model_config({"architecture": placeholder})
+
+    def test_rejects_non_dict_hyperparams(self) -> None:
+        with pytest.raises(ValueError, match="hyperparams"):
+            _parse_model_config(
+                {"architecture": "cnn_small_v1", "hyperparams": "not a dict"}
+            )
+
+    def test_rejects_non_dict_augmentation(self) -> None:
+        with pytest.raises(ValueError, match="augmentation"):
+            _parse_model_config(
+                {"architecture": "cnn_small_v1", "augmentation": [1, 2]}
+            )
+
+    def test_accepts_minimal_valid_proposal(self) -> None:
+        cfg = _parse_model_config({"architecture": "cnn_small_v1"})
+        assert cfg.architecture == "cnn_small_v1"
+        assert cfg.hyperparams == {}
+        assert cfg.augmentation == {}
+        assert cfg.pretrained_model is None
+
+    def test_strips_architecture_whitespace(self) -> None:
+        cfg = _parse_model_config({"architecture": "  cnn_small_v1  "})
+        assert cfg.architecture == "cnn_small_v1"
+
+    def test_accepts_full_proposal(self) -> None:
+        cfg = _parse_model_config(
+            {
+                "architecture": "efficientnet_b0",
+                "pretrained_model": "efficientnet_b0",
+                "hyperparams": {"lr": 0.001, "batch_size": 128},
+                "augmentation": {"mixup": 0.2},
+            }
+        )
+        assert cfg.architecture == "efficientnet_b0"
+        assert cfg.pretrained_model == "efficientnet_b0"
+        assert cfg.hyperparams["lr"] == 0.001
+        assert cfg.augmentation["mixup"] == 0.2
+
+
+# ---------------------------------------------------------------------------
+# Promotion phase
+# ---------------------------------------------------------------------------
+#
+# The smoke phase runs every experiment for 1 epoch (fast iteration). At
+# end-of-study, `_run_promotion_phase` re-runs the top-K smoke candidates
+# with BIRDCLEF_EPOCHS bumped up so we get a realistic final score. The
+# re-run reuses the SAME sandbox code — no new LLM calls.
+
+
+def _smoke_code_that_reports_epochs_as_score(base_score: float) -> str:
+    """Return Python code that writes a results.json where the metric
+    value scales with BIRDCLEF_EPOCHS. This lets us verify that the
+    promoted run actually sees the bumped env var."""
+    return f"""
+import json, os, pathlib
+EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
+score = {base_score} + 0.1 * (EPOCHS - 1)
+pathlib.Path('results.json').write_text(json.dumps({{
+    'metrics': {{'roc_auc_macro': score, 'loss': 0.5}},
+    'training_curves': {{'loss': [0.5]*EPOCHS, 'roc_auc_macro': [score]*EPOCHS}},
+    'duration_seconds': 0.1 * EPOCHS,
+}}))
+print(f'epochs={{EPOCHS}} score={{score}}')
+"""
+
+
+class TestOrchestratorPromotion:
+    def test_promotion_phase_disabled_by_default(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """When promoted_epochs <= 1, no promotion runs."""
+        study.compute_budget.max_experiments = 1
+        study.compute_budget.promoted_epochs = 1  # disabled
+        responses = _round_trip_responses(score=0.5)
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+        # Only the smoke experiment — no `promoted_` IDs.
+        assert all(
+            not eid.startswith("promoted_") for eid in study.experiment_ids
+        )
+
+    def test_promotion_phase_runs_top_k(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """With promoted_epochs > 1 and top_k=1, the best smoke
+        experiment gets re-run under BIRDCLEF_EPOCHS=5 and a
+        `promoted_exp_001` experiment is added to the study."""
+        study.compute_budget.max_experiments = 2
+        study.compute_budget.promoted_epochs = 5
+        study.compute_budget.promote_top_k = 1
+
+        # Two experiments with different smoke scores. The better one
+        # should be promoted.
+        propose1 = json.dumps(
+            {
+                "architecture": "cnn_small_v1",
+                "pretrained_model": None,
+                "hyperparams": {"lr": 0.001, "batch_size": 16, "epochs": 1, "optimizer": "adam"},
+                "augmentation": {},
+            }
+        )
+        code1 = _smoke_code_that_reports_epochs_as_score(0.5)
+        analyze1 = "baseline"
+        propose2 = json.dumps(
+            {
+                "architecture": "cnn_small_v1_v2",
+                "pretrained_model": None,
+                "hyperparams": {"lr": 0.001, "batch_size": 16, "epochs": 1, "optimizer": "adam"},
+                "augmentation": {},
+            }
+        )
+        code2 = _smoke_code_that_reports_epochs_as_score(0.7)
+        analyze2 = "better"
+        responses = [propose1, code1, analyze1, propose2, code2, analyze2]
+
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        # Smoke run of exp_002 got 0.7 (base), exp_001 got 0.5.
+        # Promotion should have picked exp_002 and re-run it at EPOCHS=5,
+        # producing 0.7 + 0.1 * (5 - 1) = 1.1.
+        promoted_ids = [
+            eid for eid in study.experiment_ids if eid.startswith("promoted_")
+        ]
+        assert len(promoted_ids) == 1
+        assert promoted_ids[0] == "promoted_exp_002"
+
+        promoted = orch.memory.get("promoted_exp_002")
+        assert promoted is not None
+        assert promoted.status == ExperimentStatus.COMPLETED.value
+        assert promoted.results is not None
+        promoted_score = promoted.results.metrics["roc_auc_macro"]
+        assert promoted_score == pytest.approx(1.1, abs=1e-6), (
+            f"expected 0.7 + 0.4 = 1.1, got {promoted_score}"
+        )
+
+        # best_score should reflect the promoted score, not the smoke one.
+        assert study.best_experiment_id == "promoted_exp_002"
+        assert study.best_score == pytest.approx(1.1, abs=1e-6)
+
+    def test_promotion_phase_respects_min_score_filter(
+        self, study: Study, tmp_path: Path
+    ) -> None:
+        """When promote_min_score is set, only experiments with smoke
+        score >= threshold are promoted."""
+        study.compute_budget.max_experiments = 2
+        study.compute_budget.promoted_epochs = 3
+        study.compute_budget.promote_top_k = 5
+        study.compute_budget.promote_min_score = 0.6
+
+        propose1 = json.dumps(
+            {
+                "architecture": "lowscore",
+                "pretrained_model": None,
+                "hyperparams": {"lr": 0.001, "batch_size": 16, "epochs": 1, "optimizer": "adam"},
+                "augmentation": {},
+            }
+        )
+        code1 = _smoke_code_that_reports_epochs_as_score(0.4)  # below 0.6
+        analyze1 = "ok"
+        propose2 = json.dumps(
+            {
+                "architecture": "highscore",
+                "pretrained_model": None,
+                "hyperparams": {"lr": 0.001, "batch_size": 16, "epochs": 1, "optimizer": "adam"},
+                "augmentation": {},
+            }
+        )
+        code2 = _smoke_code_that_reports_epochs_as_score(0.8)  # above 0.6
+        analyze2 = "good"
+        responses = [propose1, code1, analyze1, propose2, code2, analyze2]
+
+        orch, _ = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        promoted_ids = [
+            eid for eid in study.experiment_ids if eid.startswith("promoted_")
+        ]
+        assert promoted_ids == ["promoted_exp_002"], (
+            f"only exp_002 should be promoted, got {promoted_ids}"
+        )
+
+
+class TestOrchestratorCornerCases:
+    """Edge cases that don't cleanly belong to any other test class."""
 
     def test_budget_zero_runs_nothing(
         self, study: Study, tmp_path: Path
@@ -586,3 +843,118 @@ class TestOrchestratorRecovery:
         assert len(backend.calls) == 2, (
             f"expected 2 LLM calls (propose/generate), got {len(backend.calls)}"
         )
+
+    def test_recovery_retries_on_empty_response(
+        self,
+        pipeline_yaml_with_validate: Path,
+        dataset_profile: Path,
+        tmp_path: Path,
+    ) -> None:
+        """When the LLM returns an empty string, the recovery handler
+        MUST retry internally before consuming the recovery attempt.
+        This models real nemotron-3-nano behavior: occasional empty
+        draws interleaved with good ones."""
+        study = Study(
+            study_id="study_recovery_retry",
+            name="Recovery with empty retries",
+            hypothesis="Inner retries absorb LLM sampling variance",
+            mode=StudyMode.AUTONOMOUS,
+            compute_budget=ComputeBudget(
+                max_experiments=1,
+                max_wallclock_minutes=5,
+                max_experiment_seconds=30,
+                max_epochs_per_run=1,
+                max_recovery_attempts=1,  # only ONE outer attempt
+                recovery_empty_response_retries=3,  # three inner retries
+                recovery_min_code_chars=50,
+            ),
+            pipeline_config_path=pipeline_yaml_with_validate,
+            dataset_profile_path=dataset_profile,
+            model_registry_path=Path("registry/models.yaml"),
+            status=StudyStatus.ACTIVE,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+
+        propose, broken, fixed, analyze = _recovery_round_trip_responses(0.62)
+        # Two empty drawings before the successful one — the handler
+        # should retry internally and still consume only ONE outer attempt.
+        responses = [propose, broken, "", "   ", fixed, analyze]
+
+        orch, backend = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.COMPLETED.value, (
+            f"inner retries should have rescued this experiment, got {exp.status}"
+        )
+        # 1 propose + 1 generate + 3 recovery LLM calls + 1 analyze = 6
+        assert len(backend.calls) == 6, (
+            f"expected 6 LLM calls (propose, generate, 3x recovery, analyze), "
+            f"got {len(backend.calls)}"
+        )
+        # Recovery task should have recorded that it needed 2 empty retries
+        recovery_ids = [tid for tid in exp.task_ids if "recovery" in tid]
+        assert len(recovery_ids) == 1
+        rt_json = (
+            orch.experiment_logger.task_dir(exp.experiment_id)
+            / f"{recovery_ids[0]}.json"
+        )
+        assert rt_json.exists()
+        rt_data = json.loads(rt_json.read_text())
+        assert rt_data["status"] == "completed"
+        assert rt_data.get("output", {}).get("inner_retries") == 2
+
+    def test_recovery_fails_after_all_inner_retries_empty(
+        self,
+        pipeline_yaml_with_validate: Path,
+        dataset_profile: Path,
+        tmp_path: Path,
+    ) -> None:
+        """If every inner retry is empty, the outer attempt fails
+        with EmptyRecoveryResponse and the inner retry count is
+        reflected in the error message."""
+        study = Study(
+            study_id="study_recovery_all_empty",
+            name="All empty",
+            hypothesis="Exhausted retries fail cleanly",
+            mode=StudyMode.AUTONOMOUS,
+            compute_budget=ComputeBudget(
+                max_experiments=1,
+                max_wallclock_minutes=5,
+                max_experiment_seconds=30,
+                max_epochs_per_run=1,
+                max_recovery_attempts=1,
+                recovery_empty_response_retries=3,
+                recovery_min_code_chars=50,
+            ),
+            pipeline_config_path=pipeline_yaml_with_validate,
+            dataset_profile_path=dataset_profile,
+            model_registry_path=Path("registry/models.yaml"),
+            status=StudyStatus.ACTIVE,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+
+        propose, broken, _fixed, _analyze = _recovery_round_trip_responses(0.62)
+        # All three inner retries empty.
+        responses = [propose, broken, "", "", ""]
+
+        orch, backend = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.FAILED.value
+        recovery_ids = [tid for tid in exp.task_ids if "recovery" in tid]
+        assert len(recovery_ids) == 1
+        rt_json = (
+            orch.experiment_logger.task_dir(exp.experiment_id)
+            / f"{recovery_ids[0]}.json"
+        )
+        assert rt_json.exists()
+        rt_data = json.loads(rt_json.read_text())
+        assert rt_data["status"] == "failed"
+        assert rt_data["error"]["error_type"] == "EmptyRecoveryResponse"
+        assert "3" in rt_data["error"]["message"]  # mentions the retry count

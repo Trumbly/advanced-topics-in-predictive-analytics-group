@@ -14,51 +14,66 @@ models:
 
   - name: cnn_small_v1
     family: cnn
-    input_shape: [1, 128, 256]
-    output_dim: 234
-    parameters_millions: 0.5
+    input_shape: [1, 128, 313]
+    output_dim: num_classes        # use the variable, NOT a literal
+    parameters_millions: 0.04
     pretrained_on: none
     suitability_notes: >
-      Fast from-scratch baseline. 3 Conv2D blocks + global pool + linear head.
-      Trains in under 2 minutes on CPU. Use as a sanity check before touching
-      heavier architectures.
+      Tiny from-scratch baseline (≈37k parameters). 3 Conv2D blocks +
+      adaptive pool + linear head. Trains in under 2 minutes on CPU.
+      Use as a sanity check before touching heavier architectures.
     framework: torch
     import_snippet: |
       from pipelines.models import CnnSmallV1
-      model = CnnSmallV1(num_classes=234, in_channels=1)
+      model = CnnSmallV1(num_classes=num_classes, in_channels=1)
 
   - name: efficientnet_b0
     family: cnn
-    input_shape: [3, 224, 224]
-    output_dim: 234
-    parameters_millions: 5.3
-    pretrained_on: imagenet
+    input_shape: [1, 128, 313]    # original spectrogram shape — the adapter resizes
+    output_dim: num_classes
+    parameters_millions: 4.3
+    pretrained_on: none            # sandbox has no internet, so pretrained=False
     suitability_notes: >
-      Strong transfer learning baseline. Requires the spectrogram to be resized
-      to 224x224 and stacked to 3 channels. Freeze the backbone for the first
-      few epochs, then fine-tune the last block.
+      EfficientNet-B0 backbone wrapped in TorchvisionAdapter. The adapter
+      takes the raw (B, 1, 128, T) spectrogram, repeats the channel to 3,
+      bilinearly resizes to 224x224, runs the backbone, and uses a
+      LazyLinear head to produce `num_classes` logits. Pretrained weights
+      are NOT loaded (sandbox is offline) — the backbone trains from
+      scratch. ~4.3M parameters, strong expressiveness but slower per
+      batch than CnnSmallV1.
     framework: torch
     import_snippet: |
-      import torch.nn as nn
-      import torchvision.models as m
-      backbone = m.efficientnet_b0(weights=m.EfficientNet_B0_Weights.IMAGENET1K_V1)
-      backbone.classifier[1] = nn.Linear(backbone.classifier[1].in_features, 234)
-      model = backbone
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("efficientnet_b0", num_classes=num_classes)
 
   - name: resnet18
     family: cnn
-    input_shape: [3, 224, 224]
-    output_dim: 234
-    parameters_millions: 11.7
-    pretrained_on: imagenet
+    input_shape: [1, 128, 313]
+    output_dim: num_classes
+    parameters_millions: 11.3
+    pretrained_on: none
     suitability_notes: >
-      Reliable mid-sized CNN. Heavier than EfficientNet-B0 per forward pass
-      but easier to train stably. Good fallback when EfficientNet overfits
-      on the small labeled subset.
+      ResNet-18 via TorchvisionAdapter. Same channel-expand + 224x224
+      resize pipeline as efficientnet_b0. ~11.3M parameters, heavier
+      than EfficientNet-B0 per forward pass but very stable to train
+      from scratch. Good fallback when EfficientNet fails to converge.
     framework: torch
     import_snippet: |
-      import torch.nn as nn
-      import torchvision.models as m
-      backbone = m.resnet18(weights=m.ResNet18_Weights.IMAGENET1K_V1)
-      backbone.fc = nn.Linear(backbone.fc.in_features, 234)
-      model = backbone
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("resnet18", num_classes=num_classes)
+
+  - name: mobilenet_v3_small
+    family: cnn
+    input_shape: [1, 128, 313]
+    output_dim: num_classes
+    parameters_millions: 1.0
+    pretrained_on: none
+    suitability_notes: >
+      MobileNet-V3 Small via TorchvisionAdapter — the lightest
+      architecture family we offer (≈1M params). Well-suited to the
+      CPU-only Kaggle inference budget. Use when the bigger backbones
+      hit runtime limits.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("mobilenet_v3_small", num_classes=num_classes)

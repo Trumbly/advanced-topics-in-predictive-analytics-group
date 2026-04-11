@@ -61,6 +61,42 @@ system: |
       still include a value in the proposal for documentation (e.g. 128),
       but the generated code will not use it.
 
+  ## Architecture diversity — NO HERDING
+
+  Past runs have wasted 20+ experiments re-proposing tiny variations of
+  the same "3-conv CNN + SE attention + dropout" template. That is NOT
+  what you should do. Before every new proposal, look at the
+  `Previous Experiments` section in the user message and answer these
+  three questions explicitly to yourself:
+
+    1. Which architecture FAMILIES have already been tried?
+    2. Which families have NOT been tried yet?
+    3. Pick a family that is either NEW or has only been tried once.
+
+  Your `architecture` string MUST start with the family tag in square
+  brackets so the memory can cluster them, e.g.
+
+      "[efficientnet_b0] EfficientNet-B0 via TorchvisionAdapter, dropout 0.3"
+      "[cnn_gru_hybrid] 3-conv CNN → GRU(128) → Linear"
+      "[resnet18] ResNet-18 via TorchvisionAdapter, baseline head"
+      "[custom_cnn] 4-conv from-scratch with BatchNorm + SE attention"
+
+  Family palette (you do NOT have to use all of them, but your first 10
+  proposals should come from AT LEAST 5 different families):
+
+      [custom_cnn]         — small from-scratch Conv2d stack (CnnSmallV1 base)
+      [efficientnet_b0]    — TorchvisionAdapter("efficientnet_b0", ...)
+      [resnet18]           — TorchvisionAdapter("resnet18", ...)
+      [mobilenet_v3_small] — TorchvisionAdapter("mobilenet_v3_small", ...)
+      [cnn_gru_hybrid]     — Conv2d front-end → flatten → nn.GRU → Linear
+      [cnn_attention]      — Conv2d front-end → self-attention → pool → Linear
+      [deep_cnn]           — 5-6 Conv2d blocks with BatchNorm + residuals
+      [specaugment_cnn]    — small CNN with aggressive SpecAugment + mixup
+
+  If the last 3 non-failed proposals all share the same family tag,
+  you MUST pick a different family this round. Repeating the same
+  family a fourth time in a row is forbidden.
+
 template: |
   ## Dataset Profile
   {dataset_profile}
@@ -79,9 +115,17 @@ template: |
     (A) pick and configure a model from the registry above, OR
     (B) design a completely custom architecture from PyTorch primitives.
 
-  Whatever you choose, justify it in the `architecture` string: name the
-  design idea (e.g. "ResNet-style 4-block CNN with SE attention", "EfficientNet-B0
-  feature extractor + GRU head", "custom 3-conv baseline with dropout").
+  Whatever you choose, your `architecture` string MUST start with a
+  `[family_tag]` from the palette in the system prompt, followed by a
+  short design description. Example:
+      "[cnn_gru_hybrid] 3-conv CNN front-end feeding a 1-layer GRU(128)"
+
+  Anti-herding check (do this before writing the JSON):
+    1. Look at `Previous Experiments` above. Extract the `[family_tag]`
+       from each proposal's architecture field.
+    2. Count how many times each family has been proposed.
+    3. If your intended family has been tried 3+ times already, PICK
+       A DIFFERENT FAMILY from the palette in the system prompt.
 
   If the previous experiments cluster around a plateau, try something different
   in family or scale — don't just tweak hyperparameters. If previous experiments
@@ -108,7 +152,7 @@ fallback_when_no_memory: |
   JSON object with exactly this shape:
 
   {
-    "architecture": "cnn_small_v1",
+    "architecture": "[custom_cnn] cnn_small_v1 baseline",
     "pretrained_model": null,
     "hyperparams": {
       "lr": 0.001,
@@ -127,6 +171,8 @@ fallback_when_no_memory: |
   }
 
   You may copy that exact JSON verbatim — it is a valid first experiment.
+  Later proposals MUST start the architecture string with a different
+  `[family_tag]` to force diverse exploration.
 
 response_schema:
   type: object
