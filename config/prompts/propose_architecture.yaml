@@ -31,6 +31,11 @@ system: |
     - Audio is preprocessed into mel-spectrograms by a fixed pipeline. You work
       on the spectrograms directly; do not propose audio-waveform models.
     - No GPU-only ops, no internet downloads, no custom CUDA kernels.
+    - `hyperparams.epochs` MUST be exactly 1. We are in fast-iteration mode:
+      every experiment trains for a single epoch so we can try more ideas
+      per unit of wall-clock time. If your proposal has epochs > 1, the
+      code generator will override it back to 1 and your measured score
+      will reflect 1 epoch anyway — so just set it to 1 in the proposal.
 
 template: |
   ## Dataset Profile

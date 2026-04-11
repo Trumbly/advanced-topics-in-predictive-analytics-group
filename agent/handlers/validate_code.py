@@ -107,6 +107,8 @@ def run(task: Task, *, config: dict[str, Any] | None = None) -> Task:
                 (validation fails if none are imported)
               - `reject_patterns`: extra substring patterns to reject,
                 merged with the hardcoded FORBIDDEN_PATTERNS
+              - `max_epochs`: integer cap on EPOCHS = N. Rejects any code
+                where `EPOCHS = <int>` at module scope exceeds this value.
 
     Returns:
         The same Task object, with `status`, `output`, and `error` updated.
@@ -121,11 +123,13 @@ def run(task: Task, *, config: dict[str, Any] | None = None) -> Task:
     config = config or {}
     extra_rejects = tuple(config.get("reject_patterns") or ())
     check_imports = tuple(config.get("check_imports") or ())
+    max_epochs = config.get("max_epochs")
 
     result = validate(
         code,
         check_imports=check_imports,
         extra_reject_patterns=extra_rejects,
+        max_epochs=max_epochs,
     )
 
     if not result.ok:
@@ -147,6 +151,7 @@ def validate(
     *,
     check_imports: tuple[str, ...] = (),
     extra_reject_patterns: tuple[str, ...] = (),
+    max_epochs: int | None = None,
 ) -> ValidationResult:
     """Validate a code string without any side effects."""
     # 1. Syntax check — compile raises SyntaxError with line info
@@ -218,6 +223,33 @@ def validate(
                 f"found. Got: {sorted(imported_names)}"
             ),
         )
+
+    # 6. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
+    #    any top-level constant assignment `EPOCHS = <int>` with a value
+    #    larger than max_epochs gets rejected. This is a HARD enforcement
+    #    of the fast-iteration mode because the LLM repeatedly ignores the
+    #    prompt's "CAP at 1" instruction.
+    if max_epochs is not None:
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if (
+                        isinstance(target, ast.Name)
+                        and target.id == "EPOCHS"
+                        and isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, int)
+                    ):
+                        declared = node.value.value
+                        if declared > max_epochs:
+                            return ValidationResult(
+                                ok=False,
+                                error_type="EpochsCapExceeded",
+                                message=(
+                                    f"EPOCHS = {declared} exceeds the hard cap of "
+                                    f"{max_epochs} (fast-iteration mode). Set "
+                                    f"`EPOCHS = {max_epochs}` in your code."
+                                ),
+                            )
 
     return ValidationResult(ok=True)
 

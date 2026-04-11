@@ -106,6 +106,7 @@ class ComputeBudget(AgentBaseModel):
     max_wallclock_minutes: int = 240
     max_experiment_seconds: int = 7200      # 2 hours — real BirdCLEF training is slow
     max_epochs_per_run: int = 1             # fast-iteration mode
+    max_recovery_attempts: int = 2          # retries for a failed experiment's code
 
 
 class Study(AgentBaseModel):
