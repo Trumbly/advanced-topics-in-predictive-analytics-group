@@ -83,6 +83,64 @@ def _default_labels_csv() -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Training-config env var fallbacks
+# ---------------------------------------------------------------------------
+#
+# These are set by `agent.executor.CodeExecutor._build_env` based on the
+# `training:` section of `config/config.yaml`. LLM-generated code does not
+# need to specify them — `load_precomputed_dataset(..)` reads them here
+# whenever the caller passes None (or simply omits the argument).
+#
+# The fallback order is:
+#   1. Explicit function argument (non-None).
+#   2. BIRDCLEF_* env var from the sandbox.
+#   3. Hardcoded safe default (suited to modern multi-core CPUs).
+
+
+def _default_batch_size() -> int:
+    val = os.environ.get("BIRDCLEF_BATCH_SIZE")
+    if val is not None:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return 128
+
+
+def _default_num_workers() -> int:
+    """Auto-tune num_workers unless BIRDCLEF_NUM_WORKERS is set explicitly.
+
+    Auto-tune formula: half the logical cores, clamped to [2, 6]. The cap
+    at 6 matters on Apple Silicon where workers are spawn-started and the
+    marginal benefit drops off quickly past 6 workers.
+    """
+    val = os.environ.get("BIRDCLEF_NUM_WORKERS")
+    if val is not None:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return min(6, max(2, (os.cpu_count() or 4) // 2))
+
+
+def _default_persistent_workers() -> bool:
+    val = os.environ.get("BIRDCLEF_PERSISTENT_WORKERS")
+    if val is not None:
+        return val.strip().lower() in ("1", "true", "yes", "on")
+    return True
+
+
+def _default_prefetch_factor() -> int:
+    val = os.environ.get("BIRDCLEF_PREFETCH_FACTOR")
+    if val is not None:
+        try:
+            return int(val)
+        except ValueError:
+            pass
+    return 4
+
+
+# ---------------------------------------------------------------------------
 # Label loading
 # ---------------------------------------------------------------------------
 
@@ -171,41 +229,41 @@ def load_precomputed_dataset(
     spectrograms_dir: Path | str | None = None,
     labels_csv: Path | str | None = None,
     *,
-    batch_size: int = 128,
+    batch_size: int | None = None,
     num_workers: int | None = None,
     augmentation: dict[str, Any] | None = None,
     shuffle_train: bool = True,
-    persistent_workers: bool = True,
-    prefetch_factor: int = 4,
+    persistent_workers: bool | None = None,
+    prefetch_factor: int | None = None,
 ) -> tuple[Any, Any, int]:
     """Load train and validation DataLoaders from a preprocessed dataset.
 
     This is the function the LLM-generated training code is expected to call.
     Returns `(train_loader, val_loader, num_classes)`.
 
-    Path arguments are optional. If omitted (or None), they fall back to
-    these env vars set by the orchestrator's executor:
+    ALL parameters are optional. Any argument left as None (or omitted)
+    falls back to these env vars (set by the orchestrator's executor from
+    `config/config.yaml`):
 
-        profile_path      -> BIRDCLEF_DATASET_PROFILE
-        spectrograms_dir  -> BIRDCLEF_SPECTROGRAMS_DIR
-        labels_csv        -> BIRDCLEF_LABELS_CSV
+        profile_path         -> BIRDCLEF_DATASET_PROFILE
+        spectrograms_dir     -> BIRDCLEF_SPECTROGRAMS_DIR
+        labels_csv           -> BIRDCLEF_LABELS_CSV
+        batch_size           -> BIRDCLEF_BATCH_SIZE
+        num_workers          -> BIRDCLEF_NUM_WORKERS (auto-tune if unset)
+        persistent_workers   -> BIRDCLEF_PERSISTENT_WORKERS
+        prefetch_factor      -> BIRDCLEF_PREFETCH_FACTOR
+
+    If an env var is missing too, the function uses a safe hardcoded
+    default (batch_size=128, num_workers=auto, persistent_workers=True,
+    prefetch_factor=4).
 
     This means LLM-generated code can simply call:
 
-        load_precomputed_dataset(augmentation={...})
+        load_precomputed_dataset(augmentation={"time_shift": True})
 
-    without worrying about path resolution across the sandbox cwd.
-
-    CPU saturation defaults:
-      - `batch_size` defaults to 128 (up from 32) so BLAS has enough work
-        per matmul call to actually parallelize on multi-core CPUs.
-      - `num_workers` defaults to `min(6, max(2, os.cpu_count() // 2))` so
-        data loading pipelines with training. Override by passing an int.
-      - `persistent_workers=True` keeps worker processes alive between
-        epochs — crucial on macOS where `spawn` start method makes
-        worker startup expensive.
-      - `prefetch_factor=4` buffers more batches per worker so the main
-        process never has to wait for data.
+    and get the sandbox-configured training values automatically. The
+    values themselves live in `config/config.yaml` under `training:` so
+    you can tune the whole project without touching any Python code.
 
     The torch import happens inside this function, so `pipelines` can be
     imported in environments without torch (CI, unit tests for models).
@@ -219,12 +277,15 @@ def load_precomputed_dataset(
     )
     labels_csv = Path(labels_csv) if labels_csv else _default_labels_csv()
 
-    # Auto-tune num_workers based on CPU count if not specified explicitly.
-    # Leave half the cores for BLAS / main-process training, cap at 6 so we
-    # don't spawn dozens of processes on Apple Silicon where that hurts more
-    # than it helps (spawn start method is slow).
+    # Resolve all training knobs: explicit arg → env var → hardcoded default.
+    if batch_size is None:
+        batch_size = _default_batch_size()
     if num_workers is None:
-        num_workers = min(6, max(2, (os.cpu_count() or 4) // 2))
+        num_workers = _default_num_workers()
+    if persistent_workers is None:
+        persistent_workers = _default_persistent_workers()
+    if prefetch_factor is None:
+        prefetch_factor = _default_prefetch_factor()
 
     profile = DatasetProfile.from_json_file(profile_path)
 
