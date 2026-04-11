@@ -50,3 +50,29 @@ class TestDefaultPathResolution:
         )
         assert _default_spectrograms_dir() == Path("data/processed/spectrograms")
         assert _default_labels_csv() == Path("data/processed/labels.csv")
+
+
+class TestLoaderSignature:
+    """The public `load_precomputed_dataset` signature must expose the CPU-
+    saturation knobs (persistent_workers, prefetch_factor, auto-tuned
+    num_workers). LLM-generated code relies on these defaults."""
+
+    def test_signature_has_cpu_saturation_params(self) -> None:
+        import inspect
+
+        from pipelines.data_loader import load_precomputed_dataset
+
+        params = inspect.signature(load_precomputed_dataset).parameters
+        assert "num_workers" in params
+        assert "persistent_workers" in params
+        assert "prefetch_factor" in params
+        assert "batch_size" in params
+
+        # num_workers default must be None so the loader auto-tunes it
+        assert params["num_workers"].default is None
+        # persistent_workers default must be True so workers survive epochs
+        assert params["persistent_workers"].default is True
+        # prefetch_factor default must be > 2 so batches pipeline
+        assert params["prefetch_factor"].default >= 4
+        # batch_size default must be >= 128 (BLAS-friendly for CPU)
+        assert params["batch_size"].default >= 128

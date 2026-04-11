@@ -71,14 +71,19 @@ system: |
   - CPU-only. Do NOT reference `torch.cuda`, `.cuda()`, `.to('cuda')`, or any
     GPU-specific API.
   - Use the fixed data loader. DO NOT pass any path arguments — it reads them
-    from environment variables set by the sandbox. Just do:
+    from environment variables set by the sandbox. The loader auto-tunes
+    `num_workers` and sets sensible pipelining defaults
+    (`persistent_workers=True`, `prefetch_factor=4`). Just do:
 
         from pipelines.data_loader import load_precomputed_dataset
         train_loader, val_loader, num_classes = load_precomputed_dataset(
-            batch_size=32,                  # from proposal
-            num_workers=2,                  # pipeline data loading with training
-            augmentation={"time_shift": True, "noise_injection": True},  # hardcoded dict
+            batch_size=128,                 # >= 128 for CPU BLAS saturation
+            augmentation={"time_shift": True, "noise_injection": True},
         )
+
+    You may override `num_workers=<n>` explicitly if the proposal wants to,
+    but the default is already cpu_count() // 2 capped at 6, which is a
+    good balance on most machines.
 
   - CPU saturation: immediately after `import torch`, set the thread count
     explicitly so PyTorch uses every available core:
@@ -249,7 +254,7 @@ system: |
       torch.set_num_threads(os.cpu_count() or 4)
 
       # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
-      BATCH_SIZE = 32
+      BATCH_SIZE = 128           # >= 128 for CPU BLAS saturation
       EPOCHS = 1                 # CAP at 1 — fast-iteration mode
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
@@ -266,8 +271,9 @@ system: |
           print("loading data...", flush=True)
           train_loader, val_loader, num_classes = load_precomputed_dataset(
               batch_size=BATCH_SIZE,
-              num_workers=2,           # pipeline data loading with training
               augmentation=AUGMENTATION,
+              # num_workers, persistent_workers, prefetch_factor are
+              # auto-tuned by the loader; no need to override on CPU.
           )
           print(
               f"data loaded: {num_classes} classes, "

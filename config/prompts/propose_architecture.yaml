@@ -36,6 +36,11 @@ system: |
       per unit of wall-clock time. If your proposal has epochs > 1, the
       code generator will override it back to 1 and your measured score
       will reflect 1 epoch anyway — so just set it to 1 in the proposal.
+    - `hyperparams.batch_size` should be >= 128 (ideally 128 or 256). We
+      train on CPU, and with smaller batch sizes the Conv2d matrices are
+      too small for BLAS multi-threading to kick in — the machine sits at
+      30% utilization. At batch_size 128 we saturate the cores. Go lower
+      only if the model genuinely cannot fit 128 samples in memory.
 
 template: |
   ## Dataset Profile
@@ -88,8 +93,8 @@ fallback_when_no_memory: |
     "pretrained_model": null,
     "hyperparams": {
       "lr": 0.001,
-      "batch_size": 32,
-      "epochs": 2,
+      "batch_size": 128,
+      "epochs": 1,
       "optimizer": "adam",
       "weight_decay": 0.0,
       "dropout": 0.1

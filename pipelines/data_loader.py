@@ -171,10 +171,12 @@ def load_precomputed_dataset(
     spectrograms_dir: Path | str | None = None,
     labels_csv: Path | str | None = None,
     *,
-    batch_size: int = 32,
-    num_workers: int = 0,
+    batch_size: int = 128,
+    num_workers: int | None = None,
     augmentation: dict[str, Any] | None = None,
     shuffle_train: bool = True,
+    persistent_workers: bool = True,
+    prefetch_factor: int = 4,
 ) -> tuple[Any, Any, int]:
     """Load train and validation DataLoaders from a preprocessed dataset.
 
@@ -190,9 +192,20 @@ def load_precomputed_dataset(
 
     This means LLM-generated code can simply call:
 
-        load_precomputed_dataset(batch_size=32, augmentation={...})
+        load_precomputed_dataset(augmentation={...})
 
     without worrying about path resolution across the sandbox cwd.
+
+    CPU saturation defaults:
+      - `batch_size` defaults to 128 (up from 32) so BLAS has enough work
+        per matmul call to actually parallelize on multi-core CPUs.
+      - `num_workers` defaults to `min(6, max(2, os.cpu_count() // 2))` so
+        data loading pipelines with training. Override by passing an int.
+      - `persistent_workers=True` keeps worker processes alive between
+        epochs — crucial on macOS where `spawn` start method makes
+        worker startup expensive.
+      - `prefetch_factor=4` buffers more batches per worker so the main
+        process never has to wait for data.
 
     The torch import happens inside this function, so `pipelines` can be
     imported in environments without torch (CI, unit tests for models).
@@ -205,6 +218,13 @@ def load_precomputed_dataset(
         Path(spectrograms_dir) if spectrograms_dir else _default_spectrograms_dir()
     )
     labels_csv = Path(labels_csv) if labels_csv else _default_labels_csv()
+
+    # Auto-tune num_workers based on CPU count if not specified explicitly.
+    # Leave half the cores for BLAS / main-process training, cap at 6 so we
+    # don't spawn dozens of processes on Apple Silicon where that hurts more
+    # than it helps (spawn start method is slow).
+    if num_workers is None:
+        num_workers = min(6, max(2, (os.cpu_count() or 4) // 2))
 
     profile = DatasetProfile.from_json_file(profile_path)
 
@@ -250,17 +270,25 @@ def load_precomputed_dataset(
                 torch.from_numpy(np.ascontiguousarray(label)),
             )
 
+    # persistent_workers + prefetch_factor require num_workers > 0.
+    # Build the kwargs conditionally so num_workers=0 still works.
+    loader_kwargs: dict[str, Any] = {
+        "batch_size": batch_size,
+        "num_workers": num_workers,
+    }
+    if num_workers > 0:
+        loader_kwargs["persistent_workers"] = persistent_workers
+        loader_kwargs["prefetch_factor"] = prefetch_factor
+
     train_loader = DataLoader(
         _TorchAdapter(train_ds),
-        batch_size=batch_size,
         shuffle=shuffle_train,
-        num_workers=num_workers,
+        **loader_kwargs,
     )
     val_loader = DataLoader(
         _TorchAdapter(val_ds),
-        batch_size=batch_size,
         shuffle=False,
-        num_workers=num_workers,
+        **loader_kwargs,
     )
     return train_loader, val_loader, profile.num_classes
 
