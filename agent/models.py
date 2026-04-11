@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -410,17 +410,22 @@ class LoggingSettings(AgentBaseModel):
 
 
 class TrainingSettings(AgentBaseModel):
-    """CPU-training knobs the orchestrator forwards to the sandbox.
+    """Training-time knobs the orchestrator forwards to the sandbox.
 
     These values are exported to the sandbox subprocess as env vars
     (prefixed `BIRDCLEF_`) and read by `pipelines.data_loader.load_
-    precomputed_dataset` when the LLM-generated code does not override
-    them explicitly. They exist to saturate CPU cores during training
-    without requiring every LLM-generated script to get the tuning right.
+    precomputed_dataset` and the LLM-generated training script. They
+    exist so the whole project can be tuned from one YAML file without
+    touching any Python code or prompt templates.
 
+    - `device`: torch device the training script will use. `"auto"`
+      resolves to `"mps"` on Apple Silicon with MPS available, else
+      `"cpu"`. The `SubmissionExporter` always forces cpu regardless
+      of this value so the final Kaggle notebook stays CPU-only.
     - `batch_size`: samples per training step. On CPU, <64 causes BLAS
       to run single-threaded because individual matmul matrices are too
-      small. 128 is the sweet spot on modern multi-core CPUs.
+      small. 128+ is the sweet spot. On MPS batch size matters less but
+      bigger is still faster.
     - `num_workers`: DataLoader worker processes. None means auto-tune
       as `min(6, max(2, cpu_count // 2))`.
     - `persistent_workers`: keep workers alive across epochs. Critical
@@ -429,7 +434,8 @@ class TrainingSettings(AgentBaseModel):
       process. 4 is a safe pipeline depth.
     """
 
-    batch_size: int = 128
+    device: Literal["auto", "cpu", "mps", "cuda"] = "auto"
+    batch_size: int = 512
     num_workers: int | None = None
     persistent_workers: bool = True
     prefetch_factor: int = 4

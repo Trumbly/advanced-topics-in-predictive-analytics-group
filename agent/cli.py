@@ -93,12 +93,72 @@ def _setup_logging(level: str = "INFO") -> None:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_device(configured: str) -> str:
+    """Convert a configured device setting ("auto"/"cpu"/"mps"/"cuda") into
+    a concrete device string. "auto" prefers MPS on Apple Silicon, then
+    CUDA on Linux/Windows, finally CPU. Unknown or unavailable devices
+    silently fall back to CPU with a warning logged to the CLI user."""
+    configured = (configured or "auto").lower()
+    if configured == "cpu":
+        return "cpu"
+    if configured == "mps":
+        if _mps_available():
+            return "mps"
+        click.echo(
+            "⚠ training.device=mps but MPS is not available — falling back to cpu",
+            err=True,
+        )
+        return "cpu"
+    if configured == "cuda":
+        if _cuda_available():
+            return "cuda"
+        click.echo(
+            "⚠ training.device=cuda but CUDA is not available — falling back to cpu",
+            err=True,
+        )
+        return "cpu"
+    # "auto" (or anything else): try each backend in preference order.
+    if _mps_available():
+        return "mps"
+    if _cuda_available():
+        return "cuda"
+    return "cpu"
+
+
+def _mps_available() -> bool:
+    try:
+        import torch
+
+        return bool(
+            getattr(torch.backends, "mps", None)
+            and torch.backends.mps.is_available()
+            and torch.backends.mps.is_built()
+        )
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _cuda_available() -> bool:
+    try:
+        import torch
+
+        return bool(torch.cuda.is_available())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _training_env_from_config(gc: GlobalConfig) -> dict[str, str]:
     """Convert the `training:` section of config.yaml into BIRDCLEF_* env
     vars for the sandbox subprocess. Only emit a var when the value is
     actually set — None means "let the data loader pick its default".
+
+    The `device` key is always emitted as a concrete value (cpu/mps/cuda);
+    `auto` is resolved here via `_resolve_device`.
     """
-    env: dict[str, str] = {"BIRDCLEF_BATCH_SIZE": str(gc.training.batch_size)}
+    env: dict[str, str] = {
+        "BIRDCLEF_DEVICE": _resolve_device(gc.training.device),
+        "BIRDCLEF_BATCH_SIZE": str(gc.training.batch_size),
+    }
     if gc.training.num_workers is not None:
         env["BIRDCLEF_NUM_WORKERS"] = str(gc.training.num_workers)
     env["BIRDCLEF_PERSISTENT_WORKERS"] = (

@@ -170,8 +170,9 @@ def _load_multilabel(
 class PrecomputedSpectrogramDataset:
     """A torch-style dataset of `(spectrogram, multi_hot_label)` pairs.
 
-    Not a subclass of `torch.utils.data.Dataset` — we lazy-bind inside
-    `load_precomputed_dataset` to keep torch optional at import time.
+    Not a subclass of `torch.utils.data.Dataset` — we keep torch optional
+    at import time so `pipelines.data_loader` can be imported in a CI
+    environment without torch installed.
     """
 
     def __init__(
@@ -217,6 +218,56 @@ class PrecomputedSpectrogramDataset:
             # so this is defensive.
             label = np.zeros(1, dtype=np.float32)
         return spec, label
+
+
+# ---------------------------------------------------------------------------
+# Torch adapter
+# ---------------------------------------------------------------------------
+#
+# MUST be at module top-level — NOT inside load_precomputed_dataset. When
+# PyTorch's DataLoader spawns worker processes (the default on macOS), it
+# pickles the dataset instance to ship to the workers. Pickle resolves the
+# class by fully-qualified name, so if we defined `_TorchAdapter` inside
+# `load_precomputed_dataset`, its __qualname__ would be
+#   'load_precomputed_dataset.<locals>._TorchAdapter'
+# which pickle cannot find on the worker side. This caused every training
+# run to crash with:
+#   AttributeError: Can't pickle local object
+#     'load_precomputed_dataset.<locals>._TorchAdapter'
+#
+# We deliberately do NOT inherit from `torch.utils.data.Dataset` here —
+# torch is still lazy-imported inside `load_precomputed_dataset`, so
+# `pipelines.data_loader` can be imported in environments without torch.
+# PyTorch's DataLoader only requires `__len__` and `__getitem__` on
+# map-style datasets (the `isinstance(..., Dataset)` check is exclusively
+# for `IterableDataset`), so duck typing works here.
+
+
+class _TorchAdapter:
+    """Adapts a `PrecomputedSpectrogramDataset` to yield torch tensors.
+
+    Defined at module scope (not inside `load_precomputed_dataset`) so
+    `pickle` can find it by fully-qualified name when PyTorch spawns
+    DataLoader workers.
+    """
+
+    def __init__(self, inner: PrecomputedSpectrogramDataset) -> None:
+        self.inner = inner
+
+    def __len__(self) -> int:
+        return len(self.inner)
+
+    def __getitem__(self, index: int) -> tuple[Any, Any]:
+        # Lazy torch import so top-level module import stays torch-free.
+        # In a spawn worker this runs once per worker startup, not per item,
+        # because Python caches `import torch` in sys.modules.
+        import torch
+
+        spec, label = self.inner[index]
+        return (
+            torch.from_numpy(np.ascontiguousarray(spec)),
+            torch.from_numpy(np.ascontiguousarray(label)),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -268,8 +319,7 @@ def load_precomputed_dataset(
     The torch import happens inside this function, so `pipelines` can be
     imported in environments without torch (CI, unit tests for models).
     """
-    import torch
-    from torch.utils.data import DataLoader, Dataset
+    from torch.utils.data import DataLoader
 
     profile_path = Path(profile_path) if profile_path else _default_profile_path()
     spectrograms_dir = (
@@ -316,20 +366,6 @@ def load_precomputed_dataset(
         augmentation=None,
         audio_pipeline=audio_pipeline,
     )
-
-    class _TorchAdapter(Dataset):  # type: ignore[misc]
-        def __init__(self, inner: PrecomputedSpectrogramDataset) -> None:
-            self.inner = inner
-
-        def __len__(self) -> int:
-            return len(self.inner)
-
-        def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
-            spec, label = self.inner[index]
-            return (
-                torch.from_numpy(np.ascontiguousarray(spec)),
-                torch.from_numpy(np.ascontiguousarray(label)),
-            )
 
     # persistent_workers + prefetch_factor require num_workers > 0.
     # Build the kwargs conditionally so num_workers=0 still works.

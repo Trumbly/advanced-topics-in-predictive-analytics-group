@@ -217,6 +217,31 @@ class TestNotebookStructure:
         assert "exp_001" in text
         assert "CUDA_VISIBLE_DEVICES" in text
 
+    def test_config_cell_forces_birdclef_device_cpu(
+        self,
+        study: Study,
+        experiment: Experiment,
+        clean_code: str,
+        tmp_path: Path,
+    ) -> None:
+        """The submission notebook must pin BIRDCLEF_DEVICE=cpu in its
+        config cell — otherwise experiments trained locally on MPS would
+        try to run on MPS inside Kaggle (where it does not exist).
+        """
+        path = tmp_path / "submission.ipynb"
+        SubmissionExporter().export(
+            study=study,
+            experiment=experiment,
+            code=clean_code,
+            output_path=path,
+        )
+        nb = json.loads(path.read_text())
+        # Find the first code cell — that is the auto-generated config cell.
+        config_cell = next(c for c in nb["cells"] if c["cell_type"] == "code")
+        source = "".join(config_cell["source"])
+        assert 'os.environ["BIRDCLEF_DEVICE"] = "cpu"' in source
+        assert 'os.environ["CUDA_VISIBLE_DEVICES"] = ""' in source
+
 
 # ---------------------------------------------------------------------------
 # export_best

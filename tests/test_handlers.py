@@ -209,6 +209,73 @@ class TestValidateCodePure:
         result = validate_code.validate(code, max_epochs=1)
         assert result.ok
 
+    def test_main_guard_required_for_load_precomputed_dataset(self) -> None:
+        """`load_precomputed_dataset(...)` at module scope is rejected
+        because DataLoader workers (spawn) would re-run it."""
+        code = (
+            "from pipelines.data_loader import load_precomputed_dataset\n"
+            "train, val, nc = load_precomputed_dataset()\n"
+        )
+        result = validate_code.validate(code)
+        assert not result.ok
+        assert result.error_type == "MissingMainGuard"
+        assert "load_precomputed_dataset" in result.message
+        assert "__main__" in result.message
+
+    def test_main_guard_required_for_dataloader(self) -> None:
+        """Bare `DataLoader(...)` at module scope is also rejected."""
+        code = (
+            "from torch.utils.data import DataLoader\n"
+            "loader = DataLoader(ds, batch_size=4, num_workers=2)\n"
+        )
+        result = validate_code.validate(code)
+        assert not result.ok
+        assert result.error_type == "MissingMainGuard"
+        assert "DataLoader" in result.message
+
+    def test_main_guard_accepts_call_inside_if_main(self) -> None:
+        """Inside the guard block the call is allowed."""
+        code = (
+            "from pipelines.data_loader import load_precomputed_dataset\n"
+            "if __name__ == '__main__':\n"
+            "    train, val, nc = load_precomputed_dataset()\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_main_guard_accepts_call_inside_function(self) -> None:
+        """Inside a function def the call is allowed too — the function
+        body is not re-executed on module import."""
+        code = (
+            "from pipelines.data_loader import load_precomputed_dataset\n"
+            "def setup():\n"
+            "    return load_precomputed_dataset()\n"
+            "if __name__ == '__main__':\n"
+            "    setup()\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_main_guard_accepts_call_when_no_multiprocessing_triggers(
+        self,
+    ) -> None:
+        """Code without DataLoader/load_precomputed_dataset at all
+        passes (nothing to guard)."""
+        code = "import torch\nmodel = torch.nn.Linear(10, 2)\n"
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_main_guard_detects_attribute_call(self) -> None:
+        """`pipelines.data_loader.load_precomputed_dataset(...)` at module
+        scope is also caught."""
+        code = (
+            "import pipelines.data_loader\n"
+            "train, val, nc = pipelines.data_loader.load_precomputed_dataset()\n"
+        )
+        result = validate_code.validate(code)
+        assert not result.ok
+        assert result.error_type == "MissingMainGuard"
+
 
 class TestValidateCodeHandler:
     def test_updates_task_on_success(self) -> None:
