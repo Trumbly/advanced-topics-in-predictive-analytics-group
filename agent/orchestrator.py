@@ -198,17 +198,26 @@ class Orchestrator:
         return experiment
 
     def _run_experiment(self, experiment: Experiment) -> None:
-        """Execute every pipeline step for one experiment."""
-        # Full output history keyed by task_name. Unlike "previous_task_output"
-        # (which only holds the *last* task's output), this lets downstream
-        # handlers look up specific earlier tasks by name, e.g.
-        # `outputs["generate_code"]["code"]` even when `validate_code`
-        # runs in between.
+        """Execute every pipeline step for one experiment.
+
+        On a code-level failure of a recoverable step, this method invokes
+        the error_recovery loop: the LLM is asked to rewrite the broken
+        code with the error as context, and execution resumes from
+        `validate_code` (or `execute_training` if there is no validate
+        step). Up to `compute_budget.max_recovery_attempts` retries per
+        experiment.
+        """
         outputs_by_name: dict[str, dict[str, Any]] = {}
         previous_task_output: dict[str, Any] = {}
         task_counter = 0
+        recovery_attempts_used = 0
+        max_recoveries = self.study.compute_budget.max_recovery_attempts
 
-        for step in self.pipeline.steps:
+        # Index-based loop so recovery can jump backwards.
+        steps = list(self.pipeline.steps)
+        i = 0
+        while i < len(steps):
+            step = steps[i]
             task_counter += 1
             task = Task(
                 task_id=f"{experiment.experiment_id}_task_{task_counter:02d}_{step.task_name}",
@@ -256,22 +265,61 @@ class Orchestrator:
             previous_task_output = dict(task.output)
             outputs_by_name[step.task_name] = dict(task.output)
 
-            # Stop the pipeline for this experiment on first hard failure
+            # Handle failures
             if task.status in (
                 TaskStatus.FAILED.value,
                 TaskStatus.TIMEOUT.value,
                 TaskStatus.FAILED,
                 TaskStatus.TIMEOUT,
             ):
+                # Try recovery if the failed step is code-level and we
+                # have retries left.
+                if (
+                    recovery_attempts_used < max_recoveries
+                    and self._is_recoverable(step, task)
+                    and "generate_code" in outputs_by_name
+                ):
+                    recovery_attempts_used += 1
+                    logger.info(
+                        "  [%s] attempting error recovery %d/%d...",
+                        experiment.experiment_id,
+                        recovery_attempts_used,
+                        max_recoveries,
+                    )
+                    ok = self._try_recovery(
+                        experiment,
+                        task,
+                        outputs_by_name,
+                        recovery_attempts_used,
+                    )
+                    if ok:
+                        # Jump back to the validate_code step (or
+                        # execute_training if no validate_code in pipeline).
+                        restart_idx = self._find_restart_index(steps)
+                        if restart_idx is not None:
+                            i = restart_idx
+                            # Clear outputs for any steps we are about to re-run
+                            for s in steps[restart_idx:]:
+                                outputs_by_name.pop(s.task_name, None)
+                            previous_task_output = outputs_by_name.get(
+                                "generate_code", {}
+                            )
+                            continue
+
+                # Recovery not attempted or failed → mark experiment failed
                 self._mark_experiment_failed(experiment, task)
                 self.experiment_logger.write_experiment(experiment)
                 self.memory.append(experiment)
                 logger.info(
-                    "  [%s] FAILED after %s",
+                    "  [%s] FAILED after %s (recoveries used: %d)",
                     experiment.experiment_id,
                     step.task_name,
+                    recovery_attempts_used,
                 )
                 return
+
+            # Step succeeded — advance
+            i += 1
 
         # All steps succeeded
         experiment.status = ExperimentStatus.COMPLETED
@@ -281,15 +329,187 @@ class Orchestrator:
         score = None
         if experiment.results:
             score = experiment.results.metrics.get(self.memory.score_metric)
+        recovery_note = (
+            f" (recovered after {recovery_attempts_used} fix attempts)"
+            if recovery_attempts_used > 0
+            else ""
+        )
         if score is not None:
             logger.info(
-                "  [%s] COMPLETED | %s=%.4f",
+                "  [%s] COMPLETED | %s=%.4f%s",
                 experiment.experiment_id,
                 self.memory.score_metric,
                 score,
+                recovery_note,
             )
         else:
-            logger.info("  [%s] COMPLETED (no score)", experiment.experiment_id)
+            logger.info(
+                "  [%s] COMPLETED (no score)%s",
+                experiment.experiment_id,
+                recovery_note,
+            )
+
+    # -- error recovery -----------------------------------------------------
+
+    # Error types that can reasonably be fixed by regenerating the code.
+    # OOM / Timeout are deliberately NOT here — those need a different
+    # hyperparameter proposal, not a code rewrite.
+    _RECOVERABLE_ERROR_TYPES: frozenset[str] = frozenset(
+        {
+            "SyntaxError",
+            "ForbiddenBareCall",
+            "ForbiddenPattern",
+            "MissingExpectedImport",
+            "EpochsCapExceeded",
+            "NoCode",
+            "RuntimeError",
+            "ValueError",
+            "AttributeError",
+            "NameError",
+            "ShapeMismatch",
+            "ImportError",
+            "ScriptReportedError",
+            "NoResultsFile",
+            "UnknownError",
+            "FileNotFound",
+        }
+    )
+
+    # Steps where recovery makes sense. propose_architecture / generate_code
+    # / analyze_results are LLM tasks: if they fail it's usually a
+    # response-parsing issue and rewriting the training code wouldn't help.
+    _RECOVERABLE_STEP_NAMES: frozenset[str] = frozenset(
+        {"validate_code", "execute_training", "capture_metrics"}
+    )
+
+    def _is_recoverable(self, step: PipelineStep, task: Task) -> bool:
+        if step.task_name not in self._RECOVERABLE_STEP_NAMES:
+            return False
+        if task.error is None:
+            return False
+        return task.error.error_type in self._RECOVERABLE_ERROR_TYPES
+
+    def _find_restart_index(self, steps: list[PipelineStep]) -> int | None:
+        """Return the index to restart at after a successful recovery.
+
+        Preference order:
+          1. `validate_code` (so the new code is safety-checked)
+          2. `execute_training` (pipelines without validate_code)
+          3. None (give up)
+        """
+        for preferred in ("validate_code", "execute_training"):
+            for idx, s in enumerate(steps):
+                if s.task_name == preferred:
+                    return idx
+        return None
+
+    def _try_recovery(
+        self,
+        experiment: Experiment,
+        failed_task: Task,
+        outputs_by_name: dict[str, dict[str, Any]],
+        attempt: int,
+    ) -> bool:
+        """Ask the LLM to fix broken code based on the error and swap it in.
+
+        Returns True if the recovery LLM produced a non-empty new code
+        blob. The orchestrator is responsible for re-running the pipeline
+        from validate_code onwards.
+        """
+        broken_code = (outputs_by_name.get("generate_code") or {}).get("code", "")
+        if not isinstance(broken_code, str) or not broken_code.strip():
+            logger.info("    ⚠ no broken code found — cannot recover")
+            return False
+
+        err = failed_task.error
+        if err is None:
+            return False
+
+        arch_proposal = (
+            outputs_by_name.get("propose_architecture") or {}
+        ).get("architecture_proposal")
+        if arch_proposal is None:
+            arch_proposal = {}
+
+        traceback_tail = (err.traceback or "")[-2000:] or "(no traceback)"
+
+        try:
+            template = self.prompt_engine.load(
+                Path("config/prompts/error_recovery.yaml")
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("    ⚠ could not load error_recovery prompt: %s", exc)
+            return False
+
+        slots = {
+            "architecture_proposal": arch_proposal,
+            "broken_code": broken_code,
+            "error_type": err.error_type,
+            "error_message": err.message,
+            "traceback_tail": traceback_tail,
+        }
+        try:
+            system, user = self.prompt_engine.fill(template, slots)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("    ⚠ error_recovery prompt fill failed: %s", exc)
+            return False
+
+        # Record the recovery as a task in the experiment log
+        recovery_task_id = (
+            f"{experiment.experiment_id}_recovery_{attempt:02d}_error_recovery"
+        )
+        recovery_task = Task(
+            task_id=recovery_task_id,
+            experiment_id=experiment.experiment_id,
+            task_type=TaskType.LLM,
+            task_name="error_recovery",
+            status=TaskStatus.RUNNING,
+            started_at=_now(),
+            prompt_used=f"[SYSTEM]\n{system}\n\n[USER]\n{user}",
+        )
+        experiment.task_ids.append(recovery_task_id)
+
+        try:
+            response = self.llm_client.chat(
+                [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ]
+            )
+        except LLMError as exc:
+            recovery_task.status = TaskStatus.FAILED
+            recovery_task.error = TaskError(error_type="LLMError", message=str(exc))
+            recovery_task.completed_at = _now()
+            self.experiment_logger.write_task(recovery_task)
+            logger.info("    ✗ recovery LLM call failed: %s", exc)
+            return False
+
+        new_code = _strip_code_fences(response)
+        if not new_code or len(new_code) < 50:
+            recovery_task.status = TaskStatus.FAILED
+            recovery_task.error = TaskError(
+                error_type="EmptyRecoveryResponse",
+                message="LLM returned an empty or trivially short recovery code blob",
+            )
+            recovery_task.llm_response = response
+            recovery_task.completed_at = _now()
+            self.experiment_logger.write_task(recovery_task)
+            logger.info("    ✗ recovery produced empty code")
+            return False
+
+        recovery_task.llm_response = response
+        recovery_task.output = {"code": new_code}
+        recovery_task.status = TaskStatus.COMPLETED
+        recovery_task.completed_at = _now()
+        self.experiment_logger.write_task(recovery_task)
+
+        # Swap the new code into outputs_by_name so the re-run of
+        # validate_code / execute_training picks it up.
+        outputs_by_name["generate_code"] = {"code": new_code}
+        logger.info(
+            "    ✓ recovery produced %d bytes of new code", len(new_code)
+        )
+        return True
 
     # -- task logging -------------------------------------------------------
 

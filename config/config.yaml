@@ -28,6 +28,7 @@ compute_budget:
   max_wallclock_minutes: 240
   max_experiment_seconds: 7200            # 2 hours per experiment
   max_epochs_per_run: 1                   # fast-iteration mode: 1 epoch per run
+  max_recovery_attempts: 2                # retries per experiment when code fails
 
 context:
   max_prompt_tokens: 8000

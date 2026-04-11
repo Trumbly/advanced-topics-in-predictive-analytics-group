@@ -172,6 +172,43 @@ class TestValidateCodePure:
         )
         assert result.ok
 
+    def test_epochs_cap_rejects_higher_value(self) -> None:
+        """Fast-iteration mode: EPOCHS > max_epochs must be rejected."""
+        code = (
+            "import torch\n"
+            "EPOCHS = 5\n"
+            "print(EPOCHS)\n"
+        )
+        result = validate_code.validate(code, max_epochs=1)
+        assert not result.ok
+        assert result.error_type == "EpochsCapExceeded"
+        assert "EPOCHS = 5" in result.message
+        assert "hard cap of 1" in result.message
+
+    def test_epochs_cap_allows_exact_value(self) -> None:
+        code = "import torch\nEPOCHS = 1\n"
+        result = validate_code.validate(code, max_epochs=1)
+        assert result.ok
+
+    def test_epochs_cap_ignored_when_not_set(self) -> None:
+        """If the pipeline doesn't enable max_epochs, any value is fine."""
+        code = "import torch\nEPOCHS = 50\n"
+        result = validate_code.validate(code)  # no max_epochs argument
+        assert result.ok
+
+    def test_epochs_cap_only_checks_module_scope(self) -> None:
+        """`EPOCHS = 5` inside a function body is allowed — we only
+        enforce the cap on the top-level constant."""
+        code = (
+            "import torch\n"
+            "def make_epochs():\n"
+            "    EPOCHS = 5  # local, not the training budget\n"
+            "    return EPOCHS\n"
+            "EPOCHS = 1\n"
+        )
+        result = validate_code.validate(code, max_epochs=1)
+        assert result.ok
+
 
 class TestValidateCodeHandler:
     def test_updates_task_on_success(self) -> None:

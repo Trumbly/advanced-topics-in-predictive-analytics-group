@@ -97,8 +97,11 @@ system: |
   - Metric: macro-averaged ROC-AUC over classes that have at least one
     positive label. Use `sklearn.metrics.roc_auc_score` per column and
     take the mean. Skip columns with no positives to avoid the sklearn error.
-  - Respect the proposed `epochs` value but CAP at 1 — we are running in
-    fast-iteration mode right now.
+  - HARD CAP: `EPOCHS = 1`. Always. No exceptions. Write literally
+    `EPOCHS = 1` in your code. Do NOT copy the proposed epochs value,
+    do NOT use max(1, ...) or anything fancy. Just `EPOCHS = 1`. We are
+    in fast-iteration mode — longer training is not what we want right
+    now. Any code with `EPOCHS > 1` will be rejected.
   - At the VERY END of the script, write `results.json` in the CURRENT
     directory. This file is the single source of truth for the agent —
     if you don't write it, the experiment counts as failed. Schema:
@@ -138,6 +141,85 @@ system: |
 
   ALWAYS pass `flush=True` to print() — without it, the output is block-
   buffered and the operator sees nothing for minutes at a time.
+
+  ## Common PyTorch pitfalls that have crashed previous runs
+
+  ### 1. `self.relu` vs `F.relu` — do NOT mix them up
+
+  There are two correct ways to apply ReLU (or any other activation) in
+  a PyTorch nn.Module. You must pick ONE per module and stick to it.
+
+  WRONG (this is the #1 cause of AttributeError failures in our runs):
+
+      class MyModel(nn.Module):
+          def __init__(self, num_classes):
+              super().__init__()
+              self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+              # forgot to define self.relu here!
+          def forward(self, x):
+              x = self.relu(self.conv1(x))    # AttributeError: no attribute 'relu'
+
+  CORRECT option A — register the activation as a submodule:
+
+      class MyModel(nn.Module):
+          def __init__(self, num_classes):
+              super().__init__()
+              self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+              self.relu = nn.ReLU(inplace=True)   # <-- defined in __init__
+          def forward(self, x):
+              x = self.relu(self.conv1(x))        # works
+
+  CORRECT option B — use the functional form (simpler, no __init__ line):
+
+      import torch.nn.functional as F
+
+      class MyModel(nn.Module):
+          def __init__(self, num_classes):
+              super().__init__()
+              self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+          def forward(self, x):
+              x = F.relu(self.conv1(x))           # works, no self.relu needed
+
+  Rule of thumb: option B (`F.relu`) is simpler for stateless activations
+  (relu, gelu, sigmoid, softmax). Use it unless you have a specific reason
+  to need option A. Same applies to `F.max_pool2d`, `F.adaptive_avg_pool2d`,
+  `F.dropout`, etc.
+
+  ### 2. Shape mismatch on the flatten → linear boundary
+
+  A classic bug: after a stack of Conv2d + pooling, the spatial size of
+  the feature map depends on the input. Writing `nn.Linear(2048, num_classes)`
+  only works if the feature map's flattened size is exactly 2048. Change
+  the input shape and it crashes with:
+      RuntimeError: mat1 and mat2 shapes cannot be multiplied (32x1600 and 2048x234)
+
+  FIX: always end your Conv stack with `nn.AdaptiveAvgPool2d((1, 1))`
+  before flattening. That guarantees a (batch, C, 1, 1) → (batch, C)
+  tensor regardless of the input spatial size. Then `nn.Linear(C, num_classes)`
+  where C is the out_channels of the last Conv2d. Example:
+
+      self.features = nn.Sequential(
+          nn.Conv2d(1, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+          nn.MaxPool2d(2),
+          nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+          nn.MaxPool2d(2),
+          nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+      )
+      self.pool = nn.AdaptiveAvgPool2d((1, 1))  # → (batch, 128, 1, 1)
+      self.head = nn.Linear(128, num_classes)    # in_features = 128 (last conv out_channels)
+
+      def forward(self, x):
+          x = self.features(x)
+          x = self.pool(x).flatten(1)    # → (batch, 128)
+          return self.head(x)
+
+  The `.flatten(1)` collapses dimensions 1+ into one, so (batch, 128, 1, 1)
+  → (batch, 128). No shape arithmetic, no crashes.
+
+  ### 3. Channel tracking in stacked Conv2d (already covered above)
+
+  Each Conv2d's `in_channels` MUST equal the previous Conv2d's `out_channels`.
+  See the "Channel tracking in stacked Conv2d layers" section.
 
   ## Variable scoping reminder
 

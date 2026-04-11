@@ -254,6 +254,11 @@ class TestOrchestratorSmoke:
     def test_failed_experiment_does_not_crash_loop(
         self, study: Study, tmp_path: Path
     ) -> None:
+        # Disable recovery so this test keeps its original intent: "when
+        # an experiment fails, the loop must continue to the next one".
+        # Recovery behavior has its own dedicated test below.
+        study.compute_budget.max_recovery_attempts = 0
+
         # First experiment returns code that crashes; second one succeeds
         bad_propose = json.dumps(
             {
@@ -443,4 +448,140 @@ class TestOrchestratorWithValidateCode:
         assert len(code_used) > 50, (
             f"code_used is suspiciously short ({len(code_used)} chars): "
             f"{code_used!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Recovery loop: when execute_training fails with a code-level error,
+# the orchestrator asks the LLM to rewrite the code and re-runs. The
+# experiment then succeeds through the recovery path.
+# ---------------------------------------------------------------------------
+
+
+def _recovery_round_trip_responses(final_score: float) -> list[str]:
+    """One full recovery success path.
+
+    Sequence:
+      1. propose_architecture → valid JSON proposal
+      2. generate_code → code that deliberately crashes
+      3. error_recovery → fixed code that writes a valid results.json
+      4. analyze_results → free-form analysis text
+    """
+    propose = json.dumps(
+        {
+            "architecture": "cnn_small_v1",
+            "pretrained_model": None,
+            "hyperparams": {"lr": 0.001, "batch_size": 16, "epochs": 1, "optimizer": "adam"},
+            "augmentation": {},
+        }
+    )
+    broken = "raise RuntimeError('shape mismatch at conv1')\n"
+    fixed = f"""
+import json, pathlib
+pathlib.Path('results.json').write_text(json.dumps({{
+    'metrics': {{'roc_auc_macro': {final_score}, 'loss': {1.0 - final_score}}},
+    'training_curves': {{'loss': [0.9, {1.0 - final_score}]}},
+    'duration_seconds': 1.1
+}}))
+print('recovered')
+"""
+    analyze = "Recovered successfully. Next time, reduce batch size."
+    return [propose, broken, fixed, analyze]
+
+
+class TestOrchestratorRecovery:
+    def test_recovery_turns_failure_into_success(
+        self,
+        pipeline_yaml_with_validate: Path,
+        dataset_profile: Path,
+        tmp_path: Path,
+    ) -> None:
+        """The first experiment's generate_code returns broken code that
+        crashes in execute_training. The orchestrator invokes error_recovery,
+        gets fixed code, re-runs validate_code + execute_training +
+        capture_metrics, and the experiment completes with a real score.
+        """
+        study = Study(
+            study_id="study_recovery",
+            name="Recovery",
+            hypothesis="Error recovery brings failed runs back to success",
+            mode=StudyMode.AUTONOMOUS,
+            compute_budget=ComputeBudget(
+                max_experiments=1,
+                max_wallclock_minutes=5,
+                max_experiment_seconds=30,
+                max_epochs_per_run=1,
+                max_recovery_attempts=2,
+            ),
+            pipeline_config_path=pipeline_yaml_with_validate,
+            dataset_profile_path=dataset_profile,
+            model_registry_path=Path("registry/models.yaml"),
+            status=StudyStatus.ACTIVE,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+
+        responses = _recovery_round_trip_responses(final_score=0.71)
+        orch, backend = _make_orchestrator(study, tmp_path, responses)
+        final_study, _ = orch.run()
+
+        assert len(final_study.experiment_ids) == 1
+        exp = orch.memory.get("exp_001")
+        assert exp is not None, "experiment not in memory"
+        assert exp.status == ExperimentStatus.COMPLETED.value, (
+            f"expected COMPLETED via recovery, got {exp.status}"
+        )
+        assert exp.results is not None
+        assert exp.results.metrics["roc_auc_macro"] == pytest.approx(0.71)
+
+        # The experiment must now have a recovery task in its task_ids
+        task_ids = exp.task_ids
+        assert any("recovery" in tid for tid in task_ids), (
+            f"no recovery task found in task_ids: {task_ids}"
+        )
+
+        # Backend must have been called 4 times:
+        # propose, generate_code, error_recovery, analyze
+        assert len(backend.calls) == 4, (
+            f"expected 4 LLM calls (propose/generate/recovery/analyze), "
+            f"got {len(backend.calls)}"
+        )
+
+    def test_recovery_disabled_with_zero_attempts(
+        self,
+        pipeline_yaml_with_validate: Path,
+        dataset_profile: Path,
+        tmp_path: Path,
+    ) -> None:
+        """When max_recovery_attempts=0, a code-level failure is not
+        retried — the experiment is marked FAILED immediately."""
+        study = Study(
+            study_id="study_no_recovery",
+            name="No recovery",
+            hypothesis="Zero budget → no recovery",
+            mode=StudyMode.AUTONOMOUS,
+            compute_budget=ComputeBudget(
+                max_experiments=1,
+                max_wallclock_minutes=5,
+                max_experiment_seconds=30,
+                max_epochs_per_run=1,
+                max_recovery_attempts=0,
+            ),
+            pipeline_config_path=pipeline_yaml_with_validate,
+            dataset_profile_path=dataset_profile,
+            model_registry_path=Path("registry/models.yaml"),
+            status=StudyStatus.ACTIVE,
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        responses = _recovery_round_trip_responses(final_score=0.71)
+        orch, backend = _make_orchestrator(study, tmp_path, responses)
+        orch.run()
+
+        exp = orch.memory.get("exp_001")
+        assert exp is not None
+        assert exp.status == ExperimentStatus.FAILED.value
+        # Only propose + generate + broken-exec, no recovery
+        assert len(backend.calls) == 2, (
+            f"expected 2 LLM calls (propose/generate), got {len(backend.calls)}"
         )
