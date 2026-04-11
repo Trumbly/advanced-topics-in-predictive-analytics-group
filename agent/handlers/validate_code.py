@@ -244,34 +244,120 @@ def validate(
             message=guard_violation,
         )
 
-    # 7. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
+    # 7. Hallucinated `torch.nn.*` attributes. Small LLMs sometimes invent
+    #    layer names like `nn.Conv2x2d`, `nn.LinearReLU`, `nn.SoftMax2D`.
+    #    We reflect against the real `torch.nn` module and reject any
+    #    attribute that does not exist. This catches typos and fabrications
+    #    BEFORE the subprocess spends time loading data.
+    nn_violation = _check_torch_nn_attributes(tree)
+    if nn_violation is not None:
+        return ValidationResult(
+            ok=False,
+            error_type="UnknownTorchNnAttribute",
+            message=nn_violation,
+        )
+
+    # 8. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
     #    any top-level constant assignment `EPOCHS = <int>` with a value
     #    larger than max_epochs gets rejected. This is a HARD enforcement
     #    of the fast-iteration mode because the LLM repeatedly ignores the
     #    prompt's "CAP at 1" instruction.
+    #
+    #    The preferred pattern is now:
+    #        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
+    #    which is ACCEPTED regardless of `max_epochs` — the orchestrator
+    #    controls the env var during promotion. We only reject literal
+    #    integer assignments that exceed the cap.
     if max_epochs is not None:
         for node in tree.body:
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-                    if (
-                        isinstance(target, ast.Name)
-                        and target.id == "EPOCHS"
-                        and isinstance(node.value, ast.Constant)
-                        and isinstance(node.value.value, int)
+                    if not (
+                        isinstance(target, ast.Name) and target.id == "EPOCHS"
                     ):
-                        declared = node.value.value
-                        if declared > max_epochs:
+                        continue
+                    # Accept: EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "<n>"))
+                    # as long as <n> itself is within the cap.
+                    env_default = _epochs_env_default(node.value)
+                    if env_default is not None:
+                        if env_default > max_epochs:
                             return ValidationResult(
                                 ok=False,
                                 error_type="EpochsCapExceeded",
                                 message=(
-                                    f"EPOCHS = {declared} exceeds the hard cap of "
-                                    f"{max_epochs} (fast-iteration mode). Set "
-                                    f"`EPOCHS = {max_epochs}` in your code."
+                                    f"BIRDCLEF_EPOCHS default {env_default} exceeds "
+                                    f"the hard cap of {max_epochs}. Use default '1'."
                                 ),
                             )
+                        continue  # env-var pattern is fine
+                    # Reject: EPOCHS = <literal int>  when literal > cap
+                    if (
+                        isinstance(node.value, ast.Constant)
+                        and isinstance(node.value.value, int)
+                        and node.value.value > max_epochs
+                    ):
+                        return ValidationResult(
+                            ok=False,
+                            error_type="EpochsCapExceeded",
+                            message=(
+                                f"EPOCHS = {node.value.value} exceeds the hard "
+                                f"cap of {max_epochs} (fast-iteration mode). "
+                                f"Use `EPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"1\"))`."
+                            ),
+                        )
 
     return ValidationResult(ok=True)
+
+
+def _epochs_env_default(node: ast.AST) -> int | None:
+    """If `node` is `int(os.environ.get("BIRDCLEF_EPOCHS", "<n>"))`,
+    return the int value of `<n>`. Otherwise return None.
+
+    Also accepts the bare `os.environ.get("BIRDCLEF_EPOCHS", "<n>")` form
+    as long as the default value is a string that parses to int.
+    """
+    # Unwrap `int(...)` if present.
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "int"
+        and len(node.args) == 1
+    ):
+        node = node.args[0]
+
+    if not isinstance(node, ast.Call):
+        return None
+    if not isinstance(node.func, ast.Attribute):
+        return None
+    # Match .get on something that looks like os.environ.
+    if node.func.attr != "get":
+        return None
+    base = node.func.value
+    # os.environ OR a variable named "environ" (unlikely but possible)
+    is_env = (
+        (
+            isinstance(base, ast.Attribute)
+            and isinstance(base.value, ast.Name)
+            and base.value.id == "os"
+            and base.attr == "environ"
+        )
+        or (isinstance(base, ast.Name) and base.id == "environ")
+    )
+    if not is_env:
+        return None
+    if len(node.args) < 2:
+        return None
+    key_node, default_node = node.args[0], node.args[1]
+    if not (
+        isinstance(key_node, ast.Constant) and key_node.value == "BIRDCLEF_EPOCHS"
+    ):
+        return None
+    if not isinstance(default_node, ast.Constant):
+        return None
+    try:
+        return int(default_node.value)
+    except (TypeError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +448,117 @@ def _check_main_guard(tree: ast.Module) -> str | None:
         f"(everything that actually RUNS, not class definitions) inside "
         f"`if __name__ == \"__main__\":`."
     )
+
+
+# ---------------------------------------------------------------------------
+# torch.nn attribute hallucination detection
+# ---------------------------------------------------------------------------
+#
+# Small LLMs (nemotron-3-nano:4b in our runs) occasionally invent layer
+# names that look plausible but don't actually exist in PyTorch. Real
+# examples from our failed experiments:
+#   - nn.Conv2x2d        (meant Conv2d, added an "x2")
+#   - nn.LinearReLU      (no such thing)
+#   - nn.BatchNormal2d   (meant BatchNorm2d)
+#
+# We detect these by reflecting against the actual `torch.nn` module at
+# validation time. If a node of the form `nn.<Attr>` appears in an AST
+# Call or Attribute expression and `<Attr>` is not in `dir(torch.nn)`,
+# we reject. This is a pure static analysis check — no code gets run.
+#
+# `nn` is recognized as any alias that maps to `torch.nn`:
+#   import torch.nn as nn         → alias = "nn"
+#   from torch import nn          → alias = "nn"
+#   import torch.nn as neural_net → alias = "neural_net"
+
+
+def _find_torch_nn_aliases(tree: ast.Module) -> set[str]:
+    """Return the set of local names that refer to the `torch.nn` module."""
+    aliases: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "torch.nn":
+                    aliases.add(alias.asname or "torch.nn")
+        elif isinstance(node, ast.ImportFrom):
+            if node.module == "torch":
+                for alias in node.names:
+                    if alias.name == "nn":
+                        aliases.add(alias.asname or "nn")
+            elif node.module == "torch.nn":
+                # `from torch.nn import Conv2d as C` — C is a layer, not nn.
+                # We do NOT treat these as aliases of the module itself.
+                pass
+    return aliases
+
+
+def _load_torch_nn_attribute_set() -> frozenset[str] | None:
+    """Return the set of valid names in `torch.nn`, or None if torch is
+    not importable in the validator process (e.g. during unit tests that
+    have mocked torch out). When None, the check is skipped."""
+    try:
+        import torch.nn as _nn  # noqa: PLC0415
+
+        return frozenset(
+            name for name in dir(_nn) if not name.startswith("_")
+        )
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _check_torch_nn_attributes(tree: ast.Module) -> str | None:
+    """Walk the AST and reject any `nn.<Attr>` reference that is not a
+    real attribute of `torch.nn`. Returns an error message on violation,
+    or None when the code is clean."""
+    aliases = _find_torch_nn_aliases(tree)
+    if not aliases:
+        return None  # nothing imported nn — nothing to check
+
+    valid = _load_torch_nn_attribute_set()
+    if valid is None:
+        return None  # torch unavailable in the validator env — skip
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Attribute):
+            continue
+        base = node.value
+        if not isinstance(base, ast.Name):
+            continue
+        if base.id not in aliases:
+            continue
+        attr = node.attr
+        # Dunder / private attributes we ignore (they are not real layer calls).
+        if attr.startswith("_"):
+            continue
+        if attr in valid:
+            continue
+        # Close-match hint: what is the LLM probably trying to say?
+        hint = _closest_nn_attribute(attr, valid)
+        suffix = f" Did you mean `nn.{hint}`?" if hint else ""
+        return (
+            f"`{base.id}.{attr}` does not exist in torch.nn (line {node.lineno})."
+            f"{suffix} Fix by using a real torch.nn layer name."
+        )
+
+    return None
+
+
+def _closest_nn_attribute(
+    name: str, valid: frozenset[str], *, max_distance: int = 3
+) -> str | None:
+    """Return the closest valid torch.nn name by Levenshtein distance,
+    or None if nothing is within `max_distance`."""
+    import difflib  # noqa: PLC0415
+
+    matches = difflib.get_close_matches(name, list(valid), n=1, cutoff=0.6)
+    if matches:
+        return matches[0]
+    # Fallback: scan for close prefixes.
+    lname = name.lower()
+    for v in valid:
+        if lname.startswith(v.lower()[: max(4, len(v) - 1)]):
+            return v
+    return None
 
 
 # ---------------------------------------------------------------------------

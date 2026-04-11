@@ -192,6 +192,12 @@ class Orchestrator:
             self.study.status = StudyStatus.COMPLETED
         self._save_study()
 
+        # Optional promotion phase: if `promoted_epochs > 1`, re-run the
+        # top-K smoke-phase experiments with a higher epoch budget to get
+        # a realistic final score. Gated off by default.
+        if not self._abort_requested:
+            self._run_promotion_phase()
+
         # Best-effort: write the end-of-study report. Any failure here is
         # logged but does not affect the study's return value — the study
         # itself already succeeded by this point.
@@ -199,6 +205,191 @@ class Orchestrator:
             self._maybe_write_report()
 
         return self.study, stop_reason
+
+    def _run_promotion_phase(self) -> None:
+        """Re-run the top-K smoke-phase experiments with a higher epoch budget.
+
+        The smoke phase runs every experiment for `EPOCHS=1` so we can
+        iterate fast. 1-epoch macro-ROC-AUC is basically noise for a
+        234-class multi-label task, so we can't trust it as a comparison
+        signal. The promotion phase takes the top-K smoke candidates and
+        re-runs them with `BIRDCLEF_EPOCHS = promoted_epochs`, using the
+        SAME compiled code from the original experiment. No new LLM calls
+        are made — we just bump the env var and let the executor run it.
+
+        Promotion is gated by `compute_budget.promoted_epochs > 1`. If
+        `compute_budget.promote_min_score` is set, only experiments whose
+        smoke score exceeds that threshold are eligible.
+
+        Each promoted run is recorded as a NEW Experiment with an ID of
+        the form `promoted_<original_exp_id>`, so the memory and report
+        can distinguish smoke vs promoted results.
+        """
+        budget = self.study.compute_budget
+        if budget.promoted_epochs <= 1:
+            return
+
+        candidates = self.memory.top_k(budget.promote_top_k)
+        if budget.promote_min_score is not None:
+            filtered = []
+            for exp in candidates:
+                score = (
+                    (exp.results.metrics.get(self.memory.score_metric) or 0.0)
+                    if exp.results
+                    else 0.0
+                )
+                if score >= budget.promote_min_score:
+                    filtered.append(exp)
+            candidates = filtered
+
+        # Only promote experiments that were originally COMPLETED, not
+        # promoted runs themselves (prevents recursion on re-runs).
+        candidates = [
+            exp
+            for exp in candidates
+            if exp.status == ExperimentStatus.COMPLETED.value
+            and not exp.experiment_id.startswith("promoted_")
+        ]
+
+        if not candidates:
+            logger.info("")
+            logger.info("Promotion phase skipped: no eligible candidates")
+            return
+
+        logger.info("")
+        logger.info("=" * 66)
+        logger.info("PROMOTION PHASE")
+        logger.info(
+            "  promoting top %d smoke experiments at BIRDCLEF_EPOCHS=%d",
+            len(candidates),
+            budget.promoted_epochs,
+        )
+        logger.info("=" * 66)
+
+        for smoke_exp in candidates:
+            if self._abort_requested:
+                logger.info("  ⚠ abort requested — stopping promotion phase")
+                break
+            if self._wallclock_exceeded():
+                logger.info("  ⚠ wallclock exceeded — stopping promotion phase")
+                break
+            self._promote_one_experiment(smoke_exp, budget.promoted_epochs)
+
+        self._save_study()
+
+    def _promote_one_experiment(
+        self, smoke_exp: Experiment, promoted_epochs: int
+    ) -> None:
+        """Re-run one experiment's code with BIRDCLEF_EPOCHS bumped.
+
+        Reuses the SAME sandbox code (no LLM call), just overrides the
+        env var so the training loop iterates more epochs. The new
+        experiment is logged with a `promoted_<original_id>` ID.
+        """
+        # Locate the original sandbox code.
+        original_code_path = (
+            self.executor.sandbox_root / smoke_exp.experiment_id / "code.py"
+        )
+        if not original_code_path.exists():
+            logger.info(
+                "  ⚠ %s: no sandbox code at %s, skipping",
+                smoke_exp.experiment_id,
+                original_code_path,
+            )
+            return
+
+        original_code = original_code_path.read_text()
+
+        # Build the promoted experiment shell.
+        promoted_id = f"promoted_{smoke_exp.experiment_id}"
+        now = _now()
+        promoted = Experiment(
+            experiment_id=promoted_id,
+            study_id=self.study.study_id,
+            llm_model=self.llm_client.model,
+            status=ExperimentStatus.RUNNING,
+            created_at=now,
+            started_at=now,
+            config=smoke_exp.config,
+        )
+        self.study.experiment_ids.append(promoted_id)
+
+        smoke_score = (
+            (smoke_exp.results.metrics.get(self.memory.score_metric) or 0.0)
+            if smoke_exp.results
+            else 0.0
+        )
+        logger.info(
+            "",
+        )
+        logger.info(
+            "──── Promoting %s (smoke %s=%.4f) ────",
+            smoke_exp.experiment_id,
+            self.memory.score_metric,
+            smoke_score,
+        )
+
+        # Bump BIRDCLEF_EPOCHS in the executor's training_env just for
+        # this run, then restore.
+        original_env = dict(self.executor.training_env)
+        try:
+            self.executor.training_env = {
+                **original_env,
+                "BIRDCLEF_EPOCHS": str(promoted_epochs),
+            }
+            result = self.executor.run(
+                original_code, experiment_id=promoted_id
+            )
+        finally:
+            self.executor.training_env = original_env
+
+        if not result.succeeded:
+            promoted.status = ExperimentStatus.FAILED
+            promoted.completed_at = _now()
+            logger.info(
+                "  ✗ promotion of %s failed: %s",
+                smoke_exp.experiment_id,
+                (result.stderr or "")[:200],
+            )
+            self.memory.append(promoted)
+            self.experiment_logger.write_experiment(promoted)
+            return
+
+        # Parse results.json the same way capture_metrics does.
+        try:
+            data = json.loads(result.results_json_path.read_text())  # type: ignore[union-attr]
+            promoted.results = TrainingResults.model_validate(data)
+        except Exception as exc:  # noqa: BLE001
+            logger.info(
+                "  ✗ promotion of %s: could not parse results.json: %s",
+                smoke_exp.experiment_id,
+                exc,
+            )
+            promoted.status = ExperimentStatus.FAILED
+            promoted.completed_at = _now()
+            self.memory.append(promoted)
+            self.experiment_logger.write_experiment(promoted)
+            return
+
+        promoted.status = ExperimentStatus.COMPLETED
+        promoted.completed_at = _now()
+        new_score = (
+            (promoted.results.metrics.get(self.memory.score_metric) or 0.0)
+            if promoted.results
+            else 0.0
+        )
+        logger.info(
+            "  ✓ promoted %s: %s=%.4f (smoke was %.4f, delta %+.4f)",
+            smoke_exp.experiment_id,
+            self.memory.score_metric,
+            new_score,
+            smoke_score,
+            new_score - smoke_score,
+        )
+
+        self.memory.append(promoted)
+        self.experiment_logger.write_experiment(promoted)
+        self._update_best(promoted)
 
     def _maybe_write_report(self) -> None:
         """Try to render the LLM-authored study report. Best-effort."""
@@ -511,36 +702,84 @@ class Orchestrator:
         )
         experiment.task_ids.append(recovery_task_id)
 
-        try:
-            response = self.llm_client.chat(
-                [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ]
-            )
-        except LLMError as exc:
-            recovery_task.status = TaskStatus.FAILED
-            recovery_task.error = TaskError(error_type="LLMError", message=str(exc))
-            recovery_task.completed_at = _now()
-            self.experiment_logger.write_task(recovery_task)
-            logger.info("    ✗ recovery LLM call failed: %s", exc)
-            return False
+        # Inner retry loop: sampling variance in small LLMs occasionally
+        # yields empty responses even though the same prompt succeeds on
+        # the next draw. We retry up to `recovery_empty_response_retries`
+        # times before we consume one of the outer `max_recovery_attempts`.
+        budget = self.study.compute_budget
+        max_inner = max(1, budget.recovery_empty_response_retries)
+        min_chars = max(1, budget.recovery_min_code_chars)
+        response = ""
+        new_code = ""
+        empty_tries = 0
+        last_error: LLMError | None = None
 
-        new_code = _strip_code_fences(response)
-        if not new_code or len(new_code) < 50:
-            recovery_task.status = TaskStatus.FAILED
-            recovery_task.error = TaskError(
-                error_type="EmptyRecoveryResponse",
-                message="LLM returned an empty or trivially short recovery code blob",
+        for inner_attempt in range(1, max_inner + 1):
+            try:
+                response = self.llm_client.chat(
+                    [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ]
+                )
+            except LLMError as exc:
+                last_error = exc
+                logger.info(
+                    "    … recovery LLM call failed on try %d/%d: %s",
+                    inner_attempt,
+                    max_inner,
+                    exc,
+                )
+                continue
+
+            candidate = _strip_code_fences(response)
+            if candidate and len(candidate) >= min_chars:
+                new_code = candidate
+                if inner_attempt > 1:
+                    logger.info(
+                        "    ✓ recovery LLM recovered on try %d/%d",
+                        inner_attempt,
+                        max_inner,
+                    )
+                break
+
+            empty_tries += 1
+            logger.info(
+                "    … recovery LLM returned %d chars on try %d/%d — retrying",
+                len(candidate),
+                inner_attempt,
+                max_inner,
             )
+
+        if not new_code:
+            recovery_task.status = TaskStatus.FAILED
+            if last_error is not None:
+                recovery_task.error = TaskError(
+                    error_type="LLMError", message=str(last_error)
+                )
+                logger.info("    ✗ recovery LLM call failed: %s", last_error)
+            else:
+                recovery_task.error = TaskError(
+                    error_type="EmptyRecoveryResponse",
+                    message=(
+                        f"LLM returned empty code on all {max_inner} inner "
+                        f"retries (empty draws: {empty_tries})"
+                    ),
+                )
+                logger.info(
+                    "    ✗ recovery produced empty code (%d inner retries exhausted)",
+                    max_inner,
+                )
             recovery_task.llm_response = response
             recovery_task.completed_at = _now()
             self.experiment_logger.write_task(recovery_task)
-            logger.info("    ✗ recovery produced empty code")
             return False
 
         recovery_task.llm_response = response
-        recovery_task.output = {"code": new_code}
+        recovery_task.output = {
+            "code": new_code,
+            "inner_retries": empty_tries,
+        }
         recovery_task.status = TaskStatus.COMPLETED
         recovery_task.completed_at = _now()
         self.experiment_logger.write_task(recovery_task)
@@ -805,11 +1044,26 @@ class Orchestrator:
         """
         if task_name == "propose_architecture":
             try:
-                return {"architecture_proposal": _parse_json_from_text(response)}
+                parsed = _parse_json_from_text(response)
             except ValueError as exc:
                 raise ValueError(
                     f"propose_architecture: LLM did not return valid JSON: {exc}"
                 ) from exc
+            # HARD validation against the Pydantic ModelConfig schema.
+            # Previously we only checked "is this valid JSON" — which
+            # meant `null`, `{}`, or `{"architecture": null}` all sneaked
+            # through as COMPLETED tasks, and the downstream handlers
+            # crashed on a missing architecture. Validating here promotes
+            # those silent bugs to a proper failure that the recovery
+            # loop can catch and retry.
+            try:
+                _parse_model_config(parsed)
+            except Exception as exc:  # noqa: BLE001
+                raise ValueError(
+                    f"propose_architecture: LLM JSON failed schema validation: {exc}. "
+                    f"Got: {parsed!r}"
+                ) from exc
+            return {"architecture_proposal": parsed}
 
         if task_name == "generate_code":
             return {"code": _strip_code_fences(response)}
@@ -900,20 +1154,59 @@ def _lookup_generated_code(outputs_by_name: dict[str, dict[str, Any]]) -> str:
 
 
 def _parse_model_config(data: Any) -> ModelConfig:
-    """Be tolerant when parsing LLM output into a ModelConfig.
+    """Parse LLM output into a ModelConfig and reject garbage.
 
-    The LLM may return extra fields or mislabeled types. We pick out the
-    known fields and let Pydantic validate the rest.
+    Historically we were permissive here — `data.get("architecture", "unknown")`
+    meant a `null` or `{}` proposal from the LLM was silently turned into
+    `architecture="unknown"` and the experiment ran with no real config.
+    That caused `exp_023` in study_20260411_090326 to go through the
+    entire chain with `config: null` and fail at error_recovery time
+    instead of at propose_architecture time.
+
+    Now we require:
+      - the parsed payload is a dict (no `null`, no list, no string)
+      - `architecture` exists, is a non-empty string, and is not the
+        placeholder "unknown"/"null"/"none"
+      - `hyperparams` and `augmentation`, when present, are dicts
+
+    Raises ValueError on any violation so the caller can treat the
+    propose_architecture task as FAILED and kick off error_recovery.
     """
     if isinstance(data, ModelConfig):
         return data
     if not isinstance(data, dict):
-        raise ValueError(f"Expected dict for ModelConfig, got {type(data).__name__}")
+        raise ValueError(
+            f"Expected dict for ModelConfig, got {type(data).__name__}: {data!r}"
+        )
+
+    arch = data.get("architecture")
+    if not isinstance(arch, str) or not arch.strip():
+        raise ValueError(
+            f"Missing or empty 'architecture' field in proposal: {data!r}"
+        )
+    if arch.strip().lower() in ("unknown", "null", "none", "?", ""):
+        raise ValueError(
+            f"'architecture' is a placeholder value ({arch!r}); "
+            f"LLM must name a concrete architecture"
+        )
+
+    hyperparams = data.get("hyperparams") or {}
+    if not isinstance(hyperparams, dict):
+        raise ValueError(
+            f"'hyperparams' must be a dict, got {type(hyperparams).__name__}"
+        )
+
+    augmentation = data.get("augmentation") or {}
+    if not isinstance(augmentation, dict):
+        raise ValueError(
+            f"'augmentation' must be a dict, got {type(augmentation).__name__}"
+        )
+
     known = {
-        "architecture": data.get("architecture", "unknown"),
+        "architecture": arch.strip(),
         "pretrained_model": data.get("pretrained_model"),
-        "hyperparams": data.get("hyperparams", {}) or {},
-        "augmentation": data.get("augmentation", {}) or {},
+        "hyperparams": hyperparams,
+        "augmentation": augmentation,
     }
     return ModelConfig.model_validate(known)
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -164,6 +165,102 @@ class TestTrainingConfigFallbacks:
 
         monkeypatch.delenv("BIRDCLEF_PREFETCH_FACTOR", raising=False)
         assert _default_prefetch_factor() == 4
+
+
+class TestComputePosWeight:
+    """`compute_pos_weight` derives per-class `pos_weight` values from a
+    DatasetProfile so `BCEWithLogitsLoss` can re-balance BirdCLEF's
+    long-tail class distribution."""
+
+    def _make_profile(
+        self, counts: list[int], total: int | None = None
+    ) -> Any:
+        from agent.models import ClassStats, DatasetProfile
+
+        if total is None:
+            total = sum(counts)
+        return DatasetProfile(
+            num_classes=len(counts),
+            num_samples=total,
+            spectrogram_shape=(1, 128, 313),
+            sample_rate=32000,
+            class_stats=[
+                ClassStats(
+                    class_id=f"sp_{i}",
+                    sample_count=c,
+                    avg_duration_seconds=5.0,
+                )
+                for i, c in enumerate(counts)
+            ],
+            imbalance_ratio=max(counts) / max(min(counts), 1),
+            min_class_samples=min(counts),
+            max_class_samples=max(counts),
+            split_strategy="fixed_split",
+            split_seed=42,
+            train_indices=list(range(max(1, total - 10))),
+            val_indices=list(range(max(1, total - 10), total)),
+        )
+
+    def test_balanced_profile_yields_consistent_weights(self) -> None:
+        pytest.importorskip("torch")
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([100, 100, 100], total=300)
+        w = compute_pos_weight(profile)
+        assert w.shape == (3,)
+        # (total - pos) / pos = 200 / 100 = 2.0 for each class
+        assert all(abs(v - 2.0) < 1e-6 for v in w.tolist())
+
+    def test_rare_class_gets_larger_weight(self) -> None:
+        pytest.importorskip("torch")
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([500, 100, 2], total=1000)
+        w = compute_pos_weight(profile, cap=1000.0)
+        assert abs(w[0].item() - 1.0) < 1e-6     # 500 / 500
+        assert abs(w[1].item() - 9.0) < 1e-6     # 900 / 100
+        assert abs(w[2].item() - 499.0) < 1e-6   # 998 / 2
+
+    def test_cap_clamps_extreme_rarity(self) -> None:
+        pytest.importorskip("torch")
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([1000, 1], total=10000)
+        w = compute_pos_weight(profile, cap=50.0)
+        # without cap: (10000 - 1) / 1 = 9999. With cap=50: clamped.
+        assert abs(w[1].item() - 50.0) < 1e-6
+
+    def test_accepts_path_argument(self, tmp_path: Path) -> None:
+        pytest.importorskip("torch")
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([100, 100], total=200)
+        profile_path = tmp_path / "profile.json"
+        profile.to_json_file(profile_path)
+        w = compute_pos_weight(profile_path)
+        assert w.shape == (2,)
+
+    def test_reads_env_var_when_profile_is_none(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pytest.importorskip("torch")
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([50, 50], total=100)
+        profile_path = tmp_path / "env_profile.json"
+        profile.to_json_file(profile_path)
+        monkeypatch.setenv("BIRDCLEF_DATASET_PROFILE", str(profile_path))
+        w = compute_pos_weight()
+        assert w.shape == (2,)
+
+    def test_dtype_is_float32(self) -> None:
+        torch = pytest.importorskip("torch")
+
+        from pipelines.data_loader import compute_pos_weight
+
+        profile = self._make_profile([50, 50], total=100)
+        w = compute_pos_weight(profile)
+        assert w.dtype == torch.float32
 
 
 class TestTorchAdapterPicklable:

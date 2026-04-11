@@ -158,6 +158,9 @@ def _training_env_from_config(gc: GlobalConfig) -> dict[str, str]:
     env: dict[str, str] = {
         "BIRDCLEF_DEVICE": _resolve_device(gc.training.device),
         "BIRDCLEF_BATCH_SIZE": str(gc.training.batch_size),
+        # Smoke-phase default. The orchestrator bumps this to
+        # `compute_budget.promoted_epochs` during the promotion phase.
+        "BIRDCLEF_EPOCHS": "1",
     }
     if gc.training.num_workers is not None:
         env["BIRDCLEF_NUM_WORKERS"] = str(gc.training.num_workers)
@@ -555,6 +558,74 @@ def submit(ctx: click.Context, study_id: str | None) -> None:
     output_path = gc.paths.experiments / study.study_id / "submissions" / "submission.ipynb"
     exporter.export(study=study, output_path=output_path)
     click.echo(f"Wrote submission notebook to {output_path}")
+
+
+@cli.command("ui")
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="Host to bind the dashboard server to.",
+)
+@click.option(
+    "--port",
+    default=8000,
+    show_default=True,
+    type=int,
+    help="Port to serve the dashboard on.",
+)
+@click.option(
+    "--reload/--no-reload",
+    default=False,
+    show_default=True,
+    help="Enable uvicorn auto-reload for UI development.",
+)
+@click.pass_context
+def ui_command(
+    ctx: click.Context, host: str, port: int, reload: bool
+) -> None:
+    """Launch the web dashboard at http://<host>:<port>/.
+
+    The dashboard is read-only: it reads studies, experiments, tasks,
+    generated code, training curves and reports directly from
+    `experiments/studies/` and `sandbox/`. Start a study with
+    `agent start ...` in another terminal and refresh the browser to
+    see progress.
+    """
+    gc: GlobalConfig = ctx.obj["global_config"]
+    studies_root = gc.paths.experiments
+    sandbox_root = gc.paths.sandbox
+
+    try:
+        import uvicorn  # noqa: PLC0415
+    except ImportError as exc:
+        raise click.ClickException(
+            "uvicorn is not installed. Install UI dependencies with "
+            "`pip install -r requirements.txt`."
+        ) from exc
+
+    # Import the factory lazily so `agent --help` and other commands
+    # keep working even when FastAPI is missing.
+    from agent.ui.app import create_app  # noqa: PLC0415
+
+    # `uvicorn.run(factory, factory=True)` expects a string path when
+    # `reload=True`. We use the object form for a simpler single-process
+    # launch; reload is best used via `uvicorn agent.ui:create_app --factory
+    # --reload` directly during UI development.
+    if reload:
+        click.echo(
+            "⚠ --reload is not supported in-process. Run:\n"
+            "    uvicorn 'agent.ui:create_app' --factory --reload"
+            f" --host {host} --port {port}"
+        )
+        return
+
+    app = create_app(studies_root=studies_root, sandbox_root=sandbox_root)
+    click.echo(
+        f"🦜 BirdCLEF dashboard: http://{host}:{port}/  "
+        f"(studies_root={studies_root}, sandbox_root={sandbox_root})"
+    )
+    uvicorn.run(app, host=host, port=port, log_level="info")
 
 
 # ---------------------------------------------------------------------------

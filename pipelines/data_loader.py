@@ -162,6 +162,62 @@ def _load_multilabel(
     return out
 
 
+def compute_pos_weight(
+    profile: DatasetProfile | Path | str | None = None,
+    *,
+    cap: float = 50.0,
+) -> Any:
+    """Return a `torch.Tensor` of per-class `pos_weight` values for
+    `nn.BCEWithLogitsLoss(pos_weight=...)`.
+
+    BirdCLEF is heavily long-tail: rare classes get ignored entirely by a
+    plain BCE loss, which tanks macro ROC-AUC. Re-weighting each class by
+    `neg_count / pos_count` tells the loss to pay proportionally more
+    attention to under-represented classes.
+
+    The weights are derived from the `DatasetProfile.class_stats`
+    distribution, so this function is cheap and does not touch the
+    label CSV. The `cap` parameter clamps very rare classes to a finite
+    multiplier (default 50x) because otherwise a class with 2 positives
+    out of 30k samples would produce a weight near 15000 that drowns
+    out every other class.
+
+    Parameters
+    ----------
+    profile:
+        A `DatasetProfile` instance, a path to a profile JSON file, or
+        None to read the profile from the `BIRDCLEF_DATASET_PROFILE`
+        env var (the default sandbox-friendly behavior).
+    cap:
+        Maximum allowed multiplier per class. Default 50.
+
+    Returns
+    -------
+    torch.Tensor
+        A 1-D float32 tensor of shape `(num_classes,)`. The caller is
+        responsible for `.to(device)` before passing to the loss.
+    """
+    import torch  # lazy import — keeps the module torch-optional
+
+    if profile is None:
+        profile_path = _default_profile_path()
+        profile_obj = DatasetProfile.from_json_file(profile_path)
+    elif isinstance(profile, (str, Path)):
+        profile_obj = DatasetProfile.from_json_file(Path(profile))
+    else:
+        profile_obj = profile
+
+    total = max(profile_obj.num_samples, 1)
+    weights: list[float] = []
+    for entry in profile_obj.class_stats:
+        pos = max(entry.sample_count, 1)
+        neg = max(total - pos, 1)
+        w = neg / pos
+        weights.append(min(w, cap))
+
+    return torch.tensor(weights, dtype=torch.float32)
+
+
 # ---------------------------------------------------------------------------
 # Dataset
 # ---------------------------------------------------------------------------
@@ -392,5 +448,6 @@ def load_precomputed_dataset(
 
 __all__ = [
     "PrecomputedSpectrogramDataset",
+    "compute_pos_weight",
     "load_precomputed_dataset",
 ]

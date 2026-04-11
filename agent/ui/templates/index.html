@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Studies · BirdCLEF Agent{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-3xl font-bold">Studies</h1>
+  <p class="text-slate-600 mt-1">
+    {{ studies|length }} stud{{ "y" if studies|length == 1 else "ies" }} on disk.
+    Newest first.
+  </p>
+</div>
+
+{% if not studies %}
+  <div class="rounded-lg border border-slate-200 bg-white p-8 text-center">
+    <p class="text-slate-600">No studies found in <code>{{ studies_root }}</code>.</p>
+    <p class="text-sm text-slate-500 mt-2">
+      Launch one with <code>agent study run --name "first run"</code>.
+    </p>
+  </div>
+{% else %}
+
+<div class="grid gap-4">
+  {% for s in studies %}
+  <a href="/studies/{{ s.study_id }}" class="block rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-400 hover:shadow-sm transition">
+    <div class="flex items-start justify-between">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-3">
+          <h2 class="font-semibold text-lg truncate">{{ s.name }}</h2>
+          <span class="badge badge-{{ s.status }}">{{ s.status }}</span>
+          {% if s.has_report %}<span class="badge badge-default">📄 report</span>{% endif %}
+        </div>
+        <p class="text-xs text-slate-500 font-mono mt-0.5">{{ s.study_id }}</p>
+        <p class="text-sm text-slate-600 mt-2">{{ truncate(s.hypothesis, 180) }}</p>
+      </div>
+      <div class="text-right ml-4 shrink-0">
+        {% if s.best_score is not none %}
+          <div class="text-3xl font-bold text-emerald-600">{{ format_score(s.best_score) }}</div>
+          <div class="text-xs text-slate-500">best ROC-AUC</div>
+        {% else %}
+          <div class="text-3xl font-bold text-slate-300">—</div>
+          <div class="text-xs text-slate-400">no results yet</div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="mt-4 flex items-center gap-6 text-xs text-slate-600">
+      <span>
+        <strong>{{ s.experiment_count }}</strong> experiments
+      </span>
+      <span class="text-emerald-700">
+        <strong>{{ s.completed_count }}</strong> completed
+      </span>
+      <span class="text-rose-700">
+        <strong>{{ s.failed_count }}</strong> failed
+      </span>
+      <span class="ml-auto text-slate-400">updated {{ s.updated_at }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

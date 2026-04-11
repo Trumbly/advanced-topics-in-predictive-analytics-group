@@ -28,7 +28,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -107,6 +107,25 @@ class ComputeBudget(AgentBaseModel):
     max_experiment_seconds: int = 7200      # 2 hours — real BirdCLEF training is slow
     max_epochs_per_run: int = 1             # fast-iteration mode
     max_recovery_attempts: int = 2          # retries for a failed experiment's code
+    recovery_empty_response_retries: int = 3  # inner LLM retries on empty recovery response
+    recovery_min_code_chars: int = 200      # responses shorter than this count as empty
+
+    # --- promotion phase (smoke → promote two-stage pipeline) ---
+    #
+    # The smoke phase (everything above) runs every experiment at
+    # `max_epochs_per_run=1` so we can iterate fast. That 1-epoch score is
+    # almost pure noise for 234-class multi-label though — bad signal for
+    # comparing architectures. The promotion phase re-runs the top-K
+    # smoke-phase experiments with a higher epoch budget so we get a
+    # realistic score to report.
+    #
+    # `promoted_epochs` must be > 1 to enable promotion. `promote_top_k`
+    # is the number of smoke-phase experiments re-run at the bigger
+    # budget. `promote_min_score` (optional) filters: only experiments
+    # whose smoke score exceeds this threshold are promoted.
+    promoted_epochs: int = 1                # >1 → enable promotion phase
+    promote_top_k: int = 3                  # N best smoke-phase candidates
+    promote_min_score: float | None = None  # optional filter on smoke score
 
 
 class Study(AgentBaseModel):
@@ -304,12 +323,21 @@ class ModelRegistryEntry(AgentBaseModel):
 
     The LLM selects from this catalog by `name`. We use this to prevent
     hallucinated architectures.
+
+    `output_dim` accepts either an explicit integer (when the model
+    hardcodes a class count) or the sentinel string ``"num_classes"``,
+    which tells the LLM: "use the actual dataset's num_classes variable,
+    do not invent a number". The second form is strongly preferred because
+    hardcoded counts broke several experiments when the real dataset had
+    206 classes but the registry said 234.
     """
 
     name: str = Field(description="Unique identifier, e.g. 'efficientnet_b0'")
     family: str = Field(description="e.g. 'cnn', 'transformer', 'audio_specific'")
     input_shape: tuple[int, ...]
-    output_dim: int
+    output_dim: int | str = Field(
+        description="Integer class count, or the sentinel 'num_classes'"
+    )
     parameters_millions: float
     pretrained_on: str = Field(description="e.g. 'imagenet', 'audioset', 'none'")
     suitability_notes: str = Field(description="Free-text guidance for the LLM")
@@ -317,6 +345,15 @@ class ModelRegistryEntry(AgentBaseModel):
     import_snippet: str = Field(
         description="Exact Python code to instantiate the model"
     )
+
+    @field_validator("output_dim")
+    @classmethod
+    def _output_dim_sentinel(cls, v: int | str) -> int | str:
+        if isinstance(v, str) and v != "num_classes":
+            raise ValueError(
+                f"output_dim string must be exactly 'num_classes', got {v!r}"
+            )
+        return v
 
 
 class ModelRegistryFile(AgentBaseModel):
