@@ -276,6 +276,82 @@ class TestValidateCodePure:
         assert not result.ok
         assert result.error_type == "MissingMainGuard"
 
+    def test_rejects_hallucinated_torch_nn_attribute(self) -> None:
+        """`nn.Conv2x2d` is a real hallucination we saw in exp_013 — the
+        validator must reject it with a helpful 'did you mean' hint.
+        Requires torch to be importable in the validator process (the
+        check skips itself silently when torch is missing)."""
+        pytest.importorskip("torch")
+        code = (
+            "import torch.nn as nn\n"
+            "class M(nn.Module):\n"
+            "    def __init__(self):\n"
+            "        super().__init__()\n"
+            "        self.c = nn.Conv2x2d(1, 32, 3)\n"
+        )
+        result = validate_code.validate(code)
+        assert not result.ok
+        assert result.error_type == "UnknownTorchNnAttribute"
+        assert "Conv2d" in result.message  # the suggestion
+
+    def test_rejects_hallucinated_from_torch_nn_alias(self) -> None:
+        """`from torch import nn` is the other idiomatic import path —
+        the check must follow it too."""
+        pytest.importorskip("torch")
+        code = (
+            "from torch import nn\n"
+            "x = nn.BatchNormal2d(32)\n"
+        )
+        result = validate_code.validate(code)
+        assert not result.ok
+        assert result.error_type == "UnknownTorchNnAttribute"
+        assert "BatchNorm" in result.message
+
+    def test_accepts_real_torch_nn_layers(self) -> None:
+        """A normal, correct use of nn.Conv2d / nn.BatchNorm2d / nn.ReLU
+        must of course pass."""
+        code = (
+            "import torch.nn as nn\n"
+            "m = nn.Conv2d(1, 32, 3)\n"
+            "n = nn.BatchNorm2d(32)\n"
+            "r = nn.ReLU()\n"
+            "lin = nn.LazyLinear(206)\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_accepts_custom_alias_with_real_layer(self) -> None:
+        """`import torch.nn as neural_net` is unusual but legal."""
+        code = (
+            "import torch.nn as neural_net\n"
+            "m = neural_net.Conv2d(1, 32, 3)\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_ignores_attribute_access_on_unrelated_modules(self) -> None:
+        """If the LLM uses a variable called `nn` that is NOT torch.nn,
+        the reflection check must not crash."""
+        code = (
+            "class FakeNN:\n"
+            "    pass\n"
+            "nn = FakeNN()\n"
+            "nn.whatever = 'ignore me'\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
+    def test_ignores_dunder_and_private_access(self) -> None:
+        """`nn.__class__` and `nn._C` should not be flagged even though
+        they aren't in `dir(nn)` as public names."""
+        code = (
+            "import torch.nn as nn\n"
+            "x = nn.__class__\n"
+            "y = nn._hidden_thing\n"
+        )
+        result = validate_code.validate(code)
+        assert result.ok
+
 
 class TestValidateCodeHandler:
     def test_updates_task_on_success(self) -> None:

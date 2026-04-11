@@ -103,3 +103,34 @@ class TestModelRegistry:
         assert len(registry) >= 3
         assert "cnn_small_v1" in registry
         assert "efficientnet_b0" in registry
+
+    def test_real_registry_uses_num_classes_sentinel(self) -> None:
+        """The checked-in registry MUST use the `num_classes` sentinel
+        for every entry. Hardcoded ints (like 234) are forbidden because
+        the real dataset has 206 classes and that mismatch crashed
+        multiple experiments."""
+        registry = ModelRegistry("registry/models.yaml")
+        for entry in registry.list_all():
+            assert entry.output_dim == "num_classes", (
+                f"{entry.name} uses hardcoded output_dim {entry.output_dim!r}; "
+                "every registry entry must use the 'num_classes' sentinel"
+            )
+
+    def test_output_dim_rejects_unknown_string(self, tmp_path: Path) -> None:
+        """Any string other than 'num_classes' is rejected by Pydantic."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="num_classes"):
+            ModelRegistryEntry.model_validate(
+                {
+                    "name": "broken",
+                    "family": "cnn",
+                    "input_shape": [1, 64, 64],
+                    "output_dim": "classes",  # wrong sentinel
+                    "parameters_millions": 0.1,
+                    "pretrained_on": "none",
+                    "suitability_notes": "x",
+                    "framework": "torch",
+                    "import_snippet": "model = None",
+                }
+            )
