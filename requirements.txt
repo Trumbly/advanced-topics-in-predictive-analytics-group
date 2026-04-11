@@ -29,6 +29,11 @@ pydantic>=2.6.0
 # CLI
 click>=8.1.0
 
+# Dashboard (FastAPI + Jinja2 + HTMX, all served from the `agent ui` command)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+jinja2>=3.1.0
+
 # Utilities
 tqdm>=4.65.0
 pyyaml>=6.0
