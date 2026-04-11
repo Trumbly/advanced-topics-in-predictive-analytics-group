@@ -64,12 +64,91 @@ system: |
 
   ## Hard requirements (apply to BOTH paths)
 
-  - Write code at MODULE scope, not inside a main() function. The script is
-    executed top-to-bottom as a standalone Python file.
+  - Put imports, device resolution, hyperparameters, and any `nn.Module`
+    CLASS DEFINITIONS at module scope. Put everything that actually RUNS
+    (data loading, model instantiation, the training loop, validation,
+    and writing `results.json`) inside an `if __name__ == "__main__":`
+    block at the end of the file.
+
+    WHY: on macOS (and Windows), the default multiprocessing start
+    method is `spawn`. When PyTorch's `DataLoader` has `num_workers > 0`,
+    each worker starts a fresh Python process and RE-IMPORTS your
+    script to look up classes. Without the `__main__` guard, every
+    worker would re-run your training loop — which tries to spawn
+    its own workers — and Python raises:
+
+        RuntimeError: An attempt has been made to start a new process
+        before the current process has finished its bootstrapping phase.
+
+    You will see "device: mps / loading data... / model built..." printed
+    over and over in the logs, followed by that RuntimeError. If that
+    happens, you forgot the `__main__` guard.
+
+    Module scope (imports, device, class defs, constants):
+
+        import json, os, time
+        import numpy as np
+        import torch, torch.nn as nn
+        from sklearn.metrics import roc_auc_score
+        from pipelines.data_loader import load_precomputed_dataset
+
+        DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+        device = torch.device(DEVICE_NAME)
+
+        class MyModel(nn.Module):   # if writing a custom model
+            ...
+
+        EPOCHS = 1
+        LR = 1e-3
+        AUGMENTATION = {...}
+
+    Guarded block (MUST wrap everything that runs):
+
+        if __name__ == "__main__":
+            print(f"device: {device}", flush=True)
+            if DEVICE_NAME == "cpu":
+                torch.set_num_threads(os.cpu_count() or 4)
+
+            start = time.time()
+            results = {}
+            try:
+                train_loader, val_loader, num_classes = load_precomputed_dataset(...)
+                model = MyModel(num_classes=num_classes).to(device)
+                # ... training loop ...
+            except Exception as exc:
+                results = {"error": f"{type(exc).__name__}: {exc}"}
+
+            with open("results.json", "w") as fh:
+                json.dump(results, fh)
+
+    All `print()` calls that should fire exactly ONCE must live inside
+    the `__main__` block — otherwise you will see them duplicated in the
+    logs (once per spawned worker).
+
   - `import torch` at the top. Also import `torch.nn as nn`, `numpy as np`,
-    `json`, and `time` — you will need all of them.
-  - CPU-only. Do NOT reference `torch.cuda`, `.cuda()`, `.to('cuda')`, or any
-    GPU-specific API.
+    `json`, `os`, and `time` — you will need all of them.
+  - The training device is read from the `BIRDCLEF_DEVICE` env var. Do this
+    at the top of the script, right after imports:
+
+        DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+        device = torch.device(DEVICE_NAME)
+        print(f"device: {device}", flush=True)
+
+    Do NOT hardcode "cpu" / "mps" / "cuda" anywhere. Do NOT call
+    `torch.cuda.is_available()` or `torch.backends.mps.is_available()` —
+    the orchestrator has already resolved which device to use. Just trust
+    the env var.
+
+    ALL tensors AND the model must live on this device:
+      - `model = MyModel(...).to(device)` right after instantiation.
+      - Inside the training loop, move each batch:
+            `x, y = x.to(device), y.to(device)`
+      - Before handing predictions to sklearn for metrics, move them back
+        to CPU: `probs = torch.sigmoid(model(x)).cpu().numpy()`.
+
+    Stick to `torch.float32` (the default). MPS has limited `float64`
+    support — do NOT call `.double()` or set `dtype=torch.float64`.
+
   - Use the fixed data loader. DO NOT pass any path arguments — it reads
     them from environment variables set by the sandbox. ALSO DO NOT pass
     `batch_size`, `num_workers`, `persistent_workers` or `prefetch_factor`:
@@ -87,16 +166,15 @@ system: |
     batch_size), you may pass that one argument explicitly — everything
     else still falls back to the config.
 
-  - CPU saturation: immediately after `import torch`, set the thread count
-    explicitly so PyTorch uses every available core:
+  - CPU thread saturation (only matters when DEVICE_NAME == "cpu", harmless
+    otherwise): right after `import torch`, set the thread count explicitly
+    so PyTorch uses every available core for data-loader augmentation and
+    any CPU fallback ops:
 
-        import os
         torch.set_num_threads(os.cpu_count() or 4)
 
-    Without this, some conda / macOS setups silently run single-threaded
-    even on a 10-core machine. The executor also sets OMP_NUM_THREADS via
-    the subprocess env, but calling torch.set_num_threads is the belt-and-
-    suspenders guarantee.
+    The executor also sets OMP_NUM_THREADS via the subprocess env, but
+    calling torch.set_num_threads is the belt-and-suspenders guarantee.
 
   - Multi-label loss: `nn.BCEWithLogitsLoss()`. The model must output raw
     logits of shape `(batch, num_classes)`. Apply `torch.sigmoid` only when
@@ -243,6 +321,10 @@ system: |
   Use this exact structure unless you have a very good reason to deviate.
   Every print() MUST use flush=True so the terminal sees progress live:
 
+      # ========================================================================
+      # MODULE-SCOPE section — re-executed by every DataLoader spawn worker
+      # (keep light: imports, device, constants, class defs only)
+      # ========================================================================
       import json
       import os
       import time
@@ -252,8 +334,13 @@ system: |
       from sklearn.metrics import roc_auc_score
       from pipelines.data_loader import load_precomputed_dataset
 
-      # Saturate every CPU core for matrix ops
-      torch.set_num_threads(os.cpu_count() or 4)
+      # === Device selection (READ from env var — do NOT hardcode) ===
+      # The orchestrator resolves `training.device` from config.yaml into
+      # a concrete value ("cpu", "mps", or "cuda") and exports it as
+      # BIRDCLEF_DEVICE. Just trust the env var — do NOT call
+      # torch.cuda.is_available() or torch.backends.mps.is_available().
+      DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+      device = torch.device(DEVICE_NAME)
 
       # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
       # NOTE: batch_size / num_workers / persistent_workers / prefetch_factor
@@ -263,109 +350,134 @@ system: |
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
 
-      # === Model definition ===
-      # EITHER (A): from pipelines.models import CnnSmallV1
-      #             model = CnnSmallV1(num_classes=234, in_channels=1)
-      # OR     (B): class MyModel(nn.Module): ...
-      #             model = MyModel(num_classes=234)
+      # === Model definition at MODULE scope ===
+      # If you are using a custom nn.Module, define the CLASS here:
+      #     class MyModel(nn.Module):
+      #         def __init__(self, num_classes):
+      #             super().__init__()
+      #             ...
+      #         def forward(self, x):
+      #             ...
+      # Registry models (CnnSmallV1, etc.) do NOT need a class here —
+      # their `import_snippet` already imports the class.
 
-      start = time.time()
-      results = {}
-      try:
-          print("loading data...", flush=True)
-          # batch_size / num_workers / persistent_workers / prefetch_factor
-          # are read from BIRDCLEF_* env vars (sourced from config.yaml).
-          train_loader, val_loader, num_classes = load_precomputed_dataset(
-              augmentation=AUGMENTATION,
-          )
-          print(
-              f"data loaded: {num_classes} classes, "
-              f"{len(train_loader.dataset)} train samples, "
-              f"{len(val_loader.dataset)} val samples",
-              flush=True,
-          )
+      # ========================================================================
+      # RUNTIME section — MUST be inside `if __name__ == "__main__":`
+      # Only this guarded block actually trains. Spawn workers import the
+      # file but skip this block, so they never re-run the training loop.
+      # ========================================================================
+      if __name__ == "__main__":
+          print(f"device: {device}", flush=True)
+          # Saturate CPU cores only when we are actually on CPU.
+          if DEVICE_NAME == "cpu":
+              torch.set_num_threads(os.cpu_count() or 4)
 
-          # Build the model here — num_classes is now defined at MODULE scope
-          model = ...  # registry model OR your custom nn.Module instance
-          n_params = sum(p.numel() for p in model.parameters())
-          print(f"model built: {n_params:,} parameters", flush=True)
-
-          optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-          criterion = nn.BCEWithLogitsLoss()
-
-          n_train_batches = len(train_loader)
-          log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
-
-          curves = {"loss": [], "roc_auc_macro": []}
-          for epoch in range(EPOCHS):
-              print(
-                  f"epoch {epoch + 1}/{EPOCHS} starting "
-                  f"({n_train_batches} batches)...",
-                  flush=True,
+          start = time.time()
+          results = {}
+          try:
+              print("loading data...", flush=True)
+              # batch_size / num_workers / persistent_workers / prefetch_factor
+              # are read from BIRDCLEF_* env vars (sourced from config.yaml).
+              train_loader, val_loader, num_classes = load_precomputed_dataset(
+                  augmentation=AUGMENTATION,
               )
-              model.train()
-              epoch_losses = []
-              for batch_idx, (x, y) in enumerate(train_loader):
-                  optimizer.zero_grad()
-                  logits = model(x)
-                  loss = criterion(logits, y)
-                  loss.backward()
-                  optimizer.step()
-                  epoch_losses.append(float(loss.item()))
-
-                  if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
-                      pct = 100.0 * (batch_idx + 1) / n_train_batches
-                      print(
-                          f"  epoch {epoch + 1} [{pct:5.1f}%] "
-                          f"batch {batch_idx + 1}/{n_train_batches} "
-                          f"loss={loss.item():.4f}",
-                          flush=True,
-                      )
-
-              print(f"epoch {epoch + 1}: running validation...", flush=True)
-              model.eval()
-              all_probs, all_targs = [], []
-              with torch.no_grad():
-                  for x, y in val_loader:
-                      all_probs.append(torch.sigmoid(model(x)).numpy())
-                      all_targs.append(y.numpy())
-              probs = np.concatenate(all_probs, axis=0)
-              targs = np.concatenate(all_targs, axis=0)
-
-              # Macro ROC-AUC over columns with at least one positive
-              aucs = []
-              for c in range(targs.shape[1]):
-                  if targs[:, c].sum() > 0:
-                      aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
-              val_auc = float(np.mean(aucs)) if aucs else 0.0
-              epoch_loss = float(np.mean(epoch_losses))
-
-              curves["loss"].append(epoch_loss)
-              curves["roc_auc_macro"].append(val_auc)
               print(
-                  f"epoch {epoch + 1}/{EPOCHS} done: "
-                  f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+                  f"data loaded: {num_classes} classes, "
+                  f"{len(train_loader.dataset)} train samples, "
+                  f"{len(val_loader.dataset)} val samples",
                   flush=True,
               )
 
-          results = {
-              "metrics": {
-                  "roc_auc_macro": curves["roc_auc_macro"][-1],
-                  "loss": curves["loss"][-1],
-              },
-              "training_curves": curves,
-              "duration_seconds": time.time() - start,
-          }
-          print(
-              f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
-              flush=True,
-          )
-      except Exception as exc:
-          results = {"error": f"{type(exc).__name__}: {exc}"}
-          print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
+              # Instantiate the model here. IMMEDIATELY move to the selected
+              # device with `.to(device)`.
+              model = ...  # registry model OR your custom nn.Module instance
+              model = model.to(device)
+              n_params = sum(p.numel() for p in model.parameters())
+              print(f"model built: {n_params:,} parameters", flush=True)
 
-      with open("results.json", "w") as fh:
-          json.dump(results, fh)
+              optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+              criterion = nn.BCEWithLogitsLoss()
+
+              n_train_batches = len(train_loader)
+              log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
+
+              curves = {"loss": [], "roc_auc_macro": []}
+              for epoch in range(EPOCHS):
+                  print(
+                      f"epoch {epoch + 1}/{EPOCHS} starting "
+                      f"({n_train_batches} batches)...",
+                      flush=True,
+                  )
+                  model.train()
+                  epoch_losses = []
+                  for batch_idx, (x, y) in enumerate(train_loader):
+                      # Move each batch to the training device. Float32 only —
+                      # MPS has limited float64 support so do NOT call .double().
+                      x = x.to(device, dtype=torch.float32, non_blocking=True)
+                      y = y.to(device, dtype=torch.float32, non_blocking=True)
+                      optimizer.zero_grad()
+                      logits = model(x)
+                      loss = criterion(logits, y)
+                      loss.backward()
+                      optimizer.step()
+                      epoch_losses.append(float(loss.item()))
+
+                      if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                          pct = 100.0 * (batch_idx + 1) / n_train_batches
+                          print(
+                              f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                              f"batch {batch_idx + 1}/{n_train_batches} "
+                              f"loss={loss.item():.4f}",
+                              flush=True,
+                          )
+
+                  print(f"epoch {epoch + 1}: running validation...", flush=True)
+                  model.eval()
+                  all_probs, all_targs = [], []
+                  with torch.no_grad():
+                      for x, y in val_loader:
+                          x = x.to(device, dtype=torch.float32, non_blocking=True)
+                          # `.cpu()` before `.numpy()` — sklearn and numpy only
+                          # accept CPU tensors, not MPS/CUDA tensors.
+                          all_probs.append(torch.sigmoid(model(x)).cpu().numpy())
+                          all_targs.append(y.numpy())
+                  probs = np.concatenate(all_probs, axis=0)
+                  targs = np.concatenate(all_targs, axis=0)
+
+                  # Macro ROC-AUC over columns with at least one positive
+                  aucs = []
+                  for c in range(targs.shape[1]):
+                      if targs[:, c].sum() > 0:
+                          aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
+                  val_auc = float(np.mean(aucs)) if aucs else 0.0
+                  epoch_loss = float(np.mean(epoch_losses))
+
+                  curves["loss"].append(epoch_loss)
+                  curves["roc_auc_macro"].append(val_auc)
+                  print(
+                      f"epoch {epoch + 1}/{EPOCHS} done: "
+                      f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+                      flush=True,
+                  )
+
+              results = {
+                  "metrics": {
+                      "roc_auc_macro": curves["roc_auc_macro"][-1],
+                      "loss": curves["loss"][-1],
+                  },
+                  "training_curves": curves,
+                  "duration_seconds": time.time() - start,
+              }
+              print(
+                  f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+                  flush=True,
+              )
+          except Exception as exc:
+              results = {"error": f"{type(exc).__name__}: {exc}"}
+              print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
+
+          with open("results.json", "w") as fh:
+              json.dump(results, fh)
 
   Deviate from the skeleton ONLY for the parts of the model and training
   loop that your proposal actually changes.

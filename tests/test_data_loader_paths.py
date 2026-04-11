@@ -164,3 +164,59 @@ class TestTrainingConfigFallbacks:
 
         monkeypatch.delenv("BIRDCLEF_PREFETCH_FACTOR", raising=False)
         assert _default_prefetch_factor() == 4
+
+
+class TestTorchAdapterPicklable:
+    """The `_TorchAdapter` wrapper MUST live at module scope so that
+    PyTorch DataLoader workers (spawned via multiprocessing) can pickle
+    dataset instances. A previous bug where the class was nested inside
+    `load_precomputed_dataset` broke every training run with:
+
+        AttributeError: Can't pickle local object
+            'load_precomputed_dataset.<locals>._TorchAdapter'
+
+    These tests guarantee the fix does not regress.
+    """
+
+    def test_torch_adapter_is_at_module_scope(self) -> None:
+        from pipelines.data_loader import _TorchAdapter
+
+        assert _TorchAdapter.__module__ == "pipelines.data_loader"
+        assert _TorchAdapter.__qualname__ == "_TorchAdapter"
+        # Must also be importable by that exact path so pickle can find it.
+        import importlib
+
+        mod = importlib.import_module(_TorchAdapter.__module__)
+        assert getattr(mod, "_TorchAdapter") is _TorchAdapter
+
+    def test_torch_adapter_pickle_roundtrip(self) -> None:
+        """The adapter plus its inner dataset must survive a full pickle
+        round-trip. This is exactly what a spawn worker does."""
+        import pickle
+        from pathlib import Path
+
+        import numpy as np
+
+        from pipelines.audio_pipeline import AudioPipeline, AugmentationConfig
+        from pipelines.data_loader import (
+            PrecomputedSpectrogramDataset,
+            _TorchAdapter,
+        )
+
+        inner = PrecomputedSpectrogramDataset(
+            sample_ids=["a", "b"],
+            spectrograms_dir=Path("/tmp/does-not-matter"),
+            labels={
+                "a": np.zeros(3, dtype=np.float32),
+                "b": np.ones(3, dtype=np.float32),
+            },
+            augmentation=AugmentationConfig.from_dict({"time_shift": True}),
+            audio_pipeline=AudioPipeline(),
+        )
+        adapter = _TorchAdapter(inner)
+
+        blob = pickle.dumps(adapter)
+        restored = pickle.loads(blob)
+
+        assert isinstance(restored, _TorchAdapter)
+        assert len(restored) == 2

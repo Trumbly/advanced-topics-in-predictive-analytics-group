@@ -204,6 +204,7 @@ print('done')
             timeout_seconds=10,
             python_executable=sys.executable,
             training_env={
+                "BIRDCLEF_DEVICE": "mps",
                 "BIRDCLEF_BATCH_SIZE": "256",
                 "BIRDCLEF_NUM_WORKERS": "10",
                 "BIRDCLEF_PERSISTENT_WORKERS": "true",
@@ -214,8 +215,9 @@ print('done')
             "import os, json, pathlib\n"
             "vals = {\n"
             "    k: os.environ.get(k) for k in (\n"
-            "        'BIRDCLEF_BATCH_SIZE', 'BIRDCLEF_NUM_WORKERS',\n"
-            "        'BIRDCLEF_PERSISTENT_WORKERS', 'BIRDCLEF_PREFETCH_FACTOR',\n"
+            "        'BIRDCLEF_DEVICE', 'BIRDCLEF_BATCH_SIZE',\n"
+            "        'BIRDCLEF_NUM_WORKERS', 'BIRDCLEF_PERSISTENT_WORKERS',\n"
+            "        'BIRDCLEF_PREFETCH_FACTOR',\n"
             "    )\n"
             "}\n"
             "pathlib.Path('results.json').write_text(json.dumps({\n"
@@ -228,6 +230,7 @@ print('done')
         import json
         data = json.loads(result.results_json_path.read_text())  # type: ignore[union-attr]
         env = data["training_env"]
+        assert env["BIRDCLEF_DEVICE"] == "mps"
         assert env["BIRDCLEF_BATCH_SIZE"] == "256"
         assert env["BIRDCLEF_NUM_WORKERS"] == "10"
         assert env["BIRDCLEF_PERSISTENT_WORKERS"] == "true"

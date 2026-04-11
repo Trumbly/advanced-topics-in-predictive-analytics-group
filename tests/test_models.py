@@ -401,19 +401,37 @@ class TestPipelineDefinition:
 class TestTrainingSettings:
     def test_defaults(self) -> None:
         t = TrainingSettings()
-        assert t.batch_size == 128
+        assert t.device == "auto"
+        assert t.batch_size == 512
         assert t.num_workers is None  # auto-tune
         assert t.persistent_workers is True
         assert t.prefetch_factor == 4
 
     def test_override(self) -> None:
         t = TrainingSettings(
-            batch_size=256, num_workers=10, persistent_workers=False, prefetch_factor=8
+            device="mps",
+            batch_size=256,
+            num_workers=10,
+            persistent_workers=False,
+            prefetch_factor=8,
         )
+        assert t.device == "mps"
         assert t.batch_size == 256
         assert t.num_workers == 10
         assert t.persistent_workers is False
         assert t.prefetch_factor == 8
+
+    def test_device_accepts_all_valid_literals(self) -> None:
+        for dev in ("auto", "cpu", "mps", "cuda"):
+            t = TrainingSettings(device=dev)  # type: ignore[arg-type]
+            assert t.device == dev
+
+    def test_device_rejects_invalid_value(self) -> None:
+        import pytest
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            TrainingSettings(device="tpu")  # type: ignore[arg-type]
 
 
 class TestGlobalConfig:
@@ -425,7 +443,8 @@ class TestGlobalConfig:
         assert config.compute_budget.max_experiments == 20
         assert config.context.memory_format == "markdown"
         assert config.paths.data_raw == Path("data/raw")
-        assert config.training.batch_size == 128
+        assert config.training.device == "auto"
+        assert config.training.batch_size == 512
 
     def test_training_section_can_be_loaded_from_real_config(
         self, tmp_path: Path
@@ -438,6 +457,7 @@ class TestGlobalConfig:
         gc = GlobalConfig.model_validate(data)
         assert gc.training.batch_size >= 1
         assert gc.training.prefetch_factor >= 1
+        assert gc.training.device in ("auto", "cpu", "mps", "cuda")
 
     def test_override_nested(self) -> None:
         config = GlobalConfig(

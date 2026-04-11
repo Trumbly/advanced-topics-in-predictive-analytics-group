@@ -124,11 +124,22 @@ class Orchestrator:
         """
         self._start_wallclock = time.monotonic()
 
+        training_env = self.executor.training_env or {}
+        device = training_env.get("BIRDCLEF_DEVICE", "cpu")
+        batch_size = training_env.get("BIRDCLEF_BATCH_SIZE", "?")
+        num_workers = training_env.get("BIRDCLEF_NUM_WORKERS", "auto")
+
         logger.info("=" * 66)
         logger.info("Starting study: %s", self.study.name)
         logger.info("  id:       %s", self.study.study_id)
         logger.info("  pipeline: %s", self.study.pipeline_config_path)
         logger.info("  model:    %s", self.llm_client.model)
+        logger.info("  device:   %s", device)
+        logger.info(
+            "  training: batch_size=%s, num_workers=%s",
+            batch_size,
+            num_workers,
+        )
         logger.info(
             "  budget:   %d experiments, %d min wallclock",
             self.study.compute_budget.max_experiments,

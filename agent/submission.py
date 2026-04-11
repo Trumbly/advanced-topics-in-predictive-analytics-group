@@ -278,9 +278,14 @@ EXPERIMENT_ID = "{experiment.experiment_id}"
 TARGET_RUNTIME_SECONDS = {self.target_runtime_seconds}
 CPU_ONLY = {self.cpu_only}
 
-# Make sure CUDA is disabled even if the runtime has a GPU
+# === FORCE CPU-ONLY EXECUTION ON KAGGLE ===
+# The training code reads BIRDCLEF_DEVICE from the environment to pick
+# CPU / MPS / CUDA. On Kaggle we MUST run on CPU regardless of how the
+# experiment was trained locally, so we pin BIRDCLEF_DEVICE=cpu and
+# also disable CUDA visibility for belt-and-suspenders.
 import os
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+os.environ["BIRDCLEF_DEVICE"] = "cpu"
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 '''
         )
 

@@ -224,7 +224,27 @@ def validate(
             ),
         )
 
-    # 6. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
+    # 6. `__main__` guard enforcement.
+    #    PyTorch's DataLoader with num_workers > 0 uses multiprocessing
+    #    with the `spawn` start method on macOS. Spawn workers re-import
+    #    the script, so any call that materializes the DataLoader (or
+    #    iterates it) MUST live inside `if __name__ == "__main__":`.
+    #    If it runs at module scope, each worker recursively tries to
+    #    spawn its own workers and crashes with:
+    #      RuntimeError: An attempt has been made to start a new process
+    #      before the current process has finished its bootstrapping phase.
+    #    We detect this by checking whether `load_precomputed_dataset(...)`
+    #    or `DataLoader(...)` calls appear at top-level (outside any
+    #    function def / class def / if-main block).
+    guard_violation = _check_main_guard(tree)
+    if guard_violation is not None:
+        return ValidationResult(
+            ok=False,
+            error_type="MissingMainGuard",
+            message=guard_violation,
+        )
+
+    # 7. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
     #    any top-level constant assignment `EPOCHS = <int>` with a value
     #    larger than max_epochs gets rejected. This is a HARD enforcement
     #    of the fast-iteration mode because the LLM repeatedly ignores the
@@ -252,6 +272,96 @@ def validate(
                             )
 
     return ValidationResult(ok=True)
+
+
+# ---------------------------------------------------------------------------
+# __main__ guard detection
+# ---------------------------------------------------------------------------
+
+# Call expressions that trigger multiprocessing worker spawn and therefore
+# MUST be inside `if __name__ == "__main__":`. We match on function-name
+# or attribute-name suffix so both `load_precomputed_dataset(...)` and
+# `pipelines.data_loader.load_precomputed_dataset(...)` are detected.
+_SPAWN_TRIGGERING_CALLS: frozenset[str] = frozenset(
+    {
+        "load_precomputed_dataset",
+        "DataLoader",
+    }
+)
+
+
+def _is_if_name_main(node: ast.If) -> bool:
+    """Return True iff `node` is the classic `if __name__ == "__main__":` guard."""
+    test = node.test
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1:
+        return False
+    if not isinstance(test.ops[0], ast.Eq):
+        return False
+    left, right = test.left, test.comparators[0]
+
+    def _is_name_main(n: ast.AST) -> bool:
+        return isinstance(n, ast.Name) and n.id == "__name__"
+
+    def _is_main_const(n: ast.AST) -> bool:
+        return isinstance(n, ast.Constant) and n.value == "__main__"
+
+    return (_is_name_main(left) and _is_main_const(right)) or (
+        _is_name_main(right) and _is_main_const(left)
+    )
+
+
+def _call_trigger_name(call: ast.Call) -> str | None:
+    """Return the triggering function name of a Call node, or None."""
+    func = call.func
+    if isinstance(func, ast.Name) and func.id in _SPAWN_TRIGGERING_CALLS:
+        return func.id
+    if isinstance(func, ast.Attribute) and func.attr in _SPAWN_TRIGGERING_CALLS:
+        return func.attr
+    return None
+
+
+def _find_unguarded_spawn_calls(
+    nodes: list[ast.stmt],
+) -> list[tuple[str, int]]:
+    """Walk top-level statements and collect (trigger_name, lineno) pairs
+    for spawn-triggering calls that are NOT inside a function, class, or
+    `if __name__ == "__main__":` block."""
+    hits: list[tuple[str, int]] = []
+    for stmt in nodes:
+        # Skip bodies that Python would not re-execute recursively during
+        # a spawn worker's module import: function/class defs.
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        # Skip the __main__ guard — its body is exactly where these calls
+        # SHOULD live.
+        if isinstance(stmt, ast.If) and _is_if_name_main(stmt):
+            continue
+        # Everything else is genuinely at top-level module scope.
+        # Walk the statement and report any triggering call we find.
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Call):
+                name = _call_trigger_name(node)
+                if name is not None:
+                    hits.append((name, node.lineno))
+    return hits
+
+
+def _check_main_guard(tree: ast.Module) -> str | None:
+    """Return a violation message if any spawn-triggering call is at
+    module scope, otherwise None."""
+    unguarded = _find_unguarded_spawn_calls(list(tree.body))
+    if not unguarded:
+        return None
+    first_name, first_line = unguarded[0]
+    return (
+        f"`{first_name}(...)` called at module scope (line {first_line}) "
+        f"without an `if __name__ == \"__main__\":` guard. PyTorch DataLoader "
+        f"with num_workers > 0 uses spawn workers that re-import the script; "
+        f"without the guard each worker recursively spawns more workers and "
+        f"Python raises a bootstrapping RuntimeError. Move the training block "
+        f"(everything that actually RUNS, not class definitions) inside "
+        f"`if __name__ == \"__main__\":`."
+    )
 
 
 # ---------------------------------------------------------------------------
