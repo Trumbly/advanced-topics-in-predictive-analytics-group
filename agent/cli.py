@@ -93,6 +93,21 @@ def _setup_logging(level: str = "INFO") -> None:
 # ---------------------------------------------------------------------------
 
 
+def _training_env_from_config(gc: GlobalConfig) -> dict[str, str]:
+    """Convert the `training:` section of config.yaml into BIRDCLEF_* env
+    vars for the sandbox subprocess. Only emit a var when the value is
+    actually set — None means "let the data loader pick its default".
+    """
+    env: dict[str, str] = {"BIRDCLEF_BATCH_SIZE": str(gc.training.batch_size)}
+    if gc.training.num_workers is not None:
+        env["BIRDCLEF_NUM_WORKERS"] = str(gc.training.num_workers)
+    env["BIRDCLEF_PERSISTENT_WORKERS"] = (
+        "true" if gc.training.persistent_workers else "false"
+    )
+    env["BIRDCLEF_PREFETCH_FACTOR"] = str(gc.training.prefetch_factor)
+    return env
+
+
 def _build_orchestrator(
     study: Study,
     global_config: GlobalConfig,
@@ -125,6 +140,7 @@ def _build_orchestrator(
     executor = CodeExecutor(
         sandbox_root=global_config.paths.sandbox / study.study_id,
         timeout_seconds=study.compute_budget.max_experiment_seconds,
+        training_env=_training_env_from_config(global_config),
     )
 
     context_handler = ContextHandler(

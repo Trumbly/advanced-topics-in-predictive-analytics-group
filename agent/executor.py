@@ -191,6 +191,10 @@ class CodeExecutor:
     """Interval for the 'still running...' heartbeat. 0 disables."""
     log_line_prefix: str = "      │ "
     """Prefix for every streamed line (indented under the task marker)."""
+    training_env: dict[str, str] = field(default_factory=dict)
+    """Extra env vars (typically BIRDCLEF_BATCH_SIZE, BIRDCLEF_NUM_WORKERS, ...)
+    injected into every subprocess. Populated by the CLI from the
+    `training:` section of config/config.yaml."""
 
     def run(
         self,
@@ -505,6 +509,12 @@ class CodeExecutor:
             "BIRDCLEF_LABELS_CSV",
             str(repo_root / "data" / "processed" / "labels.csv"),
         )
+
+        # Training knobs forwarded from config/config.yaml. Only set env vars
+        # for values that were actually configured — missing entries let
+        # `pipelines.data_loader` fall back to its own hardcoded defaults.
+        for key, value in self.training_env.items():
+            env.setdefault(key, value)
 
         if extra:
             env.update(extra)

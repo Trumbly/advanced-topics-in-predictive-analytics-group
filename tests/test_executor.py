@@ -195,6 +195,44 @@ print('done')
         for key, val in env.items():
             assert val.startswith("/"), f"{key} is not absolute: {val}"
 
+    def test_training_env_is_forwarded_to_subprocess(self, tmp_path: Path) -> None:
+        """The `training_env` dict on CodeExecutor must be exported into
+        the subprocess environment. This is how config.yaml's `training:`
+        section reaches `pipelines.data_loader` inside the sandbox."""
+        executor = CodeExecutor(
+            sandbox_root=tmp_path / "sandbox",
+            timeout_seconds=10,
+            python_executable=sys.executable,
+            training_env={
+                "BIRDCLEF_BATCH_SIZE": "256",
+                "BIRDCLEF_NUM_WORKERS": "10",
+                "BIRDCLEF_PERSISTENT_WORKERS": "true",
+                "BIRDCLEF_PREFETCH_FACTOR": "8",
+            },
+        )
+        code = (
+            "import os, json, pathlib\n"
+            "vals = {\n"
+            "    k: os.environ.get(k) for k in (\n"
+            "        'BIRDCLEF_BATCH_SIZE', 'BIRDCLEF_NUM_WORKERS',\n"
+            "        'BIRDCLEF_PERSISTENT_WORKERS', 'BIRDCLEF_PREFETCH_FACTOR',\n"
+            "    )\n"
+            "}\n"
+            "pathlib.Path('results.json').write_text(json.dumps({\n"
+            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'training_env': vals,\n"
+            "}))\n"
+        )
+        result = executor.run(code, experiment_id="exp_training_env")
+        assert result.succeeded, f"stderr: {result.stderr}"
+        import json
+        data = json.loads(result.results_json_path.read_text())  # type: ignore[union-attr]
+        env = data["training_env"]
+        assert env["BIRDCLEF_BATCH_SIZE"] == "256"
+        assert env["BIRDCLEF_NUM_WORKERS"] == "10"
+        assert env["BIRDCLEF_PERSISTENT_WORKERS"] == "true"
+        assert env["BIRDCLEF_PREFETCH_FACTOR"] == "8"
+
     def test_thread_env_vars_are_set(self, tmp_path: Path) -> None:
         """The executor must export OMP_NUM_THREADS, MKL_NUM_THREADS etc.
         so PyTorch matrix ops don't silently run single-threaded on

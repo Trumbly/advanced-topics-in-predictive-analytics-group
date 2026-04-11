@@ -409,6 +409,32 @@ class LoggingSettings(AgentBaseModel):
     file: Path = Path("experiments/agent.log")
 
 
+class TrainingSettings(AgentBaseModel):
+    """CPU-training knobs the orchestrator forwards to the sandbox.
+
+    These values are exported to the sandbox subprocess as env vars
+    (prefixed `BIRDCLEF_`) and read by `pipelines.data_loader.load_
+    precomputed_dataset` when the LLM-generated code does not override
+    them explicitly. They exist to saturate CPU cores during training
+    without requiring every LLM-generated script to get the tuning right.
+
+    - `batch_size`: samples per training step. On CPU, <64 causes BLAS
+      to run single-threaded because individual matmul matrices are too
+      small. 128 is the sweet spot on modern multi-core CPUs.
+    - `num_workers`: DataLoader worker processes. None means auto-tune
+      as `min(6, max(2, cpu_count // 2))`.
+    - `persistent_workers`: keep workers alive across epochs. Critical
+      on macOS where spawn start method makes worker startup expensive.
+    - `prefetch_factor`: batches each worker buffers ahead of the main
+      process. 4 is a safe pipeline depth.
+    """
+
+    batch_size: int = 128
+    num_workers: int | None = None
+    persistent_workers: bool = True
+    prefetch_factor: int = 4
+
+
 class GlobalConfig(AgentBaseModel):
     """Root schema for `config/config.yaml`."""
 
@@ -419,6 +445,7 @@ class GlobalConfig(AgentBaseModel):
     compute_budget: ComputeBudget = Field(default_factory=ComputeBudget)
     context: ContextSettings = Field(default_factory=ContextSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    training: TrainingSettings = Field(default_factory=TrainingSettings)
 
 
 # ---------------------------------------------------------------------------
@@ -460,5 +487,6 @@ __all__ = [
     "ContextSettings",
     "PathSettings",
     "LoggingSettings",
+    "TrainingSettings",
     "GlobalConfig",
 ]

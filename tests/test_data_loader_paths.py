@@ -53,9 +53,9 @@ class TestDefaultPathResolution:
 
 
 class TestLoaderSignature:
-    """The public `load_precomputed_dataset` signature must expose the CPU-
-    saturation knobs (persistent_workers, prefetch_factor, auto-tuned
-    num_workers). LLM-generated code relies on these defaults."""
+    """The public `load_precomputed_dataset` signature exposes the CPU-
+    saturation knobs as optional kwargs that default to None. None means
+    "read from BIRDCLEF_* env vars, then fall back to hardcoded defaults"."""
 
     def test_signature_has_cpu_saturation_params(self) -> None:
         import inspect
@@ -68,11 +68,99 @@ class TestLoaderSignature:
         assert "prefetch_factor" in params
         assert "batch_size" in params
 
-        # num_workers default must be None so the loader auto-tunes it
+        # All four defaults must be None — the actual values come from
+        # env vars (set by the CLI from config.yaml) or hardcoded fallbacks.
         assert params["num_workers"].default is None
-        # persistent_workers default must be True so workers survive epochs
-        assert params["persistent_workers"].default is True
-        # prefetch_factor default must be > 2 so batches pipeline
-        assert params["prefetch_factor"].default >= 4
-        # batch_size default must be >= 128 (BLAS-friendly for CPU)
-        assert params["batch_size"].default >= 128
+        assert params["persistent_workers"].default is None
+        assert params["prefetch_factor"].default is None
+        assert params["batch_size"].default is None
+
+
+class TestTrainingConfigFallbacks:
+    """The _default_* helpers read BIRDCLEF_* env vars and fall back to
+    safe hardcoded values. These are the single source of truth for how
+    config.yaml flows into a sandbox subprocess."""
+
+    def test_batch_size_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_batch_size
+
+        monkeypatch.setenv("BIRDCLEF_BATCH_SIZE", "256")
+        assert _default_batch_size() == 256
+
+    def test_batch_size_fallback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_batch_size
+
+        monkeypatch.delenv("BIRDCLEF_BATCH_SIZE", raising=False)
+        assert _default_batch_size() == 128
+
+    def test_batch_size_ignores_garbage_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_batch_size
+
+        monkeypatch.setenv("BIRDCLEF_BATCH_SIZE", "not-a-number")
+        assert _default_batch_size() == 128
+
+    def test_num_workers_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_num_workers
+
+        monkeypatch.setenv("BIRDCLEF_NUM_WORKERS", "10")
+        assert _default_num_workers() == 10
+
+    def test_num_workers_auto_tune(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Without env var: auto-tune → clamped to [2, 6]."""
+        from pipelines.data_loader import _default_num_workers
+
+        monkeypatch.delenv("BIRDCLEF_NUM_WORKERS", raising=False)
+        n = _default_num_workers()
+        assert 2 <= n <= 6
+
+    def test_persistent_workers_from_env_truthy(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_persistent_workers
+
+        for truthy in ("true", "True", "1", "yes", "on"):
+            monkeypatch.setenv("BIRDCLEF_PERSISTENT_WORKERS", truthy)
+            assert _default_persistent_workers() is True
+
+    def test_persistent_workers_from_env_falsy(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_persistent_workers
+
+        for falsy in ("false", "0", "no", "off"):
+            monkeypatch.setenv("BIRDCLEF_PERSISTENT_WORKERS", falsy)
+            assert _default_persistent_workers() is False
+
+    def test_persistent_workers_default_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_persistent_workers
+
+        monkeypatch.delenv("BIRDCLEF_PERSISTENT_WORKERS", raising=False)
+        assert _default_persistent_workers() is True
+
+    def test_prefetch_factor_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_prefetch_factor
+
+        monkeypatch.setenv("BIRDCLEF_PREFETCH_FACTOR", "8")
+        assert _default_prefetch_factor() == 8
+
+    def test_prefetch_factor_fallback(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from pipelines.data_loader import _default_prefetch_factor
+
+        monkeypatch.delenv("BIRDCLEF_PREFETCH_FACTOR", raising=False)
+        assert _default_prefetch_factor() == 4

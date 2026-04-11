@@ -70,20 +70,22 @@ system: |
     `json`, and `time` — you will need all of them.
   - CPU-only. Do NOT reference `torch.cuda`, `.cuda()`, `.to('cuda')`, or any
     GPU-specific API.
-  - Use the fixed data loader. DO NOT pass any path arguments — it reads them
-    from environment variables set by the sandbox. The loader auto-tunes
-    `num_workers` and sets sensible pipelining defaults
-    (`persistent_workers=True`, `prefetch_factor=4`). Just do:
+  - Use the fixed data loader. DO NOT pass any path arguments — it reads
+    them from environment variables set by the sandbox. ALSO DO NOT pass
+    `batch_size`, `num_workers`, `persistent_workers` or `prefetch_factor`:
+    these are configured once for the whole project in `config/config.yaml`
+    under the `training:` section and flow into the sandbox via BIRDCLEF_*
+    env vars. The data loader reads them automatically. Just do:
 
         from pipelines.data_loader import load_precomputed_dataset
         train_loader, val_loader, num_classes = load_precomputed_dataset(
-            batch_size=128,                 # >= 128 for CPU BLAS saturation
             augmentation={"time_shift": True, "noise_injection": True},
         )
 
-    You may override `num_workers=<n>` explicitly if the proposal wants to,
-    but the default is already cpu_count() // 2 capped at 6, which is a
-    good balance on most machines.
+    If a specific experiment genuinely needs to override one of these
+    (e.g. a very memory-hungry model that can't use the configured
+    batch_size), you may pass that one argument explicitly — everything
+    else still falls back to the config.
 
   - CPU saturation: immediately after `import torch`, set the thread count
     explicitly so PyTorch uses every available core:
@@ -254,7 +256,9 @@ system: |
       torch.set_num_threads(os.cpu_count() or 4)
 
       # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
-      BATCH_SIZE = 128           # >= 128 for CPU BLAS saturation
+      # NOTE: batch_size / num_workers / persistent_workers / prefetch_factor
+      # come from config/config.yaml `training:` via env vars — do NOT
+      # hardcode them here. The data loader picks them up automatically.
       EPOCHS = 1                 # CAP at 1 — fast-iteration mode
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
@@ -269,11 +273,10 @@ system: |
       results = {}
       try:
           print("loading data...", flush=True)
+          # batch_size / num_workers / persistent_workers / prefetch_factor
+          # are read from BIRDCLEF_* env vars (sourced from config.yaml).
           train_loader, val_loader, num_classes = load_precomputed_dataset(
-              batch_size=BATCH_SIZE,
               augmentation=AUGMENTATION,
-              # num_workers, persistent_workers, prefetch_factor are
-              # auto-tuned by the loader; no need to override on CPU.
           )
           print(
               f"data loaded: {num_classes} classes, "

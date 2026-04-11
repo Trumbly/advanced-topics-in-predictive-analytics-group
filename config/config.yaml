@@ -39,3 +39,12 @@ logging:
   level: DEBUG
   console: true
   file: experiments/agent.log
+
+# CPU-training knobs forwarded to the sandbox subprocess as BIRDCLEF_* env
+# vars. `pipelines.data_loader.load_precomputed_dataset` reads these when
+# the LLM-generated code does not override them explicitly.
+training:
+  batch_size: 256                           # >=128 lets BLAS actually multi-thread on CPU
+  num_workers: 10                         # null = auto-tune (min(6, cpu_count//2))
+  persistent_workers: true                  # keep workers across epochs (macOS spawn cost)
+  prefetch_factor: 4                        # batches each worker buffers ahead of the loop

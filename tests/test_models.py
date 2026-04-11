@@ -39,6 +39,7 @@ from agent.models import (
     TaskStatus,
     TaskType,
     TrainingResults,
+    TrainingSettings,
 )
 from pydantic import ValidationError
 
@@ -397,6 +398,24 @@ class TestPipelineDefinition:
 # ---------------------------------------------------------------------------
 
 
+class TestTrainingSettings:
+    def test_defaults(self) -> None:
+        t = TrainingSettings()
+        assert t.batch_size == 128
+        assert t.num_workers is None  # auto-tune
+        assert t.persistent_workers is True
+        assert t.prefetch_factor == 4
+
+    def test_override(self) -> None:
+        t = TrainingSettings(
+            batch_size=256, num_workers=10, persistent_workers=False, prefetch_factor=8
+        )
+        assert t.batch_size == 256
+        assert t.num_workers == 10
+        assert t.persistent_workers is False
+        assert t.prefetch_factor == 8
+
+
 class TestGlobalConfig:
     def test_defaults(self) -> None:
         config = GlobalConfig()
@@ -406,6 +425,19 @@ class TestGlobalConfig:
         assert config.compute_budget.max_experiments == 20
         assert config.context.memory_format == "markdown"
         assert config.paths.data_raw == Path("data/raw")
+        assert config.training.batch_size == 128
+
+    def test_training_section_can_be_loaded_from_real_config(
+        self, tmp_path: Path
+    ) -> None:
+        """The checked-in config/config.yaml contains a `training:` block
+        and must validate against GlobalConfig."""
+        import yaml as _yaml
+
+        data = _yaml.safe_load(Path("config/config.yaml").read_text())
+        gc = GlobalConfig.model_validate(data)
+        assert gc.training.batch_size >= 1
+        assert gc.training.prefetch_factor >= 1
 
     def test_override_nested(self) -> None:
         config = GlobalConfig(
