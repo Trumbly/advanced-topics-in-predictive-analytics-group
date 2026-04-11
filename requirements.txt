@@ -1,4 +1,8 @@
 # Core ML
+# NOTE: TensorFlow currently supports Python 3.9–3.12. If you hit
+# "No matching distribution found for tensorflow", you are likely on
+# Python 3.13+. Use a conda env with Python 3.11:
+#   conda create -n birdclef python=3.11 -y && conda activate birdclef
 tensorflow>=2.15.0
 torch>=2.2.0
 torchvision>=0.17.0
