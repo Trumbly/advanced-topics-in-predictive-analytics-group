@@ -25,9 +25,7 @@
   </div>
   <div class="rounded-lg border border-slate-200 bg-white p-4">
     <div class="text-xs text-slate-500 uppercase tracking-wide">Completed</div>
-    <div class="text-2xl font-bold mt-1 text-emerald-600">
-      {{ detail.experiments | selectattr('status.value', 'equalto', 'completed') | list | length }}
-    </div>
+    <div class="text-2xl font-bold mt-1 text-emerald-600">{{ detail.completed_count }}</div>
   </div>
   <div class="rounded-lg border border-slate-200 bg-white p-4">
     <div class="text-xs text-slate-500 uppercase tracking-wide">Failed tasks</div>
@@ -48,14 +46,18 @@
 <div class="grid md:grid-cols-2 gap-4 mb-6">
   <div class="rounded-lg border border-slate-200 bg-white p-5">
     <h3 class="font-semibold mb-3">Score progression</h3>
-    <canvas id="score-chart" height="200"></canvas>
+    <div class="relative" style="height: 260px;">
+      <canvas id="score-chart"></canvas>
+    </div>
   </div>
   <div class="rounded-lg border border-slate-200 bg-white p-5">
     <h3 class="font-semibold mb-3">Failure breakdown</h3>
     {% if detail.failure_breakdown.total_failed == 0 %}
       <p class="text-slate-500 text-sm py-8 text-center">No failed tasks — nice.</p>
     {% else %}
-      <canvas id="failure-chart" height="200"></canvas>
+      <div class="relative" style="height: 260px;">
+        <canvas id="failure-chart"></canvas>
+      </div>
     {% endif %}
   </div>
 </div>

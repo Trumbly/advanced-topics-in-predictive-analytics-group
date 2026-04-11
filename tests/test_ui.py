@@ -279,6 +279,18 @@ class TestLoaders:
         assert detail.failure_breakdown.total_failed == 1
         assert detail.failure_breakdown.by_error_type == {"RuntimeError": 1}
 
+    def test_study_detail_experiment_counts(
+        self, on_disk_studies: tuple[Path, Path]
+    ) -> None:
+        """`completed_count` / `failed_count` are pre-computed on the
+        loader side because the Jinja `selectattr('status.value', ...)`
+        filter doesn't behave consistently across Enum / str instances."""
+        studies_root, _ = on_disk_studies
+        detail = load_study_detail(studies_root, "study_a")
+        assert detail is not None
+        assert detail.completed_count == 2
+        assert detail.failed_count == 1
+
     def test_unknown_study_returns_none(
         self, on_disk_studies: tuple[Path, Path]
     ) -> None:
