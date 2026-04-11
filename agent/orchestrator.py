@@ -95,6 +95,10 @@ class Orchestrator:
     memory: ExperimentMemory
     experiment_logger: ExperimentLogger
     executor: CodeExecutor
+    generate_report_at_end: bool = True
+    """When True (default), write a post-study LLM-authored Markdown report
+    once the loop finishes. Tests disable this to avoid consuming extra
+    LLM responses from their ScriptedBackend."""
 
     pipeline: PipelineDefinition = field(init=False)
     _handler_cache: dict[str, Callable[..., Task]] = field(default_factory=dict)
@@ -176,7 +180,34 @@ class Orchestrator:
         else:
             self.study.status = StudyStatus.COMPLETED
         self._save_study()
+
+        # Best-effort: write the end-of-study report. Any failure here is
+        # logged but does not affect the study's return value — the study
+        # itself already succeeded by this point.
+        if self.generate_report_at_end and self.study.best_experiment_id:
+            self._maybe_write_report()
+
         return self.study, stop_reason
+
+    def _maybe_write_report(self) -> None:
+        """Try to render the LLM-authored study report. Best-effort."""
+        try:
+            from agent.report import ReportGenerator  # local import to avoid cycles
+
+            study_dir = self.experiment_logger.study_dir
+            generator = ReportGenerator(
+                study=self.study,
+                memory=self.memory,
+                llm_client=self.llm_client,
+                prompt_engine=self.prompt_engine,
+                study_dir=study_dir,
+            )
+            logger.info("")
+            logger.info("Writing study report...")
+            report_path = generator.generate()
+            logger.info("  report: %s", report_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to generate study report: %s", exc)
 
     # -- per-experiment -----------------------------------------------------
 

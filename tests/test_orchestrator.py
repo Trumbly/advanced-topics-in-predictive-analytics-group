@@ -217,6 +217,7 @@ def _make_orchestrator(
         memory=memory,
         experiment_logger=experiment_logger,
         executor=executor,
+        generate_report_at_end=False,  # avoid consuming extra scripted responses
     )
     return orch, backend
 
