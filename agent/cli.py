@@ -393,6 +393,60 @@ def show_best(ctx: click.Context, study_id: str | None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# report — (re)generate an LLM-authored Markdown report for a study
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("study_id", required=False)
+@click.pass_context
+def report(ctx: click.Context, study_id: str | None) -> None:
+    """Generate a Markdown report (with training + failure charts) for a
+    completed study. Re-runnable — overwrites the existing report."""
+    gc: GlobalConfig = ctx.obj["global_config"]
+    study = _resolve_study(gc, study_id)
+
+    if not study.experiment_ids:
+        raise click.ClickException(
+            f"Study {study.study_id} has no experiments — nothing to report on."
+        )
+
+    study_dir = gc.paths.experiments / study.study_id
+
+    # Rebuild the dependencies (LLMClient, PromptEngine, ExperimentMemory)
+    # from the global config so the report command works standalone.
+    from agent.llm_client import LLMClient
+    from agent.memory import ExperimentMemory
+    from agent.prompt_engine import PromptEngine
+    from agent.report import ReportGenerator
+
+    llm_client = LLMClient(
+        base_url=gc.llm.base_url,
+        model=gc.llm.default_model,
+        temperature=gc.llm.temperature,
+        max_tokens=gc.llm.max_tokens,
+        timeout_seconds=gc.llm.timeout_seconds,
+        retry_attempts=gc.llm.retry_attempts,
+        retry_backoff_seconds=gc.llm.retry_backoff_seconds,
+    )
+    memory = ExperimentMemory(study_dir=study_dir)
+    prompt_engine = PromptEngine()
+
+    generator = ReportGenerator(
+        study=study,
+        memory=memory,
+        llm_client=llm_client,
+        prompt_engine=prompt_engine,
+        study_dir=study_dir,
+    )
+
+    click.echo(f"Generating report for {study.study_id}...")
+    report_path = generator.generate()
+    click.echo(f"  wrote: {report_path}")
+    click.echo(f"  figures: {report_path.parent / 'figures'}")
+
+
+# ---------------------------------------------------------------------------
 # submit (placeholder until Phase 5 lands)
 # ---------------------------------------------------------------------------
 
