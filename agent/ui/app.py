@@ -326,6 +326,7 @@ def create_app(
             {
                 "prompts": prompt_list,
                 "active_prompt": None,
+                "active_file_stem": None,
                 "active_content": "",
                 "active_path": "",
             },
@@ -357,6 +358,7 @@ def create_app(
             {
                 "prompts": prompt_list,
                 "active_prompt": tmpl,
+                "active_file_stem": prompt_name,  # for sidebar matching
                 "active_content": raw_content,
                 "active_path": str(yaml_path.relative_to(studies_root.parent.parent)),
             },
@@ -389,12 +391,18 @@ def create_app(
         yaml_path.write_text(content)
         return JSONResponse({"ok": True, "prompt_name": prompt_name})
 
-    def _load_prompt_summaries() -> list[Any]:
-        """Load summary info for all prompt YAML files."""
+    def _load_prompt_summaries() -> list[dict[str, Any]]:
+        """Load summary info for all prompt YAML files.
+
+        Returns dicts with `file_stem` (filename without .yaml, used for
+        URL routing) plus the parsed template fields. We use `file_stem`
+        instead of the YAML `name` field because they can differ — e.g.
+        `report.yaml` has `name: study_report`.
+        """
         prompts_dir = studies_root.parent.parent / "config" / "prompts"
         if not prompts_dir.exists():
             return []
-        summaries = []
+        summaries: list[dict[str, Any]] = []
         try:
             from agent.prompt_engine import PromptEngine  # noqa: PLC0415
 
@@ -404,7 +412,15 @@ def create_app(
         for yaml_path in sorted(prompts_dir.glob("*.yaml")):
             try:
                 tmpl = pe.load(yaml_path)
-                summaries.append(tmpl)
+                summaries.append(
+                    {
+                        "file_stem": yaml_path.stem,  # e.g. "report"
+                        "name": tmpl.name,  # e.g. "study_report"
+                        "description": tmpl.description,
+                        "slots": tmpl.slots,
+                        "system": tmpl.system,
+                    }
+                )
             except Exception:  # noqa: BLE001
                 continue
         return summaries

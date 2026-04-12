@@ -15,9 +15,9 @@
   <div class="md:col-span-1">
     <nav class="space-y-1">
       {% for p in prompts %}
-      <a href="/prompts/{{ p.name }}"
-         class="block rounded-md px-3 py-2 text-sm {% if active_prompt and active_prompt.name == p.name %}bg-slate-200 font-semibold{% else %}hover:bg-slate-100{% endif %}">
-        {{ p.name }}
+      <a href="/prompts/{{ p.file_stem }}"
+         class="block rounded-md px-3 py-2 text-sm {% if active_file_stem == p.file_stem %}bg-slate-200 font-semibold{% else %}hover:bg-slate-100{% endif %}">
+        {{ p.file_stem }}
         <span class="block text-xs text-slate-500 mt-0.5">{{ p.description[:60] }}</span>
       </a>
       {% endfor %}
