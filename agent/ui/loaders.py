@@ -65,6 +65,7 @@ class StudySummary:
     created_at: str
     updated_at: str
     has_report: bool
+    agent_status: str | None  # live status from orchestrator.log (active studies only)
 
 
 @dataclass
@@ -108,6 +109,7 @@ class RunningExperiment:
     stdout_tail: str
     stdout_last_modified_iso: str | None
     seconds_since_last_write: float | None
+    agent_status: str  # e.g. "exp_001 → generate_code (llm) ..."
 
 
 @dataclass
@@ -244,15 +246,23 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
                 elif status == "failed" or status == "timeout":
                     failed += 1
 
+        status_str = (
+            study.status.value
+            if hasattr(study.status, "value")
+            else str(study.status)
+        )
+        # For active/running studies, show what the orchestrator is doing
+        agent_status = (
+            parse_agent_status(study_dir)
+            if status_str in ("active", "running")
+            else None
+        )
+
         rows.append(
             StudySummary(
                 study_id=study.study_id,
                 name=study.name,
-                status=(
-                    study.status.value
-                    if hasattr(study.status, "value")
-                    else str(study.status)
-                ),
+                status=status_str,
                 hypothesis=study.hypothesis,
                 experiment_count=len(study.experiment_ids),
                 completed_count=completed,
@@ -262,6 +272,7 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
                 created_at=_fmt_dt(study.created_at),
                 updated_at=_fmt_dt(study.updated_at),
                 has_report=(study_dir / "report" / "report.md").exists(),
+                agent_status=agent_status,
             )
         )
 
@@ -378,6 +389,93 @@ def load_study_detail(
     )
 
 
+import re as _re
+
+# Patterns the orchestrator prints to its log. We scan backwards from
+# the end to find the LAST matching line — that's the current status.
+_RE_EXPERIMENT_HEADER = _re.compile(
+    r"──── Experiment (\d+)/(\d+) ────"
+)
+_RE_TASK_START = _re.compile(
+    r"\[(\w+)\] (\w+) \((\w+)\) \.\.\."
+)
+_RE_TASK_DONE = _re.compile(
+    r"[✓✗] (\w+) \("
+)
+_RE_RECOVERY = _re.compile(
+    r"\[(\w+)\] attempting error recovery (\d+)/(\d+)"
+)
+_RE_PROMOTION = _re.compile(
+    r"──── Promoting (\w+)"
+)
+_RE_STUDY_FINISHED = _re.compile(
+    r"Study finished"
+)
+
+
+def parse_agent_status(study_dir: Path) -> str:
+    """Read the orchestrator.log and extract a one-line status string.
+
+    Returns something like:
+      "Experiment 2/25 → generate_code (llm) ..."
+      "Experiment 1/5 → execute_training ✓ (12.3s)"
+      "Experiment 3/10 → error recovery 1/2"
+      "Promoting exp_007 ..."
+      "Study finished"
+      "(starting...)"
+
+    On any error or missing log, returns "(starting...)".
+    """
+    log_path = study_dir / "orchestrator.log"
+    if not log_path.exists():
+        return "(starting...)"
+    try:
+        text = log_path.read_text(errors="replace")
+    except OSError:
+        return "(starting...)"
+
+    lines = text.splitlines()
+    if not lines:
+        return "(starting...)"
+
+    # Scan backwards — first match wins (most recent status)
+    current_experiment = ""
+    for line in reversed(lines[-200:]):  # last 200 lines
+        line = line.strip()
+        if not line:
+            continue
+
+        m = _RE_STUDY_FINISHED.search(line)
+        if m:
+            return "Study finished"
+
+        m = _RE_PROMOTION.search(line)
+        if m:
+            return f"Promoting {m.group(1)} ..."
+
+        m = _RE_RECOVERY.search(line)
+        if m:
+            return f"{m.group(1)} → error recovery {m.group(2)}/{m.group(3)}"
+
+        m = _RE_TASK_START.search(line)
+        if m:
+            exp_id, task_name, task_type = m.groups()
+            return f"{exp_id} → {task_name} ({task_type}) ..."
+
+        m = _RE_TASK_DONE.search(line)
+        if m:
+            # We have a completed task but don't know which experiment
+            # unless we find the header. Just report the task name.
+            task_name = m.group(1)
+            return f"... {task_name} done"
+
+        m = _RE_EXPERIMENT_HEADER.search(line)
+        if m:
+            return f"Experiment {m.group(1)}/{m.group(2)} starting..."
+
+    return "(running...)"
+
+
 def find_running_experiment(
     studies_root: Path,
     sandbox_root: Path,
@@ -430,6 +528,7 @@ def find_running_experiment(
         return None
 
     stdout_tail = _tail(best_exp_dir / "stdout.log") or ""
+    agent_status = parse_agent_status(studies_root / study_id)
     return RunningExperiment(
         study_id=study_id,
         experiment_id=best_exp_dir.name,
@@ -438,6 +537,7 @@ def find_running_experiment(
             best_mtime, tz=timezone.utc
         ).isoformat(sep=" ", timespec="seconds"),
         seconds_since_last_write=round(age, 1),
+        agent_status=agent_status,
     )
 
 
@@ -463,6 +563,7 @@ def _find_running_from_experiment_json(
                 stdout_tail="(no sandbox output yet)",
                 stdout_last_modified_iso=None,
                 seconds_since_last_write=None,
+                agent_status=parse_agent_status(studies_root / study_id),
             )
     return None
 

@@ -116,6 +116,15 @@ document.getElementById("new-study-form").addEventListener("submit", async funct
         </div>
         <p class="text-xs text-slate-500 font-mono mt-0.5">{{ s.study_id }}</p>
         <p class="text-sm text-slate-600 mt-2">{{ truncate(s.hypothesis, 180) }}</p>
+        {% if s.agent_status %}
+          <div class="mt-2 flex items-center gap-2 text-sm">
+            <span class="relative flex h-2.5 w-2.5">
+              <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75"></span>
+              <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-500"></span>
+            </span>
+            <span class="font-mono text-sky-800">{{ s.agent_status }}</span>
+          </div>
+        {% endif %}
       </div>
       <div class="text-right ml-4 shrink-0">
         {% if s.best_score is not none %}

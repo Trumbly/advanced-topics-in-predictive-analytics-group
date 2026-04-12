@@ -644,6 +644,85 @@ class TestLiveMonitoring:
 # ---------------------------------------------------------------------------
 
 
+class TestParseAgentStatus:
+    """Test the orchestrator.log parser that feeds the running card."""
+
+    def test_no_log_returns_starting(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        assert parse_agent_status(tmp_path / "no_such_dir") == "(starting...)"
+
+    def test_empty_log_returns_starting(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text("")
+        assert parse_agent_status(tmp_path) == "(starting...)"
+
+    def test_detects_experiment_header(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "==============\n"
+            "Starting study: test\n\n"
+            "──── Experiment 3/25 ────\n"
+        )
+        assert "3/25" in parse_agent_status(tmp_path)
+
+    def test_detects_task_start(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "──── Experiment 2/10 ────\n"
+            "  [exp_002] generate_code (llm) ...\n"
+        )
+        result = parse_agent_status(tmp_path)
+        assert "exp_002" in result
+        assert "generate_code" in result
+        assert "llm" in result
+
+    def test_detects_error_recovery(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "  [exp_005] attempting error recovery 2/3\n"
+        )
+        result = parse_agent_status(tmp_path)
+        assert "exp_005" in result
+        assert "error recovery" in result
+        assert "2/3" in result
+
+    def test_detects_study_finished(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "Study finished: MAX_EXPERIMENTS\n"
+        )
+        assert parse_agent_status(tmp_path) == "Study finished"
+
+    def test_detects_promotion(self, tmp_path: Path) -> None:
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "──── Promoting exp_007 (smoke roc_auc_macro=0.56) ────\n"
+        )
+        result = parse_agent_status(tmp_path)
+        assert "Promoting" in result
+        assert "exp_007" in result
+
+    def test_most_recent_status_wins(self, tmp_path: Path) -> None:
+        """When multiple status lines exist, the LAST one wins."""
+        from agent.ui.loaders import parse_agent_status
+
+        (tmp_path / "orchestrator.log").write_text(
+            "──── Experiment 1/5 ────\n"
+            "  [exp_001] propose_architecture (llm) ...\n"
+            "    ✓ propose_architecture (5.6s)\n"
+            "  [exp_001] generate_code (llm) ...\n"
+        )
+        result = parse_agent_status(tmp_path)
+        assert "generate_code" in result
+
+
 class TestStartStopControls:
     def test_process_status_returns_false_when_no_pidfile(
         self, client: TestClient
