@@ -275,18 +275,24 @@ class CodeExecutor:
         assert process.stdout is not None
         assert process.stderr is not None
 
+        # Open live log files so the dashboard can tail stdout.log in
+        # real time — each line is flushed immediately as the training
+        # subprocess prints it.
+        stdout_live_fh = stdout_path.open("w")
+        stderr_live_fh = stderr_path.open("w")
+
         # Start the live reader threads. Each reader drains one pipe into
-        # its corresponding buffer and (optionally) forwards lines to the
+        # its corresponding buffer, the live file, AND (optionally) the
         # logger so the operator can watch progress in real time.
         stop_event = threading.Event()
         stdout_reader = threading.Thread(
             target=self._stream_reader,
-            args=(process.stdout, stdout_lines, "stdout", stop_event),
+            args=(process.stdout, stdout_lines, "stdout", stop_event, stdout_live_fh),
             daemon=True,
         )
         stderr_reader = threading.Thread(
             target=self._stream_reader,
-            args=(process.stderr, stderr_lines, "stderr", stop_event),
+            args=(process.stderr, stderr_lines, "stderr", stop_event, stderr_live_fh),
             daemon=True,
         )
         stdout_reader.start()
@@ -324,13 +330,19 @@ class CodeExecutor:
         if heartbeat is not None:
             heartbeat.join(timeout=2)
 
+        # Close the live log files now that the readers are done.
+        for fh in (stdout_live_fh, stderr_live_fh):
+            try:
+                fh.close()
+            except Exception:  # noqa: BLE001
+                pass
+
         duration = time.monotonic() - start
 
         stdout_text = "".join(stdout_lines)
         stderr_text = "".join(stderr_lines)
-
-        stdout_path.write_text(stdout_text)
-        stderr_path.write_text(stderr_text)
+        # stdout.log / stderr.log are already written line-by-line by the
+        # live file handles above — no need to rewrite them here.
 
         results_json = workdir / "results.json"
         results_json_path = results_json if results_json.exists() else None
@@ -373,11 +385,25 @@ class CodeExecutor:
         buffer: list[str],
         label: str,
         stop_event: threading.Event,
+        live_file: IO[str] | None = None,
     ) -> None:
-        """Read lines from `stream` into `buffer` and optionally the logger."""
+        """Read lines from `stream` into `buffer`, the logger, AND a live file.
+
+        The `live_file` parameter — when set — receives every line AS IT
+        ARRIVES. This means `stdout.log` in the sandbox directory is
+        populated in real time so the dashboard UI can tail it and show
+        live training progress (epoch progress, loss values, etc.)
+        without waiting for the experiment to finish.
+        """
         try:
             for line in iter(stream.readline, ""):
                 buffer.append(line)
+                if live_file is not None:
+                    try:
+                        live_file.write(line)
+                        live_file.flush()
+                    except Exception:  # noqa: BLE001
+                        pass
                 if self.stream_output:
                     # Strip trailing newline for logger, but keep it in buffer
                     text = line.rstrip("\n")
