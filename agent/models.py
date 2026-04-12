@@ -106,9 +106,9 @@ class ComputeBudget(AgentBaseModel):
     max_wallclock_minutes: int = 240
     max_experiment_seconds: int = 7200      # 2 hours — real BirdCLEF training is slow
     max_epochs_per_run: int = 1             # fast-iteration mode
-    max_recovery_attempts: int = 3          # retries for a failed experiment's code
-    max_codegen_retries: int = 3            # re-generate code on validation failure (cheap, no execution)
-    recovery_empty_response_retries: int = 3  # inner LLM retries on empty recovery response
+    max_recovery_attempts: int = 5          # retries for a failed experiment's code (Layer 2, expensive)
+    max_codegen_retries: int = 5            # re-generate code on validation failure (Layer 1, cheap)
+    recovery_empty_response_retries: int = 5  # inner LLM retries on empty recovery response
     recovery_min_code_chars: int = 200      # responses shorter than this count as empty
 
     # --- promotion phase (smoke → promote two-stage pipeline) ---

@@ -16,9 +16,9 @@
     <nav class="space-y-1">
       {% for p in prompts %}
       <a href="/prompts/{{ p.file_stem }}"
-         class="block rounded-md px-3 py-2 text-sm {% if active_file_stem == p.file_stem %}bg-slate-200 font-semibold{% else %}hover:bg-slate-100{% endif %}">
-        {{ p.file_stem }}
-        <span class="block text-xs text-slate-500 mt-0.5">{{ p.description[:60] }}</span>
+         class="block rounded-md px-3 py-2 {% if active_file_stem == p.file_stem %}bg-sky-100 border border-sky-300{% else %}hover:bg-slate-100 border border-transparent{% endif %}">
+        <span class="block font-semibold text-sm text-slate-900">{{ p.file_stem }}</span>
+        <span class="block text-xs text-slate-500 mt-0.5 leading-snug">{{ p.description[:50] }}{% if p.description|length > 50 %}…{% endif %}</span>
       </a>
       {% endfor %}
     </nav>

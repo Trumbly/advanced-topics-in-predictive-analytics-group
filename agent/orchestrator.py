@@ -647,27 +647,15 @@ class Orchestrator:
 
     # -- error recovery -----------------------------------------------------
 
-    # Error types that can reasonably be fixed by regenerating the code.
-    # OOM / Timeout are deliberately NOT here — those need a different
-    # hyperparameter proposal, not a code rewrite.
-    _RECOVERABLE_ERROR_TYPES: frozenset[str] = frozenset(
+    # Error types where recovery makes NO sense — the failure is about
+    # resource limits or process-level issues, not fixable code bugs.
+    # Everything else IS recoverable: we try to fix the code.
+    _NON_RECOVERABLE_ERROR_TYPES: frozenset[str] = frozenset(
         {
-            "SyntaxError",
-            "ForbiddenBareCall",
-            "ForbiddenPattern",
-            "MissingExpectedImport",
-            "EpochsCapExceeded",
-            "NoCode",
-            "RuntimeError",
-            "ValueError",
-            "AttributeError",
-            "NameError",
-            "ShapeMismatch",
-            "ImportError",
-            "ScriptReportedError",
-            "NoResultsFile",
-            "UnknownError",
-            "FileNotFound",
+            "OutOfMemory",
+            "Timeout",
+            "OOM",
+            "CudaOutOfMemory",
         }
     )
 
@@ -683,7 +671,8 @@ class Orchestrator:
             return False
         if task.error is None:
             return False
-        return task.error.error_type in self._RECOVERABLE_ERROR_TYPES
+        # Blacklist: everything is recoverable EXCEPT resource-limit errors
+        return task.error.error_type not in self._NON_RECOVERABLE_ERROR_TYPES
 
     def _find_restart_index(self, steps: list[PipelineStep]) -> int | None:
         """Return the index to restart at after a successful recovery.
