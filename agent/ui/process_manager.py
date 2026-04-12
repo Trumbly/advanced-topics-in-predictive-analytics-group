@@ -151,6 +151,9 @@ def get_status(study_dir: Path) -> ProcessInfo | None:
 def stop_study(study_dir: Path) -> bool:
     """Send SIGTERM to the study process, wait briefly, SIGKILL if needed.
 
+    After the process dies, updates `study.json` to `status: aborted`
+    so the UI no longer shows the study as active/running.
+
     Returns True if the process was successfully stopped. Returns False
     if no running process was found.
     """
@@ -165,12 +168,14 @@ def stop_study(study_dir: Path) -> bool:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         pidfile_path(study_dir).unlink(missing_ok=True)
+        _mark_study_aborted(study_dir)
         return True
 
     # Wait for graceful shutdown.
     for _ in range(int(_STOP_GRACE_SECONDS * 10)):
         if not _is_alive(pid):
             pidfile_path(study_dir).unlink(missing_ok=True)
+            _mark_study_aborted(study_dir)
             return True
         time.sleep(0.1)
 
@@ -181,7 +186,30 @@ def stop_study(study_dir: Path) -> bool:
         pass
 
     pidfile_path(study_dir).unlink(missing_ok=True)
+    _mark_study_aborted(study_dir)
     return True
+
+
+def _mark_study_aborted(study_dir: Path) -> None:
+    """Update study.json status to 'aborted' after killing the process.
+
+    The orchestrator normally sets this itself on graceful shutdown, but
+    when we SIGTERM/SIGKILL it from the UI, it dies before it can
+    persist the final state. We patch the JSON directly.
+    """
+    import json as _json
+
+    study_json = study_dir / "study.json"
+    if not study_json.exists():
+        return
+    try:
+        data = _json.loads(study_json.read_text())
+        if data.get("status") in ("active", "running"):
+            data["status"] = "aborted"
+            study_json.write_text(_json.dumps(data, indent=2, default=str))
+            logger.info("Marked %s as aborted in study.json", study_dir.name)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not mark study as aborted: %s", exc)
 
 
 def _is_alive(pid: int) -> bool:

@@ -157,8 +157,26 @@ def create_app(
     @app.get("/studies/{study_id}/report", response_class=HTMLResponse)
     def study_report(request: Request, study_id: str) -> Any:
         detail = load_study_detail(studies_root, study_id)
-        if detail is None or not detail.has_report:
-            raise HTTPException(status_code=404, detail="Report not found")
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Study not found")
+        if not detail.has_report:
+            # Show a friendly "no report yet" page instead of a raw 404
+            return templates.TemplateResponse(
+                request,
+                "report.html",
+                {
+                    "study": detail.study,
+                    "report_md": (
+                        "# Report not available yet\n\n"
+                        "The study report is generated automatically at the "
+                        "end of a study run. This study either hasn't "
+                        "finished yet, or had no successful experiments.\n\n"
+                        "Go back to the [study detail page]"
+                        f"(/studies/{study_id}) to check the current status."
+                    ),
+                    "detail": detail,
+                },
+            )
         report_md = detail.report_path.read_text() if detail.report_path else ""
         return templates.TemplateResponse(
             request,
