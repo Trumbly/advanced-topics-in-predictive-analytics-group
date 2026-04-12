@@ -419,7 +419,14 @@ class Orchestrator:
     # -- per-experiment -----------------------------------------------------
 
     def _make_experiment(self) -> Experiment:
-        """Create a fresh Experiment and register it on the Study."""
+        """Create a fresh Experiment and register it on the Study.
+
+        The experiment is written to disk IMMEDIATELY (with
+        status=running) so the dashboard can show it in the experiment
+        table before the first task completes. Previously it was only
+        written at the end — making experiments invisible to the UI
+        for the first 5-15 minutes of their life.
+        """
         idx = len(self.study.experiment_ids) + 1
         experiment_id = f"exp_{idx:03d}"
         now = _now()
@@ -433,6 +440,11 @@ class Orchestrator:
         )
         self.study.experiment_ids.append(experiment_id)
         self.study.updated_at = now
+
+        # Persist to disk so the UI can see it right away.
+        self.experiment_logger.write_experiment(experiment)
+        self._save_study()
+
         return experiment
 
     def _run_experiment(self, experiment: Experiment) -> None:
@@ -498,8 +510,13 @@ class Orchestrator:
 
             self.experiment_logger.write_task(task)
 
-            # Lift relevant outputs onto the Experiment
+            # Lift relevant outputs onto the Experiment and persist
+            # immediately so the UI can show intermediate state (e.g.
+            # architecture name appears after propose_architecture,
+            # score after capture_metrics) without waiting for the
+            # experiment to finish.
             self._apply_task_output_to_experiment(task, experiment)
+            self.experiment_logger.write_experiment(experiment)
             previous_task_output = dict(task.output)
             outputs_by_name[step.task_name] = dict(task.output)
 

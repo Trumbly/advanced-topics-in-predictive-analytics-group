@@ -413,6 +413,130 @@ _RE_STUDY_FINISHED = _re.compile(
 )
 
 
+@dataclass
+class AgentProgress:
+    """Structured progress info parsed from orchestrator.log."""
+
+    status_line: str  # e.g. "exp_001 → generate_code (llm) ..."
+    current_experiment: str | None  # e.g. "exp_001"
+    current_experiment_num: int | None  # e.g. 1
+    total_experiments: int | None  # e.g. 25
+    current_step: str | None  # e.g. "generate_code"
+    completed_steps: list[str]  # e.g. ["propose_architecture"]
+    all_steps: list[str]  # e.g. ["propose_architecture", "generate_code", ...]
+    is_recovery: bool
+
+
+_PIPELINE_STEPS = [
+    "propose_architecture",
+    "generate_code",
+    "validate_code",
+    "execute_training",
+    "capture_metrics",
+    "analyze_results",
+]
+
+
+def parse_agent_progress(study_dir: Path) -> AgentProgress:
+    """Rich progress info from orchestrator.log for the progress bar UI."""
+    log_path = study_dir / "orchestrator.log"
+    if not log_path.exists():
+        return AgentProgress(
+            status_line="(starting...)",
+            current_experiment=None,
+            current_experiment_num=None,
+            total_experiments=None,
+            current_step=None,
+            completed_steps=[],
+            all_steps=_PIPELINE_STEPS,
+            is_recovery=False,
+        )
+
+    try:
+        text = log_path.read_text(errors="replace")
+    except OSError:
+        return AgentProgress(
+            status_line="(starting...)",
+            current_experiment=None,
+            current_experiment_num=None,
+            total_experiments=None,
+            current_step=None,
+            completed_steps=[],
+            all_steps=_PIPELINE_STEPS,
+            is_recovery=False,
+        )
+
+    lines = text.splitlines()
+
+    current_exp: str | None = None
+    exp_num: int | None = None
+    total_exp: int | None = None
+    current_step: str | None = None
+    completed_steps: list[str] = []
+    is_recovery = False
+    status_line = "(running...)"
+
+    for line in reversed(lines[-300:]):
+        line = line.strip()
+        if not line:
+            continue
+
+        m = _RE_STUDY_FINISHED.search(line)
+        if m:
+            status_line = "Study finished"
+            break
+
+        m = _RE_PROMOTION.search(line)
+        if m and not current_step:
+            status_line = f"Promoting {m.group(1)} ..."
+            current_step = "promotion"
+            break
+
+        m = _RE_RECOVERY.search(line)
+        if m and not current_step:
+            current_exp = m.group(1)
+            is_recovery = True
+            status_line = f"{m.group(1)} → error recovery {m.group(2)}/{m.group(3)}"
+            current_step = "error_recovery"
+            break
+
+        m = _RE_TASK_START.search(line)
+        if m and not current_step:
+            current_exp = m.group(1)
+            current_step = m.group(2)
+            status_line = f"{m.group(1)} → {m.group(2)} ({m.group(3)}) ..."
+            # Don't break — keep scanning for experiment header
+
+        m = _RE_TASK_DONE.search(line)
+        if m and current_step and m.group(1) != current_step:
+            # A different task completed before the current one started
+            completed_steps.append(m.group(1))
+
+        m = _RE_EXPERIMENT_HEADER.search(line)
+        if m:
+            exp_num = int(m.group(1))
+            total_exp = int(m.group(2))
+            if not current_step:
+                status_line = f"Experiment {exp_num}/{total_exp} starting..."
+            break
+
+    # Build the completed_steps list from the pipeline order
+    if current_step and current_step in _PIPELINE_STEPS:
+        idx = _PIPELINE_STEPS.index(current_step)
+        completed_steps = _PIPELINE_STEPS[:idx]
+
+    return AgentProgress(
+        status_line=status_line,
+        current_experiment=current_exp,
+        current_experiment_num=exp_num,
+        total_experiments=total_exp,
+        current_step=current_step,
+        completed_steps=completed_steps,
+        all_steps=_PIPELINE_STEPS,
+        is_recovery=is_recovery,
+    )
+
+
 def parse_agent_status(study_dir: Path) -> str:
     """Read the orchestrator.log and extract a one-line status string.
 

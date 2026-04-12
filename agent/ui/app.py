@@ -33,6 +33,7 @@ from agent.ui.loaders import (
     list_studies,
     load_experiment_detail,
     load_study_detail,
+    parse_agent_progress,
     read_stdout_tail,
 )
 from agent.ui.process_manager import (
@@ -106,12 +107,18 @@ def create_app(
         detail = load_study_detail(studies_root, study_id)
         if detail is None:
             raise HTTPException(status_code=404, detail=f"Study {study_id} not found")
+        # Detect any running experiment + progress for the running card
+        running = find_running_experiment(studies_root, sandbox_root, study_id)
+        progress = parse_agent_progress(studies_root / study_id)
         return templates.TemplateResponse(
             request,
             "study.html",
             {
                 "detail": detail,
                 "study": detail.study,
+                "running": running,
+                "progress": progress,
+                "study_id": study_id,
             },
         )
 
@@ -237,10 +244,11 @@ def create_app(
         output and disappears once it completes.
         """
         snapshot = find_running_experiment(studies_root, sandbox_root, study_id)
+        progress = parse_agent_progress(studies_root / study_id)
         return templates.TemplateResponse(
             request,
             "_partials/running_card.html",
-            {"running": snapshot, "study_id": study_id},
+            {"running": snapshot, "study_id": study_id, "progress": progress},
         )
 
     @app.get(
