@@ -2,13 +2,98 @@
 {% block title %}Studies · BirdCLEF Agent{% endblock %}
 {% block content %}
 
-<div class="mb-6">
-  <h1 class="text-3xl font-bold">Studies</h1>
-  <p class="text-slate-600 mt-1">
-    {{ studies|length }} stud{{ "y" if studies|length == 1 else "ies" }} on disk.
-    Newest first.
-  </p>
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-3xl font-bold">Studies</h1>
+    <p class="text-slate-600 mt-1">
+      {{ studies|length }} stud{{ "y" if studies|length == 1 else "ies" }} on disk.
+      Newest first.
+    </p>
+  </div>
+  <button
+    onclick="document.getElementById('new-study-modal').classList.toggle('hidden')"
+    class="inline-flex items-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+    <span>+</span>
+    New study
+  </button>
 </div>
+
+<!-- New study form (hidden by default) -->
+<div id="new-study-modal" class="hidden mb-6 rounded-lg border border-emerald-300 bg-emerald-50 p-5">
+  <h3 class="font-semibold mb-3 text-emerald-900">Start a new study</h3>
+  <form id="new-study-form" class="grid md:grid-cols-2 gap-4">
+    <div>
+      <label class="block text-xs text-slate-600 font-semibold mb-1">Name *</label>
+      <input name="name" required type="text" placeholder="e.g. efficientnet exploration"
+        class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 font-semibold mb-1">Hypothesis</label>
+      <input name="hypothesis" type="text" placeholder="e.g. Does EfficientNet beat the CNN baseline?"
+        class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 font-semibold mb-1">Max experiments</label>
+      <input name="max_experiments" type="number" value="25" min="1" max="100"
+        class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-600 font-semibold mb-1">LLM model (optional)</label>
+      <input name="model" type="text" placeholder="e.g. gemma4:e4b, qwen3:9b"
+        class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+    </div>
+    <div class="md:col-span-2 flex items-center gap-3">
+      <button type="submit"
+        class="inline-flex items-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+        Launch study
+      </button>
+      <span id="start-status" class="text-sm text-slate-600"></span>
+    </div>
+  </form>
+</div>
+
+<script>
+document.getElementById("new-study-form").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const statusEl = document.getElementById("start-status");
+  const btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.classList.add("opacity-60");
+  statusEl.textContent = "Starting...";
+  statusEl.className = "text-sm text-slate-600";
+
+  const body = {
+    name: form.name.value,
+    hypothesis: form.hypothesis.value || "Launched from the dashboard",
+    max_experiments: parseInt(form.max_experiments.value || "25", 10),
+    model: form.model.value || null,
+  };
+
+  try {
+    const r = await fetch("/api/studies/start", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      statusEl.textContent = "Error: " + (data.detail || r.statusText);
+      statusEl.className = "text-sm text-rose-600";
+    } else {
+      statusEl.textContent = "Started! Study ID: " + data.study_id + " (PID " + data.pid + ")";
+      statusEl.className = "text-sm text-emerald-600";
+      setTimeout(() => window.location.reload(), 2000);
+    }
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
+    statusEl.className = "text-sm text-rose-600";
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("opacity-60");
+  }
+});
+</script>
 
 {% if not studies %}
   <div class="rounded-lg border border-slate-200 bg-white p-8 text-center">

@@ -12,6 +12,7 @@ orchestrator coupling.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,11 @@ from agent.ui.loaders import (
     load_experiment_detail,
     load_study_detail,
     read_stdout_tail,
+)
+from agent.ui.process_manager import (
+    get_status as pm_get_status,
+    start_study as pm_start_study,
+    stop_study as pm_stop_study,
 )
 
 
@@ -339,12 +345,108 @@ def create_app(
             }
         )
 
+    # ---- Start / Stop controls -------------------------------------------
+
+    @app.post("/api/studies/start")
+    async def api_start_study(request: Request) -> JSONResponse:
+        """Start a new study as a background subprocess.
+
+        Expects a JSON body with at least `name` (string). Optional:
+        `hypothesis` (str), `max_experiments` (int), `model` (str).
+        """
+        body = await request.json()
+        name = body.get("name", "").strip()
+        if not name:
+            raise HTTPException(
+                status_code=422,
+                detail="'name' is required and must be non-empty.",
+            )
+
+        hypothesis = body.get("hypothesis", "Launched from the dashboard")
+        max_experiments = int(body.get("max_experiments", 20))
+        model = body.get("model")
+
+        # Derive the study_id the same way the CLI does so we know
+        # which directory will be created.
+        slug = _slug(name)
+        from datetime import datetime as _dt  # noqa: PLC0415
+
+        study_id = f"study_{_dt.now().strftime('%Y%m%d_%H%M%S')}_{slug}"
+        study_dir = studies_root / study_id
+
+        try:
+            info = pm_start_study(
+                python_executable=sys.executable,
+                study_dir=study_dir,
+                name=name,
+                hypothesis=hypothesis,
+                max_experiments=max_experiments,
+                model=model,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+        return JSONResponse(
+            {
+                "ok": True,
+                "study_id": study_id,
+                "pid": info.pid,
+            },
+            status_code=201,
+        )
+
+    @app.post("/api/studies/{study_id}/stop")
+    def api_stop_study(study_id: str) -> JSONResponse:
+        """Send SIGTERM to a running study subprocess.
+
+        Returns 200 on success, 404 if no running process is found.
+        """
+        study_dir = studies_root / study_id
+        if not study_dir.exists():
+            raise HTTPException(
+                status_code=404, detail=f"Study {study_id} not found"
+            )
+
+        stopped = pm_stop_study(study_dir)
+        if not stopped:
+            raise HTTPException(
+                status_code=404,
+                detail="No running process found for this study.",
+            )
+        return JSONResponse({"ok": True, "study_id": study_id})
+
+    @app.get("/api/studies/{study_id}/process")
+    def api_process_status(study_id: str) -> JSONResponse:
+        """Return PID + alive status from the pidfile, if any."""
+        study_dir = studies_root / study_id
+        info = pm_get_status(study_dir)
+        if info is None:
+            return JSONResponse({"has_process": False})
+        return JSONResponse(
+            {
+                "has_process": True,
+                "pid": info.pid,
+                "alive": info.alive,
+            }
+        )
+
     return app
 
 
 # ---------------------------------------------------------------------------
 # Template globals
 # ---------------------------------------------------------------------------
+
+
+def _slug(text: str) -> str:
+    """Slugify a study name into a directory-safe string."""
+    out = []
+    for ch in text.lower():
+        if ch.isalnum():
+            out.append(ch)
+        elif ch in (" ", "-", "_"):
+            out.append("_")
+    return "".join(out).strip("_") or "study"
 
 
 def _format_score(value: float | None, digits: int = 4) -> str:
