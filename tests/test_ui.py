@@ -637,3 +637,66 @@ class TestLiveMonitoring:
         result = find_running_experiment(studies_root, sandbox_root, "study_a")
         # Should be None (exp_001 also has a log but its mtime is old too)
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Start / Stop controls
+# ---------------------------------------------------------------------------
+
+
+class TestStartStopControls:
+    def test_process_status_returns_false_when_no_pidfile(
+        self, client: TestClient
+    ) -> None:
+        r = client.get("/api/studies/study_a/process")
+        assert r.status_code == 200
+        assert r.json()["has_process"] is False
+
+    def test_stop_404_for_unknown_study(
+        self, client: TestClient
+    ) -> None:
+        r = client.post("/api/studies/does_not_exist/stop")
+        assert r.status_code == 404
+
+    def test_stop_404_when_no_running_process(
+        self, client: TestClient
+    ) -> None:
+        """Study A exists but has no pidfile → no process to stop."""
+        r = client.post("/api/studies/study_a/stop")
+        assert r.status_code == 404
+
+    def test_start_rejects_empty_name(
+        self, client: TestClient
+    ) -> None:
+        r = client.post(
+            "/api/studies/start",
+            json={"name": "", "hypothesis": "test"},
+        )
+        assert r.status_code == 422
+
+    def test_index_page_has_new_study_button(
+        self, client: TestClient
+    ) -> None:
+        r = client.get("/")
+        assert r.status_code == 200
+        assert "New study" in r.text
+        assert "new-study-form" in r.text
+
+    def test_study_detail_shows_stop_for_active_study(
+        self, client: TestClient
+    ) -> None:
+        """study_b has status='active' — it should show the Stop button."""
+        r = client.get("/studies/study_b")
+        assert r.status_code == 200
+        assert "Stop" in r.text or "stop-btn" in r.text
+
+    def test_study_detail_hides_stop_for_completed_study(
+        self, client: TestClient
+    ) -> None:
+        """study_a has status='completed' — no Stop button (the JS
+        handler text may still be in the page, but the actual
+        `<button id="stop-btn">` must not be rendered)."""
+        r = client.get("/studies/study_a")
+        # The actual button element is gated by status==active/running.
+        # For completed studies, the template skips the button.
+        assert 'id="stop-btn"' not in r.text

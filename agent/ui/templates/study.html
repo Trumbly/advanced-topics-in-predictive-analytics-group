@@ -16,8 +16,19 @@
   <p class="text-xs text-slate-500 font-mono mt-1">{{ study.study_id }}</p>
   <p class="text-slate-600 mt-3">{{ study.hypothesis }}</p>
 
-  {% if study.best_experiment_id %}
-  <div class="mt-4">
+  <div class="mt-4 flex items-center gap-3">
+    {% set status_str = study.status.value if study.status.value is defined else study.status %}
+    {% if status_str in ('active', 'running') %}
+    <button
+      id="stop-btn"
+      onclick="stopStudy()"
+      class="inline-flex items-center gap-2 rounded-md bg-rose-600 hover:bg-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+      ⏹ Stop
+    </button>
+    <span id="stop-status" class="text-sm text-slate-600"></span>
+    {% endif %}
+
+    {% if study.best_experiment_id %}
     <button
       id="kaggle-btn"
       onclick="exportKaggle()"
@@ -25,9 +36,9 @@
       <span>📦</span>
       Export Kaggle submission
     </button>
-    <span id="kaggle-status" class="ml-3 text-sm text-slate-600"></span>
+    <span id="kaggle-status" class="text-sm text-slate-600"></span>
+    {% endif %}
   </div>
-  {% endif %}
 </div>
 
 <!-- Running-experiment card: live-updated HTMX partial.
@@ -137,6 +148,33 @@
 </div>
 
 <script>
+async function stopStudy() {
+  const btn = document.getElementById("stop-btn");
+  const statusEl = document.getElementById("stop-status");
+  if (!confirm("Stop this study? The orchestrator will receive SIGTERM.")) return;
+  btn.disabled = true;
+  btn.classList.add("opacity-60");
+  statusEl.textContent = "Stopping…";
+  try {
+    const r = await fetch("/api/studies/{{ study.study_id }}/stop", { method: "POST" });
+    const body = await r.json();
+    if (!r.ok) {
+      statusEl.textContent = "✗ " + (body.detail || r.statusText);
+      statusEl.className = "text-sm text-rose-600";
+    } else {
+      statusEl.textContent = "✓ Stopped";
+      statusEl.className = "text-sm text-emerald-600";
+      setTimeout(() => window.location.reload(), 1500);
+    }
+  } catch (err) {
+    statusEl.textContent = "✗ " + err.message;
+    statusEl.className = "text-sm text-rose-600";
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("opacity-60");
+  }
+}
+
 async function exportKaggle() {
   const btn = document.getElementById("kaggle-btn");
   const statusEl = document.getElementById("kaggle-status");
