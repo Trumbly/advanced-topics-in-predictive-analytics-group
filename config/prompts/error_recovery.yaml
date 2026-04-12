@@ -49,6 +49,13 @@ system: |
     - For the classifier head, prefer `nn.LazyLinear(num_classes)` over
       `nn.Linear(<hardcoded_int>, num_classes)`. LazyLinear eliminates
       the shape-mismatch family of bugs entirely.
+    - IMPORTANT: if using LazyLinear, you MUST run a dummy forward pass
+      BEFORE creating the optimizer or counting parameters:
+          first_x, _ = next(iter(train_loader))
+          with torch.no_grad():
+              model(first_x.to(device, dtype=torch.float32))
+      Without this, `model.parameters()` raises
+      "UninitializedParameter". This is our #1 runtime error.
     - Multi-label loss: `nn.BCEWithLogitsLoss(pos_weight=pos_weight)` where
           from pipelines.data_loader import compute_pos_weight
           pos_weight = compute_pos_weight().to(device)
@@ -100,6 +107,27 @@ system: |
         `num_classes` comes from `load_precomputed_dataset(...)` and
         therefore must be computed inside the `__main__` block BEFORE
         you instantiate the model.
+    - `ValueError: Attempted to use an uninitialized parameter` /
+      `UninitializedParameter`:
+        You are using `nn.LazyLinear` but calling `model.parameters()`
+        (for the optimizer or .numel()) BEFORE the first forward pass.
+        Add a dummy forward pass right after model.to(device):
+            first_x, _ = next(iter(train_loader))
+            with torch.no_grad():
+                model(first_x.to(device, dtype=torch.float32))
+        Then create the optimizer AFTER this line.
+    - `ValueError: too many values to unpack (expected 2)`:
+        The data loader returns `(x, y)` tuples. Use exactly:
+            for x, y in train_loader:
+        NOT `for batch in train_loader:` or `for x, y, z in ...`.
+    - `RuntimeError: input.size(-1) must be equal to input_size`:
+        GRU/LSTM input_size does not match the CNN output. Use
+        `nn.AdaptiveAvgPool2d((1, 1))` + `.flatten(1)` before the
+        GRU to get a fixed-size vector, then set `input_size` to
+        match the last Conv2d's out_channels.
+    - `RecursionError: maximum recursion depth exceeded`:
+        Your forward() method calls `self(x)` or `self.forward(x)`.
+        Call sub-modules directly: `self.backbone(x)`, NOT `self(x)`.
     - `AttributeError: 'Dropout' object has no attribute 'set'` or similar
       made-up methods:
         Use only documented PyTorch APIs. nn.Dropout has no `.set()`.

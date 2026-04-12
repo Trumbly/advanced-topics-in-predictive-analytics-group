@@ -359,6 +359,37 @@ system: |
   Each Conv2d's `in_channels` MUST equal the previous Conv2d's `out_channels`.
   See the "Channel tracking in stacked Conv2d layers" section.
 
+  ### 4. LazyLinear requires a dummy forward pass before optimizer creation
+
+  `nn.LazyLinear` parameters are `UninitializedParameter` objects until
+  the first forward pass. If you call `model.parameters()` before that
+  (for the optimizer, or for counting parameters), you get:
+
+      ValueError: Attempted to use an uninitialized parameter
+
+  FIX: the skeleton includes a dummy forward pass right after
+  `model.to(device)` — do NOT remove it:
+
+      first_x, _ = next(iter(train_loader))
+      with torch.no_grad():
+          model(first_x.to(device, dtype=torch.float32))
+
+  This is the SINGLE most common error in our runs (20 failures).
+
+  ### 5. GRU / LSTM input size must match the CNN output
+
+  When building CNN → GRU hybrids, the GRU's `input_size` must match
+  what the CNN stack actually produces after flattening. Use
+  `nn.AdaptiveAvgPool2d((1, 1))` + `.flatten(1)` to get a predictable
+  size, then pass that as the GRU's `input_size`. Or better: use a
+  `nn.LazyLinear` to bridge the CNN→RNN boundary.
+
+  ### 6. Do NOT call forward() recursively
+
+  If your model's `forward()` method calls `self(x)` or
+  `self.forward(x)`, it creates infinite recursion. Call sub-modules
+  directly: `self.backbone(x)`, `self.head(x)`, NOT `self(x)`.
+
   ## Variable scoping reminder
 
   Define `num_classes` at module scope — it comes from load_precomputed_dataset
@@ -454,6 +485,14 @@ system: |
               # device with `.to(device)`.
               model = ...  # registry model OR your custom nn.Module instance
               model = model.to(device)
+
+              # Initialize LazyLinear (if used) by running ONE dummy batch
+              # through the model. Without this, model.parameters() raises
+              # "UninitializedParameter" when you call .numel() or pass
+              # the parameters to the optimizer.
+              first_x, _ = next(iter(train_loader))
+              with torch.no_grad():
+                  model(first_x.to(device, dtype=torch.float32))
               n_params = sum(p.numel() for p in model.parameters())
               print(f"model built: {n_params:,} parameters", flush=True)
 
