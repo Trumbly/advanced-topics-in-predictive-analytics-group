@@ -461,6 +461,7 @@ class Orchestrator:
         previous_task_output: dict[str, Any] = {}
         task_counter = 0
         recovery_attempts_used = 0
+        codegen_retries_used = 0
         max_recoveries = self.study.compute_budget.max_recovery_attempts
 
         # Index-based loop so recovery can jump backwards.
@@ -527,8 +528,47 @@ class Orchestrator:
                 TaskStatus.FAILED,
                 TaskStatus.TIMEOUT,
             ):
-                # Try recovery if the failed step is code-level and we
-                # have retries left.
+                # LAYER 1: Codegen retry — CHEAP, no execution.
+                # When validate_code fails, call generate_code AGAIN with
+                # the validation error as feedback. The LLM gets the full
+                # skeleton + rules + the specific error ("nn.Conv2x2d does
+                # not exist, did you mean nn.Conv2d?"). Much faster than
+                # error_recovery because no subprocess is spawned.
+                if (
+                    step.task_name == "validate_code"
+                    and task.error is not None
+                    and codegen_retries_used
+                    < self.study.compute_budget.max_codegen_retries
+                ):
+                    codegen_retries_used += 1
+                    logger.info(
+                        "  [%s] codegen retry %d/%d (validation: %s)",
+                        experiment.experiment_id,
+                        codegen_retries_used,
+                        self.study.compute_budget.max_codegen_retries,
+                        task.error.message[:100],
+                    )
+                    regen_ok = self._regen_code_with_feedback(
+                        experiment,
+                        task,
+                        outputs_by_name,
+                        codegen_retries_used,
+                    )
+                    if regen_ok:
+                        # Jump back to validate_code to re-check
+                        restart_idx = self._find_restart_index(steps)
+                        if restart_idx is not None:
+                            i = restart_idx
+                            for s in steps[restart_idx:]:
+                                outputs_by_name.pop(s.task_name, None)
+                            previous_task_output = outputs_by_name.get(
+                                "generate_code", {}
+                            )
+                            continue
+
+                # LAYER 2: Error recovery (existing) — runs execution.
+                # For runtime errors (execute_training, capture_metrics)
+                # or when codegen retries are exhausted.
                 if (
                     recovery_attempts_used < max_recoveries
                     and self._is_recoverable(step, task)
@@ -566,9 +606,10 @@ class Orchestrator:
                 self.experiment_logger.write_experiment(experiment)
                 self.memory.append(experiment)
                 logger.info(
-                    "  [%s] FAILED after %s (recoveries used: %d)",
+                    "  [%s] FAILED after %s (codegen retries: %d, recoveries: %d)",
                     experiment.experiment_id,
                     step.task_name,
+                    codegen_retries_used,
                     recovery_attempts_used,
                 )
                 return
@@ -657,6 +698,131 @@ class Orchestrator:
                 if s.task_name == preferred:
                     return idx
         return None
+
+    def _regen_code_with_feedback(
+        self,
+        experiment: Experiment,
+        failed_task: Task,
+        outputs_by_name: dict[str, dict[str, Any]],
+        attempt: int,
+    ) -> bool:
+        """Re-call generate_code with the validation error as feedback.
+
+        Unlike `_try_recovery` (which uses the error_recovery.yaml prompt
+        for runtime crashes), this method re-uses the FULL generate_code
+        prompt (with the skeleton, rules, and architecture proposal) and
+        appends the validation error. The LLM regenerates fresh code with
+        the specific feedback in mind.
+
+        This is much faster than error recovery: no subprocess execution,
+        just a 5-10s LLM call. Returns True if the LLM produced a valid
+        code blob that can be re-validated.
+        """
+        err = failed_task.error
+        if err is None:
+            return False
+
+        arch_proposal = (
+            outputs_by_name.get("propose_architecture") or {}
+        ).get("architecture_proposal")
+        if arch_proposal is None:
+            arch_proposal = experiment.config.model_dump() if experiment.config else {}
+
+        # Load the generate_code template — same one as the initial call.
+        try:
+            template = self.prompt_engine.load(
+                Path("config/prompts/generate_code.yaml")
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("    ⚠ could not load generate_code prompt: %s", exc)
+            return False
+
+        # Fill the template with the same slots as the original call,
+        # but append the validation error to the user message.
+        dataset_profile = ""
+        try:
+            dataset_profile = self.context_handler.dataset_profile.model_dump_json()
+        except Exception:  # noqa: BLE001
+            pass
+
+        slots = {
+            "architecture_proposal": arch_proposal,
+            "dataset_profile": dataset_profile,
+        }
+        try:
+            system, user = self.prompt_engine.fill(template, slots)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("    ⚠ generate_code prompt fill failed: %s", exc)
+            return False
+
+        # Append the validation error as feedback
+        user += (
+            f"\n\n## VALIDATION ERROR (attempt {attempt})\n"
+            f"Your previous code was rejected by the validator:\n"
+            f"  Error type: {err.error_type}\n"
+            f"  Message: {err.message}\n\n"
+            f"Fix this specific issue and return the COMPLETE corrected script.\n"
+            f"Return ONLY Python code — no explanations, no markdown fences."
+        )
+
+        # Log as a task
+        regen_task_id = (
+            f"{experiment.experiment_id}_codegen_retry_{attempt:02d}"
+        )
+        regen_task = Task(
+            task_id=regen_task_id,
+            experiment_id=experiment.experiment_id,
+            task_type=TaskType.LLM,
+            task_name="generate_code",
+            status=TaskStatus.RUNNING,
+            started_at=_now(),
+            prompt_used=f"[SYSTEM]\n{system[:200]}...\n\n[USER]\n{user[-500:]}",
+        )
+        experiment.task_ids.append(regen_task_id)
+
+        try:
+            response = self.llm_client.chat(
+                [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ]
+            )
+        except LLMError as exc:
+            regen_task.status = TaskStatus.FAILED
+            regen_task.error = TaskError(error_type="LLMError", message=str(exc))
+            regen_task.completed_at = _now()
+            self.experiment_logger.write_task(regen_task)
+            logger.info("    ✗ codegen retry LLM call failed: %s", exc)
+            return False
+
+        new_code = _strip_code_fences(response)
+        min_chars = self.study.compute_budget.recovery_min_code_chars
+        if not new_code or len(new_code) < min_chars:
+            regen_task.status = TaskStatus.FAILED
+            regen_task.error = TaskError(
+                error_type="EmptyCodegenRetry",
+                message=f"LLM returned {len(new_code or '')} chars (min: {min_chars})",
+            )
+            regen_task.llm_response = response
+            regen_task.completed_at = _now()
+            self.experiment_logger.write_task(regen_task)
+            logger.info("    ✗ codegen retry produced empty code")
+            return False
+
+        regen_task.llm_response = response
+        regen_task.output = {"code": new_code}
+        regen_task.code_used = new_code
+        regen_task.status = TaskStatus.COMPLETED
+        regen_task.completed_at = _now()
+        self.experiment_logger.write_task(regen_task)
+
+        # Swap the new code into outputs_by_name
+        outputs_by_name["generate_code"] = {"code": new_code}
+        logger.info(
+            "    ✓ codegen retry produced %d bytes of new code",
+            len(new_code),
+        )
+        return True
 
     def _try_recovery(
         self,

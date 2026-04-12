@@ -770,6 +770,7 @@ class TestOrchestratorRecovery:
                 max_experiment_seconds=30,
                 max_epochs_per_run=1,
                 max_recovery_attempts=2,
+                max_codegen_retries=0,  # this test covers Layer 2 only
             ),
             pipeline_config_path=pipeline_yaml_with_validate,
             dataset_profile_path=dataset_profile,
@@ -824,6 +825,7 @@ class TestOrchestratorRecovery:
                 max_experiment_seconds=30,
                 max_epochs_per_run=1,
                 max_recovery_attempts=0,
+                max_codegen_retries=0,
             ),
             pipeline_config_path=pipeline_yaml_with_validate,
             dataset_profile_path=dataset_profile,
@@ -865,6 +867,7 @@ class TestOrchestratorRecovery:
                 max_experiment_seconds=30,
                 max_epochs_per_run=1,
                 max_recovery_attempts=1,  # only ONE outer attempt
+                max_codegen_retries=0,  # Layer 2 test, skip Layer 1
                 recovery_empty_response_retries=3,  # three inner retries
                 recovery_min_code_chars=50,
             ),
@@ -926,6 +929,7 @@ class TestOrchestratorRecovery:
                 max_experiment_seconds=30,
                 max_epochs_per_run=1,
                 max_recovery_attempts=1,
+                max_codegen_retries=0,
                 recovery_empty_response_retries=3,
                 recovery_min_code_chars=50,
             ),

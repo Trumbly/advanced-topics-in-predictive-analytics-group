@@ -54,7 +54,9 @@ system: |
         → Define the full `nn.Module` class(es) inline. Everything must be
           imported from `torch`, `torch.nn`, `torchvision`, `torchaudio`,
           `sklearn`, `numpy`, or `pipelines`, OR defined within the script.
-        → The final logit vector MUST have length 234 (multi-label output).
+        → The final logit vector MUST have length `num_classes` (multi-label output).
+          `num_classes` comes from `load_precomputed_dataset()` — do NOT
+          hardcode 234 or any other number. The actual dataset has 206 classes.
         → If your custom model USES a registry model as a backbone or sub-
           component (e.g. `self.backbone = CnnSmallV1(...)`), you MUST
           import it at the TOP of the file:
