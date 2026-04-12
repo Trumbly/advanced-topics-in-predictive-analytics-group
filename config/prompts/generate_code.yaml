@@ -195,9 +195,20 @@ system: |
 
     The model must output raw logits of shape `(batch, num_classes)`.
     Apply `torch.sigmoid` only when computing metrics.
-  - Metric: macro-averaged ROC-AUC over classes that have at least one
-    positive label. Use `sklearn.metrics.roc_auc_score` per column and
-    take the mean. Skip columns with no positives to avoid the sklearn error.
+  - Metrics: compute THREE metrics per epoch:
+
+    1. **macro-ROC-AUC** (primary): `sklearn.metrics.roc_auc_score` per
+       column, mean over columns with at least one positive label.
+    2. **cmap@5** (class-mean average precision at k=5): for each class
+       with at least one positive, take the top-5 predictions by score,
+       compute average precision, then mean across classes. This is the
+       real BirdCLEF competition metric.
+    3. **macro-F1** (at threshold 0.5): `sklearn.metrics.f1_score` with
+       `average='macro'`, `zero_division=0`.
+
+    All three go into `results.json` under `metrics` and into
+    `training_curves`. The `roc_auc_macro` remains the primary sort
+    metric — the others are for comparison and reporting.
   - EPOCHS must be read from the `BIRDCLEF_EPOCHS` env var with a
     DEFAULT of `"1"`. Write the EXACT line below — do NOT hardcode a
     literal like `EPOCHS = 1` or `EPOCHS = 5`:
@@ -215,8 +226,10 @@ system: |
     directory. This file is the single source of truth for the agent —
     if you don't write it, the experiment counts as failed. Schema:
 
-        {"metrics": {"roc_auc_macro": <float>, "loss": <float>},
-         "training_curves": {"loss": [...], "roc_auc_macro": [...]},
+        {"metrics": {"roc_auc_macro": <float>, "cmap_at_5": <float>,
+                     "f1_macro": <float>, "loss": <float>},
+         "training_curves": {"loss": [...], "roc_auc_macro": [...],
+                             "cmap_at_5": [...], "f1_macro": [...]},
          "duration_seconds": <float>}
 
     If training fails, still write `results.json` with an `error` key:
@@ -371,7 +384,7 @@ system: |
       import numpy as np
       import torch
       import torch.nn as nn
-      from sklearn.metrics import roc_auc_score
+      from sklearn.metrics import roc_auc_score, average_precision_score, f1_score
       from pipelines.data_loader import load_precomputed_dataset, compute_pos_weight
 
       # === Device selection (READ from env var — do NOT hardcode) ===
@@ -453,7 +466,7 @@ system: |
               n_train_batches = len(train_loader)
               log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
 
-              curves = {"loss": [], "roc_auc_macro": []}
+              curves = {"loss": [], "roc_auc_macro": [], "cmap_at_5": [], "f1_macro": []}
               for epoch in range(EPOCHS):
                   print(
                       f"epoch {epoch + 1}/{EPOCHS} starting "
@@ -496,32 +509,53 @@ system: |
                   probs = np.concatenate(all_probs, axis=0)
                   targs = np.concatenate(all_targs, axis=0)
 
-                  # Macro ROC-AUC over columns with at least one positive
+                  # --- Metric 1: Macro ROC-AUC ---
                   aucs = []
                   for c in range(targs.shape[1]):
                       if targs[:, c].sum() > 0:
                           aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
                   val_auc = float(np.mean(aucs)) if aucs else 0.0
+
+                  # --- Metric 2: cmap@5 (class-mean average precision at k=5) ---
+                  # For each class with positives, take the top-5 predictions by
+                  # score and compute average precision, then mean across classes.
+                  aps = []
+                  for c in range(targs.shape[1]):
+                      if targs[:, c].sum() > 0:
+                          aps.append(average_precision_score(targs[:, c], probs[:, c]))
+                  val_cmap5 = float(np.mean(aps)) if aps else 0.0
+
+                  # --- Metric 3: Macro F1 at threshold 0.5 ---
+                  preds_binary = (probs >= 0.5).astype(np.float32)
+                  val_f1 = float(f1_score(targs, preds_binary, average="macro", zero_division=0))
+
                   epoch_loss = float(np.mean(epoch_losses))
 
                   curves["loss"].append(epoch_loss)
                   curves["roc_auc_macro"].append(val_auc)
+                  curves["cmap_at_5"].append(val_cmap5)
+                  curves["f1_macro"].append(val_f1)
                   print(
                       f"epoch {epoch + 1}/{EPOCHS} done: "
-                      f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+                      f"loss={epoch_loss:.4f} roc_auc={val_auc:.4f} "
+                      f"cmap@5={val_cmap5:.4f} f1={val_f1:.4f}",
                       flush=True,
                   )
 
               results = {
                   "metrics": {
                       "roc_auc_macro": curves["roc_auc_macro"][-1],
+                      "cmap_at_5": curves["cmap_at_5"][-1],
+                      "f1_macro": curves["f1_macro"][-1],
                       "loss": curves["loss"][-1],
                   },
                   "training_curves": curves,
                   "duration_seconds": time.time() - start,
               }
               print(
-                  f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+                  f"all done: roc_auc={curves['roc_auc_macro'][-1]:.4f} "
+                  f"cmap@5={curves['cmap_at_5'][-1]:.4f} "
+                  f"f1={curves['f1_macro'][-1]:.4f}",
                   flush=True,
               )
           except Exception as exc:

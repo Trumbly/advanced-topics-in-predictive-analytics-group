@@ -78,6 +78,8 @@
         <th class="text-left px-5 py-2">Status</th>
         <th class="text-left px-5 py-2">Architecture</th>
         <th class="text-right px-5 py-2">ROC-AUC</th>
+        <th class="text-right px-5 py-2">cmap@5</th>
+        <th class="text-right px-5 py-2">F1</th>
         <th class="text-right px-5 py-2">Duration</th>
       </tr>
     </thead>
@@ -101,6 +103,20 @@
         <td class="px-5 py-2 text-right font-mono">
           {% if exp.results and exp.results.metrics %}
             {{ format_score(exp.results.metrics.get('roc_auc_macro')) }}
+          {% else %}
+            <span class="text-slate-300">—</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-2 text-right font-mono text-slate-600 text-xs">
+          {% if exp.results and exp.results.metrics %}
+            {{ format_score(exp.results.metrics.get('cmap_at_5')) }}
+          {% else %}
+            <span class="text-slate-300">—</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-2 text-right font-mono text-slate-600 text-xs">
+          {% if exp.results and exp.results.metrics %}
+            {{ format_score(exp.results.metrics.get('f1_macro')) }}
           {% else %}
             <span class="text-slate-300">—</span>
           {% endif %}
