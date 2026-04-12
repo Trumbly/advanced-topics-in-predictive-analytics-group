@@ -1,0 +1,43 @@
+{#
+  Running-experiment card. Rendered by both the full study-detail page
+  and by a HTMX `hx-get` poller so the card appears/disappears live
+  as experiments start and finish.
+
+  When no experiment is running, we still render an empty `<div>` with
+  the same id — HTMX swaps on that id, so an empty div means "the
+  running card is currently empty".
+#}
+{% if running %}
+<div
+  id="running-card"
+  class="mb-6 rounded-lg border border-sky-300 bg-sky-50 p-5"
+  hx-get="/partials/studies/{{ study_id }}/running"
+  hx-trigger="every 3s"
+  hx-swap="outerHTML"
+>
+  <div class="flex items-center gap-3">
+    <span class="relative flex h-3 w-3">
+      <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75"></span>
+      <span class="relative inline-flex h-3 w-3 rounded-full bg-sky-500"></span>
+    </span>
+    <h3 class="font-semibold text-sky-900">Currently running</h3>
+    <a
+      href="/studies/{{ running.study_id }}/experiments/{{ running.experiment_id }}"
+      class="font-mono text-sm text-sky-700 hover:underline"
+    >{{ running.experiment_id }}</a>
+    {% if running.seconds_since_last_write is not none %}
+      <span class="ml-auto text-xs text-sky-700 font-mono">
+        last write: {{ "%.1f"|format(running.seconds_since_last_write) }}s ago
+      </span>
+    {% endif %}
+  </div>
+  <pre class="code mt-3 max-h-48 overflow-y-auto text-xs">{{ running.stdout_tail }}</pre>
+</div>
+{% else %}
+<div
+  id="running-card"
+  hx-get="/partials/studies/{{ study_id }}/running"
+  hx-trigger="every 5s"
+  hx-swap="outerHTML"
+></div>
+{% endif %}

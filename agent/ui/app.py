@@ -28,9 +28,11 @@ from agent.submission import (
     SubmissionValidationError,
 )
 from agent.ui.loaders import (
+    find_running_experiment,
     list_studies,
     load_experiment_detail,
     load_study_detail,
+    read_stdout_tail,
 )
 
 
@@ -194,6 +196,82 @@ def create_app(
                 "studies_root": str(studies_root),
                 "sandbox_root": str(sandbox_root),
             }
+        )
+
+    # ---- Live monitoring (HTMX partials + JSON) --------------------------
+
+    @app.get("/api/studies/{study_id}/running")
+    def api_running_experiment(study_id: str) -> JSONResponse:
+        """JSON snapshot of the currently-running experiment for a study.
+
+        Used by an optional JS poller to hydrate a header badge. The
+        main study-detail page uses the HTMX partial variant below.
+        """
+        snapshot = find_running_experiment(studies_root, sandbox_root, study_id)
+        if snapshot is None:
+            return JSONResponse({"running": False})
+        return JSONResponse(
+            {
+                "running": True,
+                "experiment_id": snapshot.experiment_id,
+                "stdout_last_modified": snapshot.stdout_last_modified_iso,
+                "seconds_since_last_write": snapshot.seconds_since_last_write,
+            }
+        )
+
+    @app.get(
+        "/partials/studies/{study_id}/running",
+        response_class=HTMLResponse,
+    )
+    def partial_running_card(request: Request, study_id: str) -> Any:
+        """HTMX partial: renders the 'currently running' card (or nothing).
+
+        The study-detail page polls this every few seconds via HTMX
+        so the card appears as soon as an experiment starts writing
+        output and disappears once it completes.
+        """
+        snapshot = find_running_experiment(studies_root, sandbox_root, study_id)
+        return templates.TemplateResponse(
+            request,
+            "_partials/running_card.html",
+            {"running": snapshot, "study_id": study_id},
+        )
+
+    @app.get(
+        "/partials/studies/{study_id}/experiments/{experiment_id}/stdout",
+        response_class=HTMLResponse,
+    )
+    def partial_stdout_tail(
+        request: Request, study_id: str, experiment_id: str
+    ) -> Any:
+        """HTMX partial: last N lines of a sandbox experiment's stdout.log.
+
+        The experiment-detail page polls this every few seconds so the
+        operator can watch training progress live without refreshing
+        the whole page.
+        """
+        tail = read_stdout_tail(sandbox_root, study_id, experiment_id)
+        return templates.TemplateResponse(
+            request,
+            "_partials/stdout_tail.html",
+            {"stdout_tail": tail},
+        )
+
+    @app.get(
+        "/partials/studies/{study_id}/stats",
+        response_class=HTMLResponse,
+    )
+    def partial_study_stats(request: Request, study_id: str) -> Any:
+        """HTMX partial: just the stat cards (experiments / completed /
+        failed / best score). Cheaper than re-rendering the entire
+        study-detail page every 3 seconds."""
+        detail = load_study_detail(studies_root, study_id)
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Study not found")
+        return templates.TemplateResponse(
+            request,
+            "_partials/study_stats.html",
+            {"detail": detail, "study": detail.study},
         )
 
     # ---- Kaggle submission -----------------------------------------------
