@@ -214,6 +214,22 @@ class ReportGenerator:
         except Exception as exc:  # noqa: BLE001
             logger.warning("best_learning_curve figure failed: %s", exc)
 
+        try:
+            if self._render_all_scores_comparison(
+                summaries, figures_dir / "score_comparison.png"
+            ):
+                available.append("score_comparison.png")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("score_comparison figure failed: %s", exc)
+
+        try:
+            if self._render_architecture_family_chart(
+                summaries, figures_dir / "architecture_families.png"
+            ):
+                available.append("architecture_families.png")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("architecture_families figure failed: %s", exc)
+
         return available
 
     @staticmethod
@@ -383,6 +399,130 @@ class ReportGenerator:
         ax1.set_title(
             f"Best run learning curve — {best.experiment_id} ({best.architecture})"
         )
+        fig.tight_layout()
+        fig.savefig(path, dpi=110)
+        plt.close(fig)
+        return True
+
+    def _render_all_scores_comparison(
+        self, summaries: list[ExperimentSummary], path: Path
+    ) -> bool:
+        """Horizontal bar chart comparing ROC-AUC of all completed experiments."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        completed = [
+            s for s in summaries
+            if s.status == ExperimentStatus.COMPLETED.value and s.score is not None
+        ]
+        if len(completed) < 2:
+            return False
+
+        # Sort by score descending
+        completed.sort(key=lambda s: s.score or 0.0, reverse=True)
+        labels = [
+            f"{s.experiment_id}\n{(s.architecture or '?')[:30]}"
+            for s in completed
+        ]
+        scores = [s.score or 0.0 for s in completed]
+        best_score = max(scores)
+
+        fig, ax = plt.subplots(figsize=(10, max(4, len(completed) * 0.6)))
+        colors = [
+            "#10b981" if s == best_score else "#64748b" for s in scores
+        ]
+        bars = ax.barh(range(len(completed)), scores, color=colors)
+        ax.set_yticks(range(len(completed)))
+        ax.set_yticklabels(labels, fontsize=8)
+        ax.set_xlabel("ROC-AUC (macro)")
+        ax.set_title("Score comparison across completed experiments")
+        ax.set_xlim(0, 1.0)
+        ax.invert_yaxis()
+        ax.grid(axis="x", alpha=0.3)
+
+        for bar, score in zip(bars, scores):
+            ax.text(
+                bar.get_width() + 0.01,
+                bar.get_y() + bar.get_height() / 2,
+                f"{score:.4f}",
+                va="center",
+                fontsize=7,
+                color="#334155",
+            )
+
+        fig.tight_layout()
+        fig.savefig(path, dpi=110)
+        plt.close(fig)
+        return True
+
+    def _render_architecture_family_chart(
+        self, summaries: list[ExperimentSummary], path: Path
+    ) -> bool:
+        """Grouped bar chart: avg score + count per architecture family tag."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import re
+
+        families: dict[str, list[float]] = {}
+        for s in summaries:
+            arch = s.architecture or ""
+            # Extract [family_tag] if present
+            m = re.match(r"\[(\w+)\]", arch)
+            family = m.group(1) if m else "unknown"
+            if s.score is not None:
+                families.setdefault(family, []).append(s.score)
+
+        if len(families) < 2:
+            return False
+
+        # Sort by avg score
+        family_data = sorted(
+            [
+                (fam, len(scores), sum(scores) / len(scores), max(scores))
+                for fam, scores in families.items()
+            ],
+            key=lambda t: t[2],
+            reverse=True,
+        )
+
+        names = [f[0] for f in family_data]
+        avg_scores = [f[2] for f in family_data]
+        best_scores = [f[3] for f in family_data]
+        counts = [f[1] for f in family_data]
+
+        x = range(len(names))
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bar_width = 0.35
+        ax.bar(
+            [i - bar_width / 2 for i in x],
+            avg_scores,
+            bar_width,
+            label="avg score",
+            color="#64748b",
+        )
+        ax.bar(
+            [i + bar_width / 2 for i in x],
+            best_scores,
+            bar_width,
+            label="best score",
+            color="#10b981",
+        )
+
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(
+            [f"{n}\n({c} exp)" for n, c in zip(names, counts)],
+            fontsize=8,
+        )
+        ax.set_ylabel("ROC-AUC (macro)")
+        ax.set_title("Performance by architecture family")
+        ax.set_ylim(0, 1.0)
+        ax.legend(fontsize=8)
+        ax.grid(axis="y", alpha=0.3)
+
         fig.tight_layout()
         fig.savefig(path, dpi=110)
         plt.close(fig)

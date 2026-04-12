@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Prompt Templates · BirdCLEF Agent{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-3xl font-bold">Prompt Templates</h1>
+  <p class="text-slate-600 mt-1">
+    View and edit the YAML prompt templates that drive the agent's LLM calls.
+    Changes are written to disk immediately and take effect on the next experiment.
+  </p>
+</div>
+
+<div class="grid md:grid-cols-4 gap-6">
+  {# Sidebar: list of prompts #}
+  <div class="md:col-span-1">
+    <nav class="space-y-1">
+      {% for p in prompts %}
+      <a href="/prompts/{{ p.name }}"
+         class="block rounded-md px-3 py-2 text-sm {% if active_prompt and active_prompt.name == p.name %}bg-slate-200 font-semibold{% else %}hover:bg-slate-100{% endif %}">
+        {{ p.name }}
+        <span class="block text-xs text-slate-500 mt-0.5">{{ p.description[:60] }}</span>
+      </a>
+      {% endfor %}
+    </nav>
+  </div>
+
+  {# Main: editor for the selected prompt #}
+  <div class="md:col-span-3">
+    {% if active_prompt %}
+    <div class="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <h2 class="font-semibold text-lg">{{ active_prompt.name }}</h2>
+          <p class="text-xs text-slate-500 mt-0.5">{{ active_prompt.description }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-slate-400">slots: {{ active_prompt.slots | join(', ') }}</span>
+        </div>
+      </div>
+
+      <form method="POST" action="/prompts/{{ active_prompt.name }}/save" id="prompt-form">
+        <div class="p-1">
+          <textarea
+            name="content"
+            id="prompt-editor"
+            class="w-full font-mono text-sm bg-slate-900 text-slate-100 p-4 rounded-md border-0 focus:ring-2 focus:ring-sky-400"
+            style="min-height: 600px; resize: vertical; tab-size: 2;"
+            spellcheck="false"
+          >{{ active_content }}</textarea>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
+          <button type="submit"
+            class="inline-flex items-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
+            💾 Save
+          </button>
+          <span id="save-status" class="text-sm text-slate-600"></span>
+          <span class="ml-auto text-xs text-slate-400 font-mono">{{ active_path }}</span>
+        </div>
+      </form>
+    </div>
+
+    {# Preview: how the filled prompt looks #}
+    {% if active_prompt.system %}
+    <details class="mt-4">
+      <summary class="text-sm text-slate-600 cursor-pointer hover:text-slate-900">
+        Preview: system prompt ({{ active_prompt.system | length }} chars)
+      </summary>
+      <pre class="code mt-2 max-h-96 overflow-y-auto text-xs">{{ active_prompt.system }}</pre>
+    </details>
+    {% endif %}
+
+    {% else %}
+    <div class="rounded-lg border border-slate-200 bg-white p-8 text-center">
+      <p class="text-slate-600">Select a prompt from the sidebar to view or edit it.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.getElementById("prompt-form")?.addEventListener("submit", async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const statusEl = document.getElementById("save-status");
+  statusEl.textContent = "Saving...";
+  statusEl.className = "text-sm text-slate-600";
+
+  try {
+    const r = await fetch(form.action, {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: new URLSearchParams(new FormData(form)),
+    });
+    if (r.ok) {
+      statusEl.textContent = "✓ Saved";
+      statusEl.className = "text-sm text-emerald-600";
+    } else {
+      const body = await r.json();
+      statusEl.textContent = "✗ " + (body.detail || r.statusText);
+      statusEl.className = "text-sm text-rose-600";
+    }
+  } catch (err) {
+    statusEl.textContent = "✗ " + err.message;
+    statusEl.className = "text-sm text-rose-600";
+  }
+});
+
+// Tab key inserts tab in textarea instead of moving focus
+document.getElementById("prompt-editor")?.addEventListener("keydown", function(e) {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const s = this.selectionStart;
+    this.value = this.value.substring(0, s) + "  " + this.value.substring(this.selectionEnd);
+    this.selectionStart = this.selectionEnd = s + 2;
+  }
+});
+</script>
+
+{% endblock %}

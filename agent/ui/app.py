@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -145,6 +145,14 @@ def create_app(
                 "study_id": study_id,
             },
         )
+
+    @app.get("/studies/{study_id}/report/figures/{filename}")
+    def report_figure(study_id: str, filename: str) -> FileResponse:
+        """Serve report figure images (PNG) for markdown rendering."""
+        fig_path = studies_root / study_id / "report" / "figures" / filename
+        if not fig_path.exists() or not fig_path.name.endswith((".png", ".jpg", ".svg")):
+            raise HTTPException(status_code=404, detail="Figure not found")
+        return FileResponse(fig_path)
 
     @app.get("/studies/{study_id}/report", response_class=HTMLResponse)
     def study_report(request: Request, study_id: str) -> Any:
@@ -287,6 +295,101 @@ def create_app(
             "_partials/study_stats.html",
             {"detail": detail, "study": detail.study},
         )
+
+    # ---- Prompt engineering -----------------------------------------------
+
+    @app.get("/prompts", response_class=HTMLResponse)
+    def prompts_index(request: Request) -> Any:
+        """List all prompt templates with no active selection."""
+        prompt_list = _load_prompt_summaries()
+        return templates.TemplateResponse(
+            request,
+            "prompts.html",
+            {
+                "prompts": prompt_list,
+                "active_prompt": None,
+                "active_content": "",
+                "active_path": "",
+            },
+        )
+
+    @app.get("/prompts/{prompt_name}", response_class=HTMLResponse)
+    def prompt_detail(request: Request, prompt_name: str) -> Any:
+        """View/edit a specific prompt template."""
+        prompt_list = _load_prompt_summaries()
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        yaml_path = prompts_dir / f"{prompt_name}.yaml"
+        if not yaml_path.exists():
+            raise HTTPException(status_code=404, detail=f"Prompt {prompt_name} not found")
+
+        raw_content = yaml_path.read_text()
+
+        # Load the parsed template for metadata display
+        try:
+            from agent.prompt_engine import PromptEngine  # noqa: PLC0415
+
+            pe = PromptEngine()
+            tmpl = pe.load(yaml_path)
+        except Exception:  # noqa: BLE001
+            tmpl = None
+
+        return templates.TemplateResponse(
+            request,
+            "prompts.html",
+            {
+                "prompts": prompt_list,
+                "active_prompt": tmpl,
+                "active_content": raw_content,
+                "active_path": str(yaml_path.relative_to(studies_root.parent.parent)),
+            },
+        )
+
+    @app.post("/prompts/{prompt_name}/save")
+    async def prompt_save(request: Request, prompt_name: str) -> JSONResponse:
+        """Save an edited prompt template back to disk."""
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        yaml_path = prompts_dir / f"{prompt_name}.yaml"
+        if not yaml_path.exists():
+            raise HTTPException(status_code=404, detail=f"Prompt {prompt_name} not found")
+
+        form = await request.form()
+        content = form.get("content", "")
+        if not content or not isinstance(content, str):
+            raise HTTPException(status_code=422, detail="Content is empty")
+
+        # Validate that the YAML is parseable before saving
+        try:
+            import yaml as _yaml  # noqa: PLC0415
+
+            _yaml.safe_load(content)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid YAML: {exc}",
+            ) from exc
+
+        yaml_path.write_text(content)
+        return JSONResponse({"ok": True, "prompt_name": prompt_name})
+
+    def _load_prompt_summaries() -> list[Any]:
+        """Load summary info for all prompt YAML files."""
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        if not prompts_dir.exists():
+            return []
+        summaries = []
+        try:
+            from agent.prompt_engine import PromptEngine  # noqa: PLC0415
+
+            pe = PromptEngine()
+        except Exception:  # noqa: BLE001
+            return []
+        for yaml_path in sorted(prompts_dir.glob("*.yaml")):
+            try:
+                tmpl = pe.load(yaml_path)
+                summaries.append(tmpl)
+            except Exception:  # noqa: BLE001
+                continue
+        return summaries
 
     # ---- Kaggle submission -----------------------------------------------
 
