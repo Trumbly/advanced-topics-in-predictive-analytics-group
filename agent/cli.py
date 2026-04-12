@@ -297,6 +297,13 @@ def cli(ctx: click.Context, config_path: Path, log_level: str) -> None:
     default="autonomous",
     show_default=True,
 )
+@click.option(
+    "--study-id",
+    "forced_study_id",
+    default=None,
+    hidden=True,
+    help="Force a specific study_id (used by the dashboard process manager).",
+)
 @click.pass_context
 def start(
     ctx: click.Context,
@@ -306,6 +313,7 @@ def start(
     model_override: str | None,
     max_experiments: int | None,
     mode: str,
+    forced_study_id: str | None,
 ) -> None:
     """Start a new Study and run the agent loop to completion."""
     gc: GlobalConfig = ctx.obj["global_config"]
@@ -314,7 +322,7 @@ def start(
         gc.llm.default_model = model_override
 
     now = _now()
-    study_id = f"study_{now.strftime('%Y%m%d_%H%M%S')}_{_slug(study_name)}"
+    study_id = forced_study_id or f"study_{now.strftime('%Y%m%d_%H%M%S')}_{_slug(study_name)}"
 
     budget = ComputeBudget(
         max_experiments=max_experiments or gc.compute_budget.max_experiments,

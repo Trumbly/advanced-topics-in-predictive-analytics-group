@@ -146,6 +146,11 @@ class Orchestrator:
             self.study.compute_budget.max_wallclock_minutes,
         )
         logger.info("  steps:    %s", [s.task_name for s in self.pipeline.steps])
+
+        # Persist the study.json IMMEDIATELY so the UI can show the study
+        # as soon as it starts, rather than waiting for the first
+        # experiment to complete.
+        self._save_study()
         logger.info("=" * 66)
 
         if not self.pipeline.steps:

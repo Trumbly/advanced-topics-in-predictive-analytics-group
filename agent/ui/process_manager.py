@@ -62,8 +62,8 @@ def start_study(
     name: str,
     hypothesis: str,
     max_experiments: int = 20,
-    promoted_epochs: int = 1,
     model: str | None = None,
+    repo_root: Path | None = None,
     extra_cli_args: list[str] | None = None,
 ) -> ProcessInfo:
     """Spawn `agent start ...` as a detached subprocess.
@@ -82,8 +82,12 @@ def start_study(
     study_dir.mkdir(parents=True, exist_ok=True)
     log_path = logfile_path(study_dir)
 
-    # Build the CLI command. The `start` command uses `--study` for the
-    # human-readable name (not `--name`).
+    # Build the CLI command. Pass `--study-id` so the CLI uses the
+    # EXACT same directory as the one we create for the pidfile + log.
+    # Without this, the CLI generates its own study_id (with a UTC
+    # timestamp) while the process manager uses the caller's local
+    # timestamp → two different directories → study.json lands in the
+    # wrong one and the UI loader can't find it.
     cmd: list[str] = [
         python_executable,
         "-m",
@@ -91,6 +95,8 @@ def start_study(
         "start",
         "--study",
         name,
+        "--study-id",
+        study_dir.name,  # force CLI to use our directory name
         "--hypothesis",
         hypothesis,
         "--max-experiments",
@@ -107,7 +113,7 @@ def start_study(
         stdout=log_fh,
         stderr=subprocess.STDOUT,
         start_new_session=True,  # detach from our process group
-        cwd=str(study_dir.parent.parent.parent),  # repo root
+        cwd=str(repo_root or study_dir.parent.parent.parent),
     )
 
     # Write pidfile.

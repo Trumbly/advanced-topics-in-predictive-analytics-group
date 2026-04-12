@@ -374,6 +374,10 @@ def create_app(
         study_id = f"study_{_dt.now().strftime('%Y%m%d_%H%M%S')}_{slug}"
         study_dir = studies_root / study_id
 
+        # studies_root is `<repo>/experiments/studies`, so repo root
+        # is two levels up.
+        repo_root = studies_root.parent.parent
+
         try:
             info = pm_start_study(
                 python_executable=sys.executable,
@@ -382,6 +386,7 @@ def create_app(
                 hypothesis=hypothesis,
                 max_experiments=max_experiments,
                 model=model,
+                repo_root=repo_root,
             )
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
