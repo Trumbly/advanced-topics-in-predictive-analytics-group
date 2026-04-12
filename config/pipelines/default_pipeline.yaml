@@ -21,7 +21,7 @@ steps:
     handler: agent.handlers.validate_code
     config:
       check_imports: [torch, tensorflow, keras, pipelines]
-      max_epochs: 1                       # hard cap, fast-iteration mode
+      max_epochs: 5                       # must match compute_budget.max_epochs_per_run
       reject_patterns:
         - "os.system"
         - "subprocess.Popen"

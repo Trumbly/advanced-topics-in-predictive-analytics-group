@@ -158,9 +158,9 @@ def _training_env_from_config(gc: GlobalConfig) -> dict[str, str]:
     env: dict[str, str] = {
         "BIRDCLEF_DEVICE": _resolve_device(gc.training.device),
         "BIRDCLEF_BATCH_SIZE": str(gc.training.batch_size),
-        # Smoke-phase default. The orchestrator bumps this to
-        # `compute_budget.promoted_epochs` during the promotion phase.
-        "BIRDCLEF_EPOCHS": "1",
+        # Read from compute_budget.max_epochs_per_run in config.yaml.
+        # The orchestrator may bump this further during the promotion phase.
+        "BIRDCLEF_EPOCHS": str(gc.compute_budget.max_epochs_per_run),
     }
     if gc.training.num_workers is not None:
         env["BIRDCLEF_NUM_WORKERS"] = str(gc.training.num_workers)
