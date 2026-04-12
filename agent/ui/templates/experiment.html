@@ -112,14 +112,18 @@
 </div>
 {% endif %}
 
-<!-- Logs -->
+<!-- Logs — stdout is live-updated via HTMX, stderr is static. -->
 <div class="grid md:grid-cols-2 gap-4">
-  {% if detail.stdout_tail %}
   <div class="rounded-lg border border-slate-200 bg-white overflow-hidden">
-    <h3 class="font-semibold px-5 py-3 border-b border-slate-200">stdout (tail)</h3>
-    <pre class="code m-0 rounded-none max-h-96 overflow-y-auto">{{ detail.stdout_tail }}</pre>
+    <h3 class="font-semibold px-5 py-3 border-b border-slate-200 flex items-center gap-2">
+      stdout (live)
+      <span class="text-xs font-normal text-slate-400">auto-refreshing every 2s</span>
+    </h3>
+    <pre id="stdout-tail" class="code m-0 rounded-none max-h-96 overflow-y-auto"
+         hx-get="/partials/studies/{{ study_id }}/experiments/{{ exp.experiment_id }}/stdout"
+         hx-trigger="every 2s"
+         hx-swap="outerHTML">{% if detail.stdout_tail %}{{ detail.stdout_tail }}{% else %}(no stdout output yet){% endif %}</pre>
   </div>
-  {% endif %}
   {% if detail.stderr_tail %}
   <div class="rounded-lg border border-slate-200 bg-white overflow-hidden">
     <h3 class="font-semibold px-5 py-3 border-b border-slate-200">stderr (tail)</h3>

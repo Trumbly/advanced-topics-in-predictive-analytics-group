@@ -86,6 +86,31 @@ class SubmissionRecord:
 
 
 @dataclass
+class RunningExperiment:
+    """A snapshot of an experiment that appears to be currently running.
+
+    We detect 'running' from the filesystem, not from a running
+    orchestrator process — that way the UI works even if the user
+    started the study in a separate terminal. An experiment is
+    'running' when either:
+
+      - Its `experiment.json` exists and has `status == "running"`, OR
+      - Its sandbox `stdout.log` mtime is within the last
+        `_RUNNING_HEARTBEAT_SECONDS` seconds.
+
+    The second rule catches the common case where `experiment.json`
+    is written only at the end of the experiment, so the file either
+    doesn't exist yet or is stale.
+    """
+
+    study_id: str
+    experiment_id: str
+    stdout_tail: str
+    stdout_last_modified_iso: str | None
+    seconds_since_last_write: float | None
+
+
+@dataclass
 class StudyDetail:
     """Everything the study detail page needs."""
 
@@ -138,6 +163,10 @@ class ExperimentDetail:
 
 _SCORE_METRIC = "roc_auc_macro"
 _LOG_TAIL_LINES = 200
+# How fresh the stdout.log mtime has to be for us to consider a
+# sandboxed experiment "currently running". Must be comfortably
+# larger than the orchestrator heartbeat interval (~10s).
+_RUNNING_HEARTBEAT_SECONDS = 60.0
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -349,6 +378,129 @@ def load_study_detail(
     )
 
 
+def find_running_experiment(
+    studies_root: Path,
+    sandbox_root: Path,
+    study_id: str,
+) -> RunningExperiment | None:
+    """Return a snapshot of the currently-running experiment, if any.
+
+    Walks `sandbox/<study_id>/*/stdout.log`, picks the one with the
+    freshest mtime, and — if that mtime is within
+    `_RUNNING_HEARTBEAT_SECONDS` of now — returns a `RunningExperiment`
+    with a short tail of the log. Returns None when nothing looks live.
+
+    Also respects an `experiment.json` with `status == "running"`: such
+    an experiment is always surfaced even if its log is briefly stale.
+    """
+    sandbox_dir = sandbox_root / study_id
+    if not sandbox_dir.exists():
+        # Maybe the orchestrator has set status=running but not yet
+        # written any sandbox output — fall through to the JSON scan.
+        return _find_running_from_experiment_json(studies_root, study_id)
+
+    candidates: list[tuple[float, Path]] = []
+    for exp_dir in sandbox_dir.iterdir():
+        if not exp_dir.is_dir():
+            continue
+        log = exp_dir / "stdout.log"
+        if not log.exists():
+            continue
+        try:
+            mtime = log.stat().st_mtime
+        except OSError:
+            continue
+        candidates.append((mtime, exp_dir))
+
+    if not candidates:
+        return _find_running_from_experiment_json(studies_root, study_id)
+
+    candidates.sort(reverse=True)  # newest first
+    best_mtime, best_exp_dir = candidates[0]
+
+    now = datetime.now(tz=timezone.utc).timestamp()
+    age = now - best_mtime
+
+    # Always surface if experiment.json explicitly says running —
+    # otherwise require a fresh heartbeat.
+    explicit_running = _experiment_status(
+        studies_root, study_id, best_exp_dir.name
+    ) == "running"
+    if not explicit_running and age > _RUNNING_HEARTBEAT_SECONDS:
+        return None
+
+    stdout_tail = _tail(best_exp_dir / "stdout.log") or ""
+    return RunningExperiment(
+        study_id=study_id,
+        experiment_id=best_exp_dir.name,
+        stdout_tail=stdout_tail,
+        stdout_last_modified_iso=datetime.fromtimestamp(
+            best_mtime, tz=timezone.utc
+        ).isoformat(sep=" ", timespec="seconds"),
+        seconds_since_last_write=round(age, 1),
+    )
+
+
+def _find_running_from_experiment_json(
+    studies_root: Path, study_id: str
+) -> RunningExperiment | None:
+    """Fall back: read experiment.json files and return the first one
+    whose status is 'running'. Used when the sandbox log is missing or
+    hasn't been written yet."""
+    exp_root = studies_root / study_id / "experiments"
+    if not exp_root.exists():
+        return None
+    for exp_dir in sorted(exp_root.iterdir()):
+        if not exp_dir.is_dir():
+            continue
+        data = _read_json(exp_dir / "experiment.json")
+        if data is None:
+            continue
+        if data.get("status") == "running":
+            return RunningExperiment(
+                study_id=study_id,
+                experiment_id=exp_dir.name,
+                stdout_tail="(no sandbox output yet)",
+                stdout_last_modified_iso=None,
+                seconds_since_last_write=None,
+            )
+    return None
+
+
+def _experiment_status(
+    studies_root: Path, study_id: str, experiment_id: str
+) -> str | None:
+    data = _read_json(
+        studies_root
+        / study_id
+        / "experiments"
+        / experiment_id
+        / "experiment.json"
+    )
+    if data is None:
+        return None
+    return data.get("status")
+
+
+def read_stdout_tail(
+    sandbox_root: Path,
+    study_id: str,
+    experiment_id: str,
+    *,
+    max_lines: int = _LOG_TAIL_LINES,
+) -> str:
+    """Return the last `max_lines` lines of the experiment's stdout.log.
+    Empty string when the file is missing — the UI handles that gracefully.
+    """
+    return (
+        _tail(
+            sandbox_root / study_id / experiment_id / "stdout.log",
+            max_lines=max_lines,
+        )
+        or ""
+    )
+
+
 def _list_submissions(study_dir: Path) -> list[SubmissionRecord]:
     """Return the submission history for one study, newest first."""
     submissions_dir = study_dir / "submissions"
@@ -468,9 +620,12 @@ __all__ = [
     "StudyDetail",
     "ExperimentDetail",
     "SubmissionRecord",
+    "RunningExperiment",
     "TaskView",
     "FailureBreakdown",
     "list_studies",
     "load_study_detail",
     "load_experiment_detail",
+    "find_running_experiment",
+    "read_stdout_tail",
 ]

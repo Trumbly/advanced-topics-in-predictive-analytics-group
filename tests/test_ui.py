@@ -175,6 +175,9 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
     _write_experiment(experiments_dir_a, exp3)
 
     # Sandbox artifacts for exp_001 — code.py + stdout + stderr
+    import os
+    import time as _time
+
     sandbox_a = sandbox_root / "study_a" / "exp_001"
     sandbox_a.mkdir(parents=True)
     (sandbox_a / "code.py").write_text("print('hello, birdclef')\n")
@@ -182,6 +185,11 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
         "loading data...\nmodel built: 42 parameters\nall done\n"
     )
     (sandbox_a / "stderr.log").write_text("")
+    # Set old mtime so the live-monitoring loader does NOT treat these
+    # completed experiments as "currently running".
+    old = _time.time() - 3600  # 1 hour ago
+    for f in sandbox_a.iterdir():
+        os.utime(f, (old, old))
 
     # --- Study B — empty ---------------------------------------------------
     study_b = Study(
@@ -502,3 +510,130 @@ class TestKaggleSubmission:
 
         r = client.get("/studies/study_b")
         assert "Export Kaggle submission" not in r.text
+
+
+# ---------------------------------------------------------------------------
+# Live monitoring
+# ---------------------------------------------------------------------------
+#
+# HTMX partials + JSON endpoints that auto-refresh while a study is
+# running. These test both the "no running experiment" case (our fake
+# study tree is static) and the "fresh sandbox log" case.
+
+
+class TestLiveMonitoring:
+    def test_running_json_returns_false_for_completed_study(
+        self, client: TestClient
+    ) -> None:
+        """Study A is completed — no experiment is running."""
+        r = client.get("/api/studies/study_a/running")
+        assert r.status_code == 200
+        assert r.json()["running"] is False
+
+    def test_running_partial_renders_empty_when_nothing_running(
+        self, client: TestClient
+    ) -> None:
+        """The partial is an empty div with the polling trigger — it
+        will auto-fill when an experiment starts."""
+        r = client.get("/partials/studies/study_a/running")
+        assert r.status_code == 200
+        assert "running-card" in r.text
+        # no "Currently running" label since nothing is running
+        assert "Currently running" not in r.text
+
+    def test_stats_partial_renders_correctly(
+        self, client: TestClient
+    ) -> None:
+        r = client.get("/partials/studies/study_a/stats")
+        assert r.status_code == 200
+        assert "study-stats" in r.text
+
+    def test_stdout_partial_returns_content(
+        self, client: TestClient
+    ) -> None:
+        """exp_001 in our fake tree has a stdout.log with 'all done'."""
+        r = client.get(
+            "/partials/studies/study_a/experiments/exp_001/stdout"
+        )
+        assert r.status_code == 200
+        assert "all done" in r.text
+
+    def test_stdout_partial_for_missing_log(
+        self, client: TestClient
+    ) -> None:
+        """exp_002 has no sandbox directory — must return a placeholder,
+        not 500."""
+        r = client.get(
+            "/partials/studies/study_a/experiments/exp_002/stdout"
+        )
+        assert r.status_code == 200
+        assert "no stdout output" in r.text
+
+    def test_study_detail_includes_htmx_polling(
+        self, client: TestClient
+    ) -> None:
+        """The study detail page must contain HTMX `hx-get` polling
+        attributes so the stat cards and running card auto-refresh."""
+        r = client.get("/studies/study_a")
+        assert r.status_code == 200
+        assert "hx-trigger" in r.text
+        assert "hx-get" in r.text
+        assert "running-card" in r.text
+
+    def test_experiment_detail_has_live_stdout(
+        self, client: TestClient
+    ) -> None:
+        """The experiment detail page must poll the stdout partial."""
+        r = client.get("/studies/study_a/experiments/exp_001")
+        assert r.status_code == 200
+        assert "stdout-tail" in r.text
+        assert "hx-trigger" in r.text
+
+    def test_running_json_with_fresh_log(
+        self, on_disk_studies: tuple[Path, Path]
+    ) -> None:
+        """Simulate a running experiment: create a fresh stdout.log
+        with a recent mtime. The loader should detect it as running."""
+        import time
+
+        from agent.ui.loaders import find_running_experiment
+
+        studies_root, sandbox_root = on_disk_studies
+
+        # Create a "currently writing" sandbox log for exp_003
+        sandbox_003 = sandbox_root / "study_a" / "exp_003"
+        sandbox_003.mkdir(parents=True, exist_ok=True)
+        log = sandbox_003 / "stdout.log"
+        log.write_text("epoch 1/5 starting...\n")
+        # Touch to ensure mtime is NOW
+        import os
+
+        os.utime(log, None)
+
+        result = find_running_experiment(studies_root, sandbox_root, "study_a")
+        assert result is not None
+        assert result.experiment_id == "exp_003"
+        assert "epoch 1/5" in result.stdout_tail
+
+    def test_running_returns_none_for_stale_log(
+        self, on_disk_studies: tuple[Path, Path]
+    ) -> None:
+        """A log that hasn't been written to in >60s is NOT running."""
+        import os
+        import time
+
+        from agent.ui.loaders import find_running_experiment
+
+        studies_root, sandbox_root = on_disk_studies
+
+        # Create a sandbox log but set mtime 120s ago
+        sandbox_004 = sandbox_root / "study_a" / "exp_stale"
+        sandbox_004.mkdir(parents=True, exist_ok=True)
+        log = sandbox_004 / "stdout.log"
+        log.write_text("stale\n")
+        stale_time = time.time() - 120
+        os.utime(log, (stale_time, stale_time))
+
+        result = find_running_experiment(studies_root, sandbox_root, "study_a")
+        # Should be None (exp_001 also has a log but its mtime is old too)
+        assert result is None
