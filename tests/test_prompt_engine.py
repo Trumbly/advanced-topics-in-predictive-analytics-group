@@ -33,8 +33,9 @@ def minimal_template_yaml(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def real_template_paths() -> list[Path]:
-    """All prompt templates checked into the repo."""
-    return sorted(Path("config/prompts").glob("*.yaml"))
+    """All prompt templates checked into the repo (versioned layout)."""
+    # After migration: config/prompts/<task>/v1.yaml, not config/prompts/<task>.yaml
+    return sorted(Path("config/prompts").glob("*/v*.yaml"))
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +156,7 @@ class TestPromptEngineFill:
         return valid JSON and include a concrete example.
         """
         engine = PromptEngine()
-        template = engine.load("config/prompts/propose_architecture.yaml")
+        template = engine.load("config/prompts/propose_architecture/v1.yaml")
         assert template.fallback_when_no_memory is not None
 
         _, user = engine.fill(template, slots={}, use_fallback=True)

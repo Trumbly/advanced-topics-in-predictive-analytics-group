@@ -720,7 +720,7 @@ class Orchestrator:
         # Load the generate_code template — same one as the initial call.
         try:
             template = self.prompt_engine.load(
-                Path("config/prompts/generate_code.yaml")
+                Path("config/prompts/generate_code/v1.yaml")
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("    ⚠ could not load generate_code prompt: %s", exc)
@@ -845,7 +845,7 @@ class Orchestrator:
 
         try:
             template = self.prompt_engine.load(
-                Path("config/prompts/error_recovery.yaml")
+                Path("config/prompts/error_recovery/v1.yaml")
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("    ⚠ could not load error_recovery prompt: %s", exc)
@@ -1047,7 +1047,11 @@ class Orchestrator:
         task.started_at = _now()
         task.status = TaskStatus.RUNNING
 
-        template = self.prompt_engine.load(step.prompt_template)
+        # Prompt A/B testing: check if the Study has a per-task override.
+        # If not, fall back to the pipeline's default prompt_template.
+        override_path = self.study.prompt_template_paths.get(step.task_name)
+        template_path = override_path if override_path else step.prompt_template
+        template = self.prompt_engine.load(template_path)
 
         extra_slots = self._extra_slots_for_task(
             step.task_name, experiment, previous_task_output

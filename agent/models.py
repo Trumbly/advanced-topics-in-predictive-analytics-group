@@ -162,6 +162,12 @@ class Study(AgentBaseModel):
     best_score: float | None = None
     submissions: list[Path] = Field(default_factory=list)
 
+    # Study continuation (Feature 3): build on a predecessor study's memory
+    predecessor_study_id: str | None = Field(
+        default=None,
+        description="ID of the study this one builds upon (inherits memory + report context)",
+    )
+
     status: StudyStatus = StudyStatus.ACTIVE
     created_at: datetime
     updated_at: datetime
@@ -378,6 +384,41 @@ class PromptTemplate(AgentBaseModel):
     slots: list[str] = Field(default_factory=list, description="Required slot names")
     fallback_when_no_memory: str | None = None
     response_schema: dict[str, Any] | None = None
+
+
+# ---------------------------------------------------------------------------
+# Prompt versioning (A/B testing)
+# ---------------------------------------------------------------------------
+
+
+class PromptVersionMeta(AgentBaseModel):
+    """Metadata for one immutable prompt version.
+
+    Stored in `config/prompts/_registry.yaml` under
+    `tasks.<task_name>.versions.<version>`.
+    """
+
+    version: str = Field(description="e.g. 'v1', 'v2'")
+    created_at: datetime
+    created_by: str = ""
+    description: str = ""
+
+
+class PromptTaskEntry(AgentBaseModel):
+    """Registry entry for one task's prompt versions."""
+
+    default_version: str = Field(description="e.g. 'v1'")
+    versions: dict[str, PromptVersionMeta] = Field(default_factory=dict)
+
+
+class PromptRegistry(AgentBaseModel):
+    """Root schema for `config/prompts/_registry.yaml`.
+
+    Tracks which prompt versions exist per task, which is the default,
+    and immutability metadata (created_at, created_by).
+    """
+
+    tasks: dict[str, PromptTaskEntry] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

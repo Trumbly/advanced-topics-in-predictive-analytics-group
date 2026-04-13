@@ -98,7 +98,7 @@ def llm_client() -> LLMClient:
 
 @pytest.fixture
 def propose_template_path() -> Path:
-    return Path("config/prompts/propose_architecture.yaml")
+    return Path("config/prompts/propose_architecture/v1.yaml")
 
 
 @pytest.fixture

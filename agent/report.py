@@ -130,7 +130,7 @@ class ReportGenerator:
     llm_client: LLMClient
     prompt_engine: PromptEngine
     study_dir: Path
-    prompt_path: Path = Path("config/prompts/report.yaml")
+    prompt_path: Path = Path("config/prompts/report/v1.yaml")
 
     # -- public API ---------------------------------------------------------
 

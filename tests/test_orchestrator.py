@@ -127,12 +127,12 @@ def pipeline_yaml(tmp_path: Path) -> Path:
             {
                 "task_name": "propose_architecture",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/propose_architecture.yaml",
+                "prompt_template": "config/prompts/propose_architecture/v1.yaml",
             },
             {
                 "task_name": "generate_code",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/generate_code.yaml",
+                "prompt_template": "config/prompts/generate_code/v1.yaml",
             },
             {
                 "task_name": "execute_training",
@@ -148,7 +148,7 @@ def pipeline_yaml(tmp_path: Path) -> Path:
             {
                 "task_name": "analyze_results",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/analyze_results.yaml",
+                "prompt_template": "config/prompts/analyze_results/v1.yaml",
             },
         ],
     }
@@ -609,12 +609,12 @@ def pipeline_yaml_with_validate(tmp_path: Path) -> Path:
             {
                 "task_name": "propose_architecture",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/propose_architecture.yaml",
+                "prompt_template": "config/prompts/propose_architecture/v1.yaml",
             },
             {
                 "task_name": "generate_code",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/generate_code.yaml",
+                "prompt_template": "config/prompts/generate_code/v1.yaml",
             },
             {
                 "task_name": "validate_code",
@@ -636,7 +636,7 @@ def pipeline_yaml_with_validate(tmp_path: Path) -> Path:
             {
                 "task_name": "analyze_results",
                 "task_type": "llm",
-                "prompt_template": "config/prompts/analyze_results.yaml",
+                "prompt_template": "config/prompts/analyze_results/v1.yaml",
             },
         ],
     }
