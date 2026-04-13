@@ -1,14 +1,14 @@
-# Study: testing
+# Study: full_dataset_v3
 
-- **ID:** study_20260413_235156_testing
+- **ID:** study_20260413_225701_full_dataset_v3
 - **Status:** active
 - **Mode:** autonomous
-- **Hypothesis:** Use pretrained models
-- **Created:** 2026-04-13 22:51:56.710869+00:00
-- **Updated:** 2026-04-13 22:51:57.486124+00:00
+- **Hypothesis:** 7 epochs max, early stopping patience=3, batch_size=128, pretrained EfficientNet-B0 first then other pretrained moels for audio and images, cosine LR
+- **Created:** 2026-04-13 22:57:01.060077+00:00
+- **Updated:** 2026-04-13 22:57:01.775967+00:00
 
 ## Compute Budget
-- max_experiments: 2
+- max_experiments: 10
 - max_wallclock_minutes: 480
 - max_experiment_seconds: 14400
 - max_epochs_per_run: 7

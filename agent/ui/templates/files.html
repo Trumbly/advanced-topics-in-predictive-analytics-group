@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Files · BirdCLEF Agent{% endblock %}
+{% block content %}
+
+<div class="flex gap-4" style="height: calc(100vh - 180px);">
+
+  <!-- Sidebar: directory tree -->
+  <div id="sidebar" class="w-72 flex-shrink-0 rounded-lg border border-slate-200 bg-white overflow-y-auto">
+    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
+      <h2 class="font-semibold text-sm text-slate-700">Project Files</h2>
+      <p class="text-xs text-slate-400 mt-0.5" id="breadcrumb">/</p>
+    </div>
+    <div id="tree" class="text-sm">
+      <div class="px-4 py-8 text-center text-slate-400 text-xs">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Main: file content viewer -->
+  <div class="flex-1 rounded-lg border border-slate-200 bg-white overflow-hidden flex flex-col">
+    <div id="file-header" class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+      <div>
+        <span id="file-name" class="font-semibold text-sm text-slate-700">Select a file to view</span>
+        <span id="file-meta" class="ml-3 text-xs text-slate-400"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="file-lang" class="text-xs font-mono text-slate-500 bg-slate-100 rounded px-2 py-0.5"></span>
+      </div>
+    </div>
+    <div id="file-content" class="flex-1 overflow-auto bg-slate-900 p-0">
+      <div class="flex items-center justify-center h-full text-slate-500 text-sm">
+        <div class="text-center">
+          <p class="text-4xl mb-3">📂</p>
+          <p>Click a file in the sidebar to view its contents</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---- State ----
+let _currentPath = "";  // current directory being shown
+let _pathStack = [];     // breadcrumb stack
+
+// ---- Icons ----
+function fileIcon(name) {
+  if (name.endsWith(".py")) return "🐍";
+  if (name.endsWith(".yaml") || name.endsWith(".yml")) return "⚙️";
+  if (name.endsWith(".json")) return "📋";
+  if (name.endsWith(".md")) return "📝";
+  if (name.endsWith(".log")) return "📄";
+  if (name.endsWith(".toml")) return "🔧";
+  if (name.endsWith(".sh") || name.endsWith(".bash")) return "💻";
+  return "📄";
+}
+function dirIcon(name) {
+  const icons = {
+    agent: "🤖", config: "⚙️", pipelines: "🔀", sandbox: "🧪",
+    experiments: "🧬", scripts: "💻", tests: "✅", notebooks: "📓",
+    models: "🧠", registry: "📦", dashboard: "📊", reports: "📈",
+    data: "💾", handlers: "🔌", ui: "🖥️", prompts: "💬",
+    templates: "🎨", static: "🎯",
+  };
+  return icons[name] || "📁";
+}
+
+// ---- Format file size ----
+function fmtSize(bytes) {
+  if (!bytes) return "";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + " KB";
+  return (bytes/1024/1024).toFixed(1) + " MB";
+}
+
+// ---- Load directory tree ----
+async function loadTree(path) {
+  const treeEl = document.getElementById("tree");
+  treeEl.innerHTML = `<div class="px-4 py-4 text-center text-slate-400 text-xs">Loading...</div>`;
+
+  try {
+    const r = await fetch(`/api/files/tree?path=${encodeURIComponent(path)}`);
+    if (!r.ok) {
+      const err = await r.json();
+      treeEl.innerHTML = `<div class="px-4 py-4 text-center text-red-400 text-xs">${err.detail || "Error"}</div>`;
+      return;
+    }
+    const data = await r.json();
+    _currentPath = path;
+    updateBreadcrumb(path);
+    renderTree(data.entries);
+  } catch (e) {
+    treeEl.innerHTML = `<div class="px-4 py-4 text-center text-red-400 text-xs">Failed to load</div>`;
+  }
+}
+
+function renderTree(entries) {
+  const treeEl = document.getElementById("tree");
+  if (!entries.length) {
+    treeEl.innerHTML = `<div class="px-4 py-4 text-center text-slate-400 text-xs">Empty directory</div>`;
+    return;
+  }
+
+  let html = "";
+
+  // Back button if not at root
+  if (_currentPath) {
+    const parent = _currentPath.includes("/")
+      ? _currentPath.substring(0, _currentPath.lastIndexOf("/"))
+      : "";
+    html += `
+      <button onclick="loadTree('${parent}')"
+        class="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-500 border-b border-slate-100">
+        <span>⬆️</span>
+        <span class="text-xs">..</span>
+      </button>`;
+  }
+
+  for (const entry of entries) {
+    if (entry.type === "dir") {
+      html += `
+        <button onclick="loadTree('${entry.path}')"
+          class="w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2 group border-b border-slate-50">
+          <span>${dirIcon(entry.name)}</span>
+          <span class="font-medium text-slate-800 group-hover:text-blue-700">${escHtml(entry.name)}</span>
+          <span class="ml-auto text-xs text-slate-400">›</span>
+        </button>`;
+    } else {
+      const size = fmtSize(entry.size);
+      html += `
+        <button onclick="loadFile('${entry.path}')"
+          class="w-full text-left px-4 py-2 hover:bg-emerald-50 flex items-center gap-2 group border-b border-slate-50"
+          id="entry-${entry.path.replace(/[^a-zA-Z0-9]/g, '_')}">
+          <span>${fileIcon(entry.name)}</span>
+          <span class="text-slate-700 group-hover:text-emerald-700">${escHtml(entry.name)}</span>
+          <span class="ml-auto text-xs text-slate-400">${size}</span>
+        </button>`;
+    }
+  }
+  treeEl.innerHTML = html;
+}
+
+function updateBreadcrumb(path) {
+  const el = document.getElementById("breadcrumb");
+  if (!path) {
+    el.innerHTML = `<span class="cursor-pointer hover:text-slate-600" onclick="loadTree('')">/</span>`;
+    return;
+  }
+  const parts = path.split("/");
+  let html = `<span class="cursor-pointer hover:text-slate-600" onclick="loadTree('')">/</span>`;
+  let cumulative = "";
+  for (let i = 0; i < parts.length; i++) {
+    cumulative += (i > 0 ? "/" : "") + parts[i];
+    const p = cumulative;
+    html += ` <span class="cursor-pointer hover:text-slate-600" onclick="loadTree('${p}')">${parts[i]}</span>`;
+    if (i < parts.length - 1) html += ` <span class="text-slate-300">/</span>`;
+  }
+  el.innerHTML = html;
+}
+
+// ---- Load file content ----
+async function loadFile(path) {
+  const contentEl = document.getElementById("file-content");
+  const nameEl = document.getElementById("file-name");
+  const metaEl = document.getElementById("file-meta");
+  const langEl = document.getElementById("file-lang");
+
+  nameEl.textContent = path.split("/").pop();
+  metaEl.textContent = "Loading...";
+  langEl.textContent = "";
+  contentEl.innerHTML = `<div class="flex items-center justify-center h-full text-slate-500 text-sm">Loading...</div>`;
+
+  try {
+    const r = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
+    if (!r.ok) {
+      const err = await r.json();
+      contentEl.innerHTML = `<div class="p-4 text-red-400 text-sm">${err.detail || "Error loading file"}</div>`;
+      metaEl.textContent = "";
+      return;
+    }
+    const data = await r.json();
+    nameEl.textContent = data.name;
+    metaEl.textContent = `${data.lines} lines · ${fmtSize(data.size)} · ${path}`;
+    langEl.textContent = data.language;
+
+    // Render with line numbers
+    const lines = data.content.split("\n");
+    const gutterWidth = String(lines.length).length;
+    let html = `<table class="w-full" style="border-collapse: collapse;"><tbody>`;
+    for (let i = 0; i < lines.length; i++) {
+      const num = i + 1;
+      const lineContent = escHtml(lines[i]) || " ";
+      html += `<tr class="hover:bg-slate-800/50">`;
+      html += `<td class="select-none text-right pr-4 pl-4 text-slate-600 text-xs font-mono align-top" style="width: ${gutterWidth + 2}ch; user-select: none;">${num}</td>`;
+      html += `<td class="pr-4 text-slate-200 text-xs font-mono whitespace-pre-wrap break-all" style="tab-size: 4;">${lineContent}</td>`;
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    contentEl.innerHTML = html;
+
+  } catch (e) {
+    contentEl.innerHTML = `<div class="p-4 text-red-400 text-sm">Failed to load file</div>`;
+    metaEl.textContent = "";
+  }
+}
+
+function escHtml(t) {
+  if (!t) return "";
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ---- Initialize ----
+loadTree("");
+</script>
+
+{% endblock %}

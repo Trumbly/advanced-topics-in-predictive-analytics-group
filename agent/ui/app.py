@@ -227,6 +227,49 @@ def create_app(
             raise HTTPException(status_code=404, detail="Experiment not found")
         return JSONResponse(detail.training_curves)
 
+    @app.get("/api/studies/{study_id}/log")
+    def api_study_log(study_id: str, lines: int = 200) -> JSONResponse:
+        """Return the last N lines of the orchestrator log + live experiment
+        stdout for a running study.  The terminal panel polls this."""
+        study_dir = studies_root / study_id
+        if not study_dir.exists():
+            raise HTTPException(status_code=404, detail="Study not found")
+
+        # 1. Orchestrator log (agent-level output)
+        orch_log = study_dir / "orchestrator.log"
+        orch_lines: list[str] = []
+        if orch_log.exists():
+            try:
+                raw = orch_log.read_text(errors="replace")
+                orch_lines = raw.splitlines()[-(lines):]
+            except OSError:
+                pass
+
+        # 2. Live experiment stdout (training progress)
+        live_stdout = ""
+        running = find_running_experiment(studies_root, sandbox_root, study_id)
+        if running and running.experiment_id:
+            stdout_path = (
+                sandbox_root / study_id / running.experiment_id / "stdout.log"
+            )
+            if stdout_path.exists():
+                try:
+                    raw = stdout_path.read_text(errors="replace")
+                    live_stdout = "\n".join(raw.splitlines()[-80:])
+                except OSError:
+                    pass
+
+        # 3. Process status
+        pm_info = pm_get_status(study_dir)
+        alive = pm_info.alive if pm_info else False
+
+        return JSONResponse({
+            "alive": alive,
+            "orchestrator_log": "\n".join(orch_lines),
+            "live_experiment": running.experiment_id if running else None,
+            "live_stdout": live_stdout,
+        })
+
     @app.get("/api/healthz")
     def healthz() -> JSONResponse:
         return JSONResponse(
@@ -489,6 +532,146 @@ def create_app(
                 "submission_filename": output_path.name,
             }
         )
+
+    # ---- File browser ------------------------------------------------------
+
+    # Directories the file browser is allowed to serve (relative to repo root).
+    _BROWSABLE_DIRS = [
+        "agent", "config", "pipelines", "sandbox", "experiments",
+        "scripts", "tests", "notebooks", "models", "registry",
+        "dashboard", "reports", "data",
+    ]
+    # Also allow top-level files like README.md, LICENSE, etc.
+    _BROWSABLE_EXTENSIONS = {
+        ".py", ".yaml", ".yml", ".json", ".toml", ".md", ".txt",
+        ".cfg", ".ini", ".sh", ".bash", ".csv", ".log",
+    }
+    _MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB cap for viewing
+
+    def _repo_root() -> Path:
+        return studies_root.parent.parent
+
+    def _safe_resolve(rel_path: str) -> Path | None:
+        """Resolve a relative path and ensure it stays inside the repo."""
+        repo = _repo_root()
+        try:
+            target = (repo / rel_path).resolve()
+        except (ValueError, OSError):
+            return None
+        # Must stay inside the repo root
+        try:
+            target.relative_to(repo.resolve())
+        except ValueError:
+            return None
+        return target
+
+    @app.get("/files", response_class=HTMLResponse)
+    def files_index(request: Request) -> Any:
+        return templates.TemplateResponse(request, "files.html", {})
+
+    @app.get("/api/files/tree")
+    def api_file_tree(path: str = "") -> JSONResponse:
+        """Return directory listing for the file browser."""
+        repo = _repo_root()
+        if not path:
+            # Top-level: return the browsable directories + top-level files
+            entries: list[dict[str, Any]] = []
+            for name in sorted(_BROWSABLE_DIRS):
+                d = repo / name
+                if d.is_dir():
+                    count = sum(1 for _ in d.rglob("*") if _.is_file())
+                    entries.append({
+                        "name": name, "type": "dir", "path": name,
+                        "children_count": count,
+                    })
+            # Top-level files
+            for f in sorted(repo.iterdir()):
+                if f.is_file() and f.suffix in _BROWSABLE_EXTENSIONS:
+                    entries.append({
+                        "name": f.name, "type": "file", "path": f.name,
+                        "size": f.stat().st_size,
+                    })
+            return JSONResponse({"path": "", "entries": entries})
+
+        target = _safe_resolve(path)
+        if target is None or not target.exists():
+            raise HTTPException(status_code=404, detail="Path not found")
+
+        # Ensure we're inside a browsable directory
+        rel = target.relative_to(repo.resolve())
+        top_dir = rel.parts[0] if rel.parts else ""
+        if top_dir not in _BROWSABLE_DIRS and not target.is_file():
+            raise HTTPException(status_code=403, detail="Not a browsable path")
+
+        if target.is_file():
+            raise HTTPException(
+                status_code=400,
+                detail="Use /api/files/content for file contents",
+            )
+
+        entries = []
+        try:
+            children = sorted(
+                target.iterdir(),
+                key=lambda p: (not p.is_dir(), p.name.lower()),
+            )
+        except PermissionError:
+            children = []
+
+        for child in children:
+            if child.name.startswith(".") or child.name == "__pycache__":
+                continue
+            rel_child = str(child.relative_to(repo.resolve()))
+            if child.is_dir():
+                entries.append({
+                    "name": child.name, "type": "dir", "path": rel_child,
+                })
+            elif child.suffix in _BROWSABLE_EXTENSIONS:
+                try:
+                    size = child.stat().st_size
+                except OSError:
+                    size = 0
+                entries.append({
+                    "name": child.name, "type": "file",
+                    "path": rel_child, "size": size,
+                })
+        return JSONResponse({"path": path, "entries": entries})
+
+    @app.get("/api/files/content")
+    def api_file_content(path: str) -> JSONResponse:
+        """Return the text content of a single file."""
+        target = _safe_resolve(path)
+        if target is None or not target.exists() or not target.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        if target.suffix not in _BROWSABLE_EXTENSIONS:
+            raise HTTPException(status_code=403, detail="File type not viewable")
+
+        if target.stat().st_size > _MAX_FILE_SIZE:
+            raise HTTPException(status_code=413, detail="File too large to view")
+
+        try:
+            content = target.read_text(errors="replace")
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        # Determine language for syntax highlighting
+        lang_map = {
+            ".py": "python", ".yaml": "yaml", ".yml": "yaml",
+            ".json": "json", ".toml": "toml", ".md": "markdown",
+            ".txt": "text", ".sh": "bash", ".bash": "bash",
+            ".log": "text", ".cfg": "ini", ".ini": "ini",
+            ".csv": "text",
+        }
+        lang = lang_map.get(target.suffix, "text")
+        return JSONResponse({
+            "path": path,
+            "name": target.name,
+            "language": lang,
+            "content": content,
+            "size": len(content),
+            "lines": content.count("\n") + 1,
+        })
 
     # ---- Start / Stop controls -------------------------------------------
 

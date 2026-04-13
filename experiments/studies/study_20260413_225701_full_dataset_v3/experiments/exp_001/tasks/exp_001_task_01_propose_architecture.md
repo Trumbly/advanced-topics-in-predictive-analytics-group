@@ -4,8 +4,8 @@
 - **Type:** llm
 - **Name:** propose_architecture
 - **Status:** completed
-- **Started:** 2026-04-13 22:51:57.486294+00:00
-- **Completed:** 2026-04-13 22:52:52.126643+00:00
+- **Started:** 2026-04-13 22:57:01.776160+00:00
+- **Completed:** 2026-04-13 22:57:16.565996+00:00
 
 ## Prompt Used
 ```
@@ -125,22 +125,22 @@ family a fourth time in a row is forbidden.
 
 
 [USER]
-No previous experiments yet. Your first job is to verify the pipeline
-runs end-to-end with the fastest possible baseline: CnnSmallV1 from the
-registry, 2 epochs, batch_size 32, Adam lr=1e-3, light augmentation.
-Ambitious architectures come later — this run is a smoke test.
+No previous experiments yet. Your first job is to establish a strong
+baseline with a pretrained EfficientNet-B0 backbone via TorchvisionAdapter,
+7 epochs, Adam lr=1e-3, light augmentation. Pretrained backbones
+consistently reach 0.90+ ROC-AUC — always start with one.
 
 You MUST return ONLY valid JSON, nothing else. No prose, no markdown
 fences, no explanation. Your entire response must be parseable as a
 JSON object with exactly this shape:
 
 {
-  "architecture": "[custom_cnn] cnn_small_v1 baseline",
-  "pretrained_model": null,
+  "architecture": "[efficientnet_b0] pretrained EfficientNet-B0 baseline",
+  "pretrained_model": "efficientnet_b0",
   "hyperparams": {
     "lr": 0.001,
     "batch_size": 128,
-    "epochs": 1,
+    "epochs": 7,
     "optimizer": "adam",
     "weight_decay": 0.0,
     "dropout": 0.1
@@ -163,12 +163,12 @@ Later proposals MUST start the architecture string with a different
 ```
 ```json
 {
-  "architecture": "[custom_cnn] cnn_small_v1 baseline",
-  "pretrained_model": null,
+  "architecture": "[efficientnet_b0] pretrained EfficientNet-B0 baseline",
+  "pretrained_model": "efficientnet_b0",
   "hyperparams": {
     "lr": 0.001,
     "batch_size": 128,
-    "epochs": 1,
+    "epochs": 7,
     "optimizer": "adam",
     "weight_decay": 0.0,
     "dropout": 0.1
@@ -184,4 +184,4 @@ Later proposals MUST start the architecture string with a different
 ```
 
 ## Output
-- **architecture_proposal:** {'architecture': '[custom_cnn] cnn_small_v1 baseline', 'pretrained_model': None, 'hyperparams': {'lr': 0.001, 'batch_size': 128, 'epochs': 1, 'optimizer': 'adam', 'weight_decay': 0.0, 'dropout': 0.1}, 'augmentation': {'time_shift': True, 'noise_injection': True, 'mixup': 0.0, 'specaugment': False}}
+- **architecture_proposal:** {'architecture': '[efficientnet_b0] pretrained EfficientNet-B0 baseline', 'pretrained_model': 'efficientnet_b0', 'hyperparams': {'lr': 0.001, 'batch_size': 128, 'epochs': 7, 'optimizer': 'adam', 'weight_decay': 0.0, 'dropout': 0.1}, 'augmentation': {'time_shift': True, 'noise_injection': True, 'mixup': 0.0, 'specaugment': False}}
