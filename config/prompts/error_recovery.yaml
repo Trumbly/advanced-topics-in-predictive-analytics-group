@@ -134,9 +134,10 @@ system: |
     - `AttributeError: 'Dropout' object has no attribute 'set'` or similar
       made-up methods:
         Use only documented PyTorch APIs. nn.Dropout has no `.set()`.
-    - `EpochsCapExceeded: EPOCHS = N exceeds the hard cap of 1`:
-        Change the literal `EPOCHS = N` line to `EPOCHS = 1`. Do not use
-        `max(1, ...)` or `min(..., 1)` — just write `EPOCHS = 1`.
+    - `EpochsCapExceeded: EPOCHS = N exceeds the hard cap`:
+        Replace the literal `EPOCHS = N` with the env-var pattern:
+            EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
+        Do NOT hardcode a literal like `EPOCHS = 15` — use the env var.
     - `AttributeError: 'Conv2dNormActivation' object has no attribute 'kernel_size'`:
         MobileNetV3's first layer is `Conv2dNormActivation`, not `nn.Conv2d`.
         Do NOT access `.kernel_size` on it. Use the TorchvisionAdapter from

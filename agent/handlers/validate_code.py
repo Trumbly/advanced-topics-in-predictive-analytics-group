@@ -259,15 +259,12 @@ def validate(
 
     # 8. EPOCHS cap enforcement. If the pipeline config set `max_epochs`,
     #    any top-level constant assignment `EPOCHS = <int>` with a value
-    #    larger than max_epochs gets rejected. This is a HARD enforcement
-    #    of the fast-iteration mode because the LLM repeatedly ignores the
-    #    prompt's "CAP at 1" instruction.
+    #    larger than max_epochs gets rejected.
     #
-    #    The preferred pattern is now:
-    #        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
-    #    which is ACCEPTED regardless of `max_epochs` — the orchestrator
-    #    controls the env var during promotion. We only reject literal
-    #    integer assignments that exceed the cap.
+    #    The preferred pattern is:
+    #        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
+    #    which is ACCEPTED as long as the default is within the cap.
+    #    We only reject literal integer assignments that exceed the cap.
     if max_epochs is not None:
         for node in tree.body:
             if isinstance(node, ast.Assign):
@@ -286,7 +283,7 @@ def validate(
                                 error_type="EpochsCapExceeded",
                                 message=(
                                     f"BIRDCLEF_EPOCHS default {env_default} exceeds "
-                                    f"the hard cap of {max_epochs}. Use default '1'."
+                                    f"the hard cap of {max_epochs}. Use default '15'."
                                 ),
                             )
                         continue  # env-var pattern is fine
@@ -302,7 +299,7 @@ def validate(
                             message=(
                                 f"EPOCHS = {node.value.value} exceeds the hard "
                                 f"cap of {max_epochs} (fast-iteration mode). "
-                                f"Use `EPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"1\"))`."
+                                f"Use `EPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"15\"))`."
                             ),
                         )
 

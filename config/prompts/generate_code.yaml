@@ -100,7 +100,7 @@ system: |
         class MyModel(nn.Module):   # if writing a custom model
             ...
 
-        EPOCHS = 1
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
         LR = 1e-3
         AUGMENTATION = {...}
 
@@ -210,18 +210,22 @@ system: |
     `training_curves`. The `roc_auc_macro` remains the primary sort
     metric — the others are for comparison and reporting.
   - EPOCHS must be read from the `BIRDCLEF_EPOCHS` env var with a
-    DEFAULT of `"1"`. Write the EXACT line below — do NOT hardcode a
-    literal like `EPOCHS = 1` or `EPOCHS = 5`:
+    DEFAULT of `"15"`. Write the EXACT line below:
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
 
-    Why: the smoke phase runs with BIRDCLEF_EPOCHS=1 so we can iterate
-    fast. The promotion phase (at the end of a study) re-runs top-K
-    experiments with a higher BIRDCLEF_EPOCHS to get a real score.
-    Your code must transparently support both. Do NOT copy the proposed
-    epochs value from the proposal's `hyperparams.epochs` — that number
-    is ignored. Any code with a literal `EPOCHS = <int>` constant where
-    `<int>` exceeds 1 will be rejected at validation time.
+    15 epochs is the recommended default — enough to converge without
+    overfitting on this dataset size. You MAY use a different default
+    (10-20) if your architecture proposal suggests it.
+  - **Learning rate scheduler** — ALWAYS add a cosine annealing scheduler
+    for better convergence:
+
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=EPOCHS
+        )
+
+    Call `scheduler.step()` at the END of each epoch (after validation).
+    This is critical for reaching high ROC-AUC scores.
   - At the VERY END of the script, write `results.json` in the CURRENT
     directory. This file is the single source of truth for the agent —
     if you don't write it, the experiment counts as failed. Schema:
@@ -493,15 +497,9 @@ system: |
       # come from config/config.yaml `training:` via env vars — do NOT
       # hardcode them here. The data loader picks them up automatically.
       #
-      # EPOCHS is ALSO read from an env var. During the smoke phase the
-      # orchestrator sets BIRDCLEF_EPOCHS=1 (fast-iteration mode). During
-      # the optional PROMOTION phase at the end of a study, the orchestrator
-      # re-runs top-K smoke-phase experiments with a higher
-      # BIRDCLEF_EPOCHS value (e.g. 5) to get a realistic final score.
-      # Your code must ALWAYS read this env var — do NOT hardcode a
-      # literal `EPOCHS = 1` next to it. The default of 1 keeps fast
-      # iteration working when no env var is set.
-      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
+      # EPOCHS is read from an env var so the orchestrator can override it.
+      # Default 15 — enough epochs for models to converge properly.
+      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
 
@@ -556,6 +554,9 @@ system: |
               print(f"model built: {n_params:,} parameters", flush=True)
 
               optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+              scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                  optimizer, T_max=EPOCHS
+              )
               # Per-class pos_weight from the DatasetProfile — critical
               # for the heavy long-tail class imbalance. Capped at 50x.
               pos_weight = compute_pos_weight().to(device)
@@ -639,6 +640,7 @@ system: |
                       f"cmap@5={val_cmap5:.4f} f1={val_f1:.4f}",
                       flush=True,
                   )
+                  scheduler.step()
 
               results = {
                   "metrics": {

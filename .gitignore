@@ -27,8 +27,9 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
-# Data (raw audio too large for git — ~30 GB)
+# Data (too large for git — kept locally only)
 data/raw/
+data/processed/
 *.ogg
 *.wav
 *.mp3

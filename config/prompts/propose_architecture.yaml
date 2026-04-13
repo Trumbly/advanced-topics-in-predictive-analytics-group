@@ -52,6 +52,12 @@ system: |
           EfficientNet-B4+, ViT, or anything with >10M parameters.
       If a previous experiment failed with "MPS backend out of memory",
       propose a SMALLER architecture next time.
+    - **Prefer pretrained backbones with transfer learning**. Pretrained
+      ImageNet weights give a massive head-start on spectrogram features.
+      EfficientNet-B0 and MobileNetV3-Small via TorchvisionAdapter
+      consistently reach 0.85-0.95 ROC-AUC when trained for 10-15 epochs.
+      Custom CNNs from scratch rarely exceed 0.7. If the goal is high
+      ROC-AUC, always try a pretrained backbone first.
     - The final Kaggle submission notebook must run on CPU only within 90 minutes.
       Do not propose architectures whose inference cost cannot plausibly fit
       that CPU budget on 35k spectrograms.
