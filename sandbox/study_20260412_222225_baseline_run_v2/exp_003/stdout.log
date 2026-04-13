@@ -1,0 +1,4 @@
+device: mps
+loading data...
+data loaded: 10 classes, 353 train samples, 89 val samples
+training failed: RuntimeError: Input type (MPSFloatType) and weight type (torch.FloatTensor) should be the same

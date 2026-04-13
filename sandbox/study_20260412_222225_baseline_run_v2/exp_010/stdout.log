@@ -1,0 +1,17 @@
+--- Starting BirdCLEF Training Run ---
+Device: mps
+Loading precomputed dataset...
+Dataset loaded. Number of classes: 10
+Model initialized.
+
+--- Epoch 1/1 ---
+Training Loss: 0.9013
+Training step complete.
+
+--- Starting Validation ---
+Validation batch 1/1 complete.
+
+--- Evaluation Complete ---
+Metrics calculated: {'roc_auc_macro': 0.5698700568424729, 'ap_score_macro': 0.17494513497905928, 'loss': 0.9012949282769114}
+
+Successfully wrote results to results.json

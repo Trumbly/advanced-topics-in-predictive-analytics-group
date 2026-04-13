@@ -1,0 +1,65 @@
+{
+  "experiment_id": "exp_005",
+  "study_id": "study_20260412_222225_baseline_run_v2",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_005_task_01_propose_architecture",
+    "exp_005_task_02_generate_code",
+    "exp_005_task_03_validate_code",
+    "exp_005_task_04_execute_training",
+    "exp_005_task_05_capture_metrics",
+    "exp_005_recovery_01_error_recovery",
+    "exp_005_task_06_validate_code",
+    "exp_005_task_07_execute_training",
+    "exp_005_task_08_capture_metrics",
+    "exp_005_task_09_analyze_results"
+  ],
+  "config": {
+    "architecture": "[efficientnet_b0] EfficientNet-B0 backbone adapted for spectrograms, followed by a Global Average Pooling layer for robust feature summarization before the final linear head.",
+    "pretrained_model": "efficientnet_b0",
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.15
+    },
+    "augmentation": {
+      "time_shift": true,
+      "noise_injection": true,
+      "mixup": 0.5,
+      "specaugment": true
+    }
+  },
+  "results": {
+    "metrics": {
+      "roc_auc_macro": 0.4542280327778001,
+      "cmap_at_5": 0.16191298470298685,
+      "f1_macro": 0.08615546183802647,
+      "loss": 8.428512573242188
+    },
+    "training_curves": {
+      "loss": [
+        8.428512573242188
+      ],
+      "roc_auc_macro": [
+        0.4542280327778001
+      ],
+      "cmap_at_5": [
+        0.16191298470298685
+      ],
+      "f1_macro": [
+        0.08615546183802647
+      ]
+    },
+    "duration_seconds": 6.238215923309326,
+    "peak_ram_mb": null,
+    "val_predictions_path": null
+  },
+  "submission_path": null,
+  "status": "completed",
+  "created_at": "2026-04-12T23:13:34.470083Z",
+  "started_at": "2026-04-12T23:13:34.470083Z",
+  "completed_at": "2026-04-12T23:20:10.522532Z"
+}

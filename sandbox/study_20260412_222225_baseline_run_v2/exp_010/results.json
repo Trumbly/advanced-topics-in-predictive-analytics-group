@@ -1,0 +1,14 @@
+{
+    "model_architecture": "cnn_attention_model",
+    "hyperparameters": {
+        "lr": 0.001,
+        "epochs": 1,
+        "batch_size": "512",
+        "device": "mps"
+    },
+    "metrics": {
+        "roc_auc_macro": 0.5698700568424729,
+        "ap_score_macro": 0.17494513497905928,
+        "loss": 0.9012949282769114
+    }
+}

@@ -1,0 +1,1 @@
+{"error": "RuntimeError: Input type (MPSFloatType) and weight type (torch.FloatTensor) should be the same"}

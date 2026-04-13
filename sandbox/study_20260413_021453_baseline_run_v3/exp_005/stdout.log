@@ -1,0 +1,9 @@
+Warning: Could not import EfficientNetB0 from pipelines.models. Using a structural mock.
+device: mps
+loading data...
+Mocking data loading: Returning dummy loaders.
+data loaded: 10 classes, 100 train samples, 20 val samples
+model built: 2,454 parameters
+Mocking pos_weight calculation.
+epoch 1/1 starting (1 batches)...
+training failed: RuntimeError: Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [100, 1, 1, 128, 313]

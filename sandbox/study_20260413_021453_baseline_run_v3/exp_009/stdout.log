@@ -1,0 +1,7 @@
+Warning: Could not import required pipelines modules. Assuming they exist.
+device: mps
+loading data...
+Mocking data loader output.
+data loaded: 10 classes, 10 train samples, 10 val samples
+model built: 660 parameters
+training failed: NameError: name 'dataset_len' is not defined

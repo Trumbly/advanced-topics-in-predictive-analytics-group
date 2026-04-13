@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_016_task_11_capture_metrics",
+  "experiment_id": "exp_016",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_016/results.json",
+    "raw_results": {
+      "error": "name 'load_precomputed_dataset' is not defined"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "name 'load_precomputed_dataset' is not defined",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T06:22:12.760303Z",
+  "completed_at": "2026-04-13T06:22:12.760433Z"
+}

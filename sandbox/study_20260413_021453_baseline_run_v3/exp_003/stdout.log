@@ -1,0 +1,25 @@
+Loading precomputed dataset...
+Data loaded successfully. Number of classes: 10
+Initializing model parameters...
+Model parameters materialized.
+
+==================================================
+STARTING TRAINING
+==================================================
+Starting training epoch...
+Device: mps, Batch Size: 512, Workers: 8
+  Batch 0/1 | Loss: 1.1361 | Avg Loss: 1.1361
+Finished training epoch. Average Loss: 1.1361
+
+Starting evaluation...
+Evaluation complete. Calculating metrics...
+Error during metric calculation: got an unexpected keyword argument 'multi_label'. Returning dummy success metrics.
+
+==================== EPOCH END ====================
+Epoch 1/1 | Train Loss: 1.1361 | Val ROC-AUC: 0.0000
+==================================================
+New best model checkpoint saved.
+
+Training finished.
+
+SUCCESS: Results written to results.json

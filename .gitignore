@@ -27,9 +27,8 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
-# Data (too large for git)
+# Data (raw audio too large for git — ~30 GB)
 data/raw/
-data/processed/
 *.ogg
 *.wav
 *.mp3
@@ -46,11 +45,9 @@ models/
 
 # Experiment logs (keep structure, ignore large outputs)
 experiments/*/outputs/
-experiments/studies/
 
-# Sandbox workdir (all per-study subdirs are ignored)
-sandbox/*
-!sandbox/.gitkeep
+# Sandbox workdir — keep generated code.py and results
+# (only large model checkpoints are excluded via *.pt/*.pth above)
 
 # Pytest cache
 .pytest_cache/

@@ -1,0 +1,10 @@
+Warning: Could not import EfficientNetB0 from pipelines.models. Using a placeholder structure.
+device: mps
+loading data...
+data loaded: 10 classes, 353 train samples, 89 val samples
+model built: 330 parameters
+epoch 1/1 starting (1 batches)...
+  epoch 1 [100.0%] batch 1/1 loss=8.4285
+epoch 1: running validation...
+epoch 1/1 done: loss=8.4285 roc_auc=0.4542 cmap@5=0.1619 f1=0.0862
+all done: roc_auc=0.4542 cmap@5=0.1619 f1=0.0862

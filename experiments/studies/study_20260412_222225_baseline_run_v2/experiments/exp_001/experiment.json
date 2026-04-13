@@ -1,0 +1,81 @@
+{
+  "experiment_id": "exp_001",
+  "study_id": "study_20260412_222225_baseline_run_v2",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_001_task_01_propose_architecture",
+    "exp_001_task_02_generate_code",
+    "exp_001_task_03_validate_code",
+    "exp_001_codegen_retry_01",
+    "exp_001_task_04_validate_code",
+    "exp_001_task_05_execute_training",
+    "exp_001_task_06_capture_metrics",
+    "exp_001_recovery_01_error_recovery",
+    "exp_001_task_07_validate_code",
+    "exp_001_task_08_execute_training",
+    "exp_001_task_09_capture_metrics",
+    "exp_001_recovery_02_error_recovery",
+    "exp_001_task_10_validate_code",
+    "exp_001_task_11_execute_training",
+    "exp_001_task_12_capture_metrics",
+    "exp_001_recovery_03_error_recovery",
+    "exp_001_task_13_validate_code",
+    "exp_001_codegen_retry_02",
+    "exp_001_task_14_validate_code",
+    "exp_001_task_15_execute_training",
+    "exp_001_task_16_capture_metrics",
+    "exp_001_recovery_04_error_recovery",
+    "exp_001_task_17_validate_code",
+    "exp_001_task_18_execute_training",
+    "exp_001_task_19_capture_metrics",
+    "exp_001_task_20_analyze_results"
+  ],
+  "config": {
+    "architecture": "[custom_cnn] cnn_small_v1 baseline",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.1
+    },
+    "augmentation": {
+      "time_shift": true,
+      "noise_injection": true,
+      "mixup": 0.0,
+      "specaugment": false
+    }
+  },
+  "results": {
+    "metrics": {
+      "roc_auc_macro": 0.6676162486178272,
+      "cmap_at_5": 0.21840713121817362,
+      "f1_macro": 0.10368497654510629,
+      "loss": 1.1282641887664795
+    },
+    "training_curves": {
+      "loss": [
+        1.1282641887664795
+      ],
+      "roc_auc_macro": [
+        0.6676162486178272
+      ],
+      "cmap_at_5": [
+        0.21840713121817362
+      ],
+      "f1_macro": [
+        0.10368497654510629
+      ]
+    },
+    "duration_seconds": 8.97270917892456,
+    "peak_ram_mb": null,
+    "val_predictions_path": null
+  },
+  "submission_path": null,
+  "status": "completed",
+  "created_at": "2026-04-12T22:22:25.629297Z",
+  "started_at": "2026-04-12T22:22:25.629297Z",
+  "completed_at": "2026-04-12T22:41:29.872786Z"
+}

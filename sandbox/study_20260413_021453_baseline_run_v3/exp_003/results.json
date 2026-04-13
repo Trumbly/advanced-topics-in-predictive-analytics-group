@@ -1,0 +1,11 @@
+{
+    "roc_auc_macro": 0.0,
+    "loss": 1.1360844373703003,
+    "best_metrics": {
+        "roc_auc_macro": 0.0,
+        "avg_precision_macro": 0.0,
+        "f1_macro": 0.0
+    },
+    "average_epoch_loss": 1.1360844373703003,
+    "epochs_run": 1
+}

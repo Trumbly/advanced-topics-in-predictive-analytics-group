@@ -1,0 +1,32 @@
+{
+  "experiment_id": "exp_015",
+  "study_id": "study_20260412_222225_baseline_run_v2",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_015_task_01_propose_architecture"
+  ],
+  "config": {
+    "architecture": "[deep_cnn] 4-block residual CNN backbone with Squeeze-and-Excitation (SE) attention channel weighting before Global Average Pooling",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.0005,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.2
+    },
+    "augmentation": {
+      "time_shift": false,
+      "noise_injection": false,
+      "mixup": 0.0,
+      "specaugment": true
+    }
+  },
+  "results": null,
+  "submission_path": null,
+  "status": "running",
+  "created_at": "2026-04-13T01:30:21.687310Z",
+  "started_at": "2026-04-13T01:30:21.687310Z",
+  "completed_at": null
+}

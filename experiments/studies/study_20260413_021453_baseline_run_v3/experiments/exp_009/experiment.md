@@ -1,0 +1,59 @@
+# Experiment exp_009
+
+- **Study:** study_20260413_021453_baseline_run_v3
+- **Status:** failed
+- **LLM:** gemma4:e4b
+- **Created:** 2026-04-13 04:21:25.891521+00:00
+- **Started:** 2026-04-13 04:21:25.891521+00:00
+- **Completed:** 2026-04-13 04:43:15.781203+00:00
+
+## Model Config
+- architecture: `[mobilenet_v3_small] MobileNetV3 Small backbone adapted for spectrograms, followed by a dedicated Temporal Attention Pooling layer`
+- pretrained: `mobilenet_v3_small`
+- hyperparams:
+  - lr: 0.001
+  - batch_size: 128
+  - epochs: 1
+  - optimizer: adam
+  - weight_decay: 0.0
+  - dropout: 0.1
+- augmentation:
+  - time_shift: False
+  - noise_injection: False
+  - mixup: 0.0
+  - specaugment: True
+
+## Tasks
+- exp_009_task_01_propose_architecture
+- exp_009_task_02_generate_code
+- exp_009_task_03_validate_code
+- exp_009_codegen_retry_01
+- exp_009_task_04_validate_code
+- exp_009_codegen_retry_02
+- exp_009_task_05_validate_code
+- exp_009_codegen_retry_03
+- exp_009_task_06_validate_code
+- exp_009_codegen_retry_04
+- exp_009_task_07_validate_code
+- exp_009_task_08_execute_training
+- exp_009_task_09_capture_metrics
+- exp_009_recovery_01_error_recovery
+- exp_009_task_10_validate_code
+- exp_009_task_11_execute_training
+- exp_009_task_12_capture_metrics
+- exp_009_recovery_02_error_recovery
+- exp_009_task_13_validate_code
+- exp_009_task_14_execute_training
+- exp_009_task_15_capture_metrics
+- exp_009_recovery_03_error_recovery
+- exp_009_task_16_validate_code
+- exp_009_task_17_execute_training
+- exp_009_task_18_capture_metrics
+- exp_009_recovery_04_error_recovery
+- exp_009_task_19_validate_code
+- exp_009_task_20_execute_training
+- exp_009_task_21_capture_metrics
+- exp_009_recovery_05_error_recovery
+- exp_009_task_22_validate_code
+- exp_009_task_23_execute_training
+- exp_009_task_24_capture_metrics

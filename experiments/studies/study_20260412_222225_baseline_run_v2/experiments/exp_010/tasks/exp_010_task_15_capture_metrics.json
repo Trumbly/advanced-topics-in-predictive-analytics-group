@@ -1,0 +1,41 @@
+{
+  "task_id": "exp_010_task_15_capture_metrics",
+  "experiment_id": "exp_010",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_222225_baseline_run_v2/exp_010/results.json",
+    "raw_results": {
+      "model_architecture": "cnn_attention_model",
+      "hyperparameters": {
+        "lr": 0.001,
+        "epochs": 1,
+        "batch_size": "512",
+        "device": "mps"
+      },
+      "metrics": {
+        "roc_auc_macro": 0.5698700568424729,
+        "ap_score_macro": 0.17494513497905928,
+        "loss": 0.9012949282769114
+      }
+    },
+    "training_results": {
+      "metrics": {
+        "roc_auc_macro": 0.5698700568424729,
+        "ap_score_macro": 0.17494513497905928,
+        "loss": 0.9012949282769114
+      },
+      "training_curves": {},
+      "duration_seconds": 0.0,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    }
+  },
+  "error": null,
+  "started_at": "2026-04-13T00:29:00.308453Z",
+  "completed_at": "2026-04-13T00:29:00.313141Z"
+}

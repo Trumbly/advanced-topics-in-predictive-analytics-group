@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_015_task_20_capture_metrics",
+  "experiment_id": "exp_015",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_015/results.json",
+    "raw_results": {
+      "error": "ValueError: Target size (torch.Size([353, 10])) must be the same as input size (torch.Size([353, 128, 10]))"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "ValueError: Target size (torch.Size([353, 10])) must be the same as input size (torch.Size([353, 128, 10]))",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T06:05:02.197349Z",
+  "completed_at": "2026-04-13T06:05:02.199037Z"
+}

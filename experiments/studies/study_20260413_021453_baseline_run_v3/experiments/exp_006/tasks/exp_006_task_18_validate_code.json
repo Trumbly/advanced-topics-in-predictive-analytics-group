@@ -1,0 +1,17 @@
+{
+  "task_id": "exp_006_task_18_validate_code",
+  "experiment_id": "exp_006",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nfrom pipelines.models import TorchvisionAdapter\nfrom sklearn.metrics import roc_auc_score, average_precision_score, f1_score\nfrom pipelines.data_loader import load_precomputed_dataset, compute_pos_weight\nimport torch.nn.functional as F\n\n# === Device selection (READ from env var — do NOT hardcode) ===\nDEVICE_NAME = os.environ.get(\"BIRDCLEF_DEVICE\", \"cpu\")\ndevice = torch.device(DEVICE_NAME)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# Note: We override the skeleton's LR for consistency with the proposal (0.001)\nLR = 1e-3\nWEIGHT_DECAY = 0.0\nDROPOUT_RATE = 0.15\n# Epochs must read from env var\nEPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"1\"))\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": False, \"mixup\": 0.0, \"specaugment\": True}\n\n# === Model definition at MODULE scope ===\nclass MobileNetV3SpectroModel(nn.Module):\n    \"\"\"\n    MobileNetV3-Small backbone adapted for 1-channel spectrogram input,\n    followed by global pooling and a classification head.\n    \"\"\"\n    def __init__(self, num_classes, dropout_rate=0.15):\n        super().__init__()\n        \n        # 1. Load the standard MobileNetV3 backbone using the adapter\n        self.backbone = TorchvisionAdapter(\"mobilenet_v3_small\", pretrained=False)\n        \n        # 2. Adapt the input layer: Change input channels from 3 to 1\n        # The adapter handles the structure, so we modify the first conv layer directly.\n        original_conv = self.backbone.features[0]\n        \n        # Get the number of output channels from the original layer\n        out_channels = original_conv.out_channels\n        \n        # Replace the first layer with nn.Conv2d manually, as its internal structure\n        # is causing attribute errors when accessing .kernel_size or .padding.\n        self.backbone.features[0] = nn.Conv2d(\n            in_channels=1, out_channels=out_channels, \n            kernel_size=3, stride=2, padding=1, bias=True\n        )\n        \n        # 3. The rest of the backbone layers remain the same.\n        \n        # 4. Global Pooling and Classification Head\n        # Use AdaptiveAvgPool2d to collapse the spatial dimensions (H, W) to (1, 1)\n        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))\n        \n        # Use LazyLinear to handle the dynamically sized input from the backbone\n        self.head = nn.LazyLinear(num_classes)\n        \n        # Apply dropout\n",
+  "output": {
+    "validation": "passed",
+    "code_bytes": 2507
+  },
+  "error": null,
+  "started_at": "2026-04-13T03:43:46.229664Z",
+  "completed_at": "2026-04-13T03:43:46.230427Z"
+}

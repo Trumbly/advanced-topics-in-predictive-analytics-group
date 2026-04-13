@@ -1,0 +1,7 @@
+device: mps
+loading data...
+data loaded: 10 classes, 353 train samples, 89 val samples
+model built: 250,228 parameters
+epoch 1/1 starting (1 batches)...
+training failed: ValueError: Target size (torch.Size([353, 10])) must be the same as input size (torch.Size([353, 128, 10]))
+results.json written.

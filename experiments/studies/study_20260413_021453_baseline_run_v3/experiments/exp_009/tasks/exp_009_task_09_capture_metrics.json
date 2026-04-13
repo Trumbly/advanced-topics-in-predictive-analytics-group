@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_009_task_09_capture_metrics",
+  "experiment_id": "exp_009",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_009/results.json",
+    "raw_results": {
+      "error": "TypeError: load_precomputed_dataset.<locals>.MockLoader.<lambda>() takes 0 positional arguments but 1 was given"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "TypeError: load_precomputed_dataset.<locals>.MockLoader.<lambda>() takes 0 positional arguments but 1 was given",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T04:34:08.228910Z",
+  "completed_at": "2026-04-13T04:34:08.229055Z"
+}

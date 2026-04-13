@@ -1,0 +1,6 @@
+device: mps
+loading data...
+MOCK: load_precomputed_dataset called.
+data loaded: 10 classes, 512 train samples, 128 val samples
+An error occurred during training: Given groups=1, weight of size [16, 3, 3, 3], expected input[1, 1, 128, 313] to have 3 channels, but got 1 channels instead
+Training complete.

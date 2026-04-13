@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_003_task_14_capture_metrics",
+  "experiment_id": "exp_003",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_135538_baseline_run/exp_003/results.json",
+    "raw_results": {
+      "error": "TypeError: adaptive_avg_pool1d(): argument 'input' (position 1) must be Tensor, not tuple"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "TypeError: adaptive_avg_pool1d(): argument 'input' (position 1) must be Tensor, not tuple",
+    "traceback": null
+  },
+  "started_at": "2026-04-12T14:15:04.885694Z",
+  "completed_at": "2026-04-12T14:15:04.885838Z"
+}

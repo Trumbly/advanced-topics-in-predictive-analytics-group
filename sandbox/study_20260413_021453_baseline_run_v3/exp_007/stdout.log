@@ -1,0 +1,6 @@
+device: mps
+loading data...
+data loaded: 10 classes, 353 train samples, 89 val samples
+model built: 3,568,628 parameters
+epoch 1/1 starting (1 batches)...
+training failed: RuntimeError: MPS backend out of memory (MPS allocated: 38.18 GiB, other allocations: 5.08 GiB, max allowed: 47.74 GiB). Tried to allocate 6.74 GiB on private pool. Use PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 to disable upper limit for memory allocations (may cause system failure).

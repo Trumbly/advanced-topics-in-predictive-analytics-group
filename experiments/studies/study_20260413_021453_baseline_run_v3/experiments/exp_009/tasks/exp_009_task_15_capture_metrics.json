@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_009_task_15_capture_metrics",
+  "experiment_id": "exp_009",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_009/results.json",
+    "raw_results": {
+      "error": "TypeError: MockModel.__init__() got an unexpected keyword argument 'pretrained'"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "TypeError: MockModel.__init__() got an unexpected keyword argument 'pretrained'",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T04:37:52.038123Z",
+  "completed_at": "2026-04-13T04:37:52.038278Z"
+}

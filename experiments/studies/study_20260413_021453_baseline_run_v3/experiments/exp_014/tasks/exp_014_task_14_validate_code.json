@@ -1,0 +1,17 @@
+{
+  "task_id": "exp_014_task_14_validate_code",
+  "experiment_id": "exp_014",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\nfrom sklearn.metrics import roc_auc_score, average_precision_score, f1_score\nfrom pipelines.data_loader import load_precomputed_dataset, compute_pos_weight\nfrom pipelines.models import CnnSmallV1\n\n# === Device selection (READ from env var — do NOT hardcode) ===\nDEVICE_NAME = os.environ.get(\"BIRDCLEF_DEVICE\", \"cpu\")\ndevice = torch.device(DEVICE_NAME)\n\n# === Hyperparameters ===\n# Per mandate, hardcap EPOCHS to 1.\nEPOCHS = 1\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition at MODULE scope ===\nclass CnnGruHybrid(nn.Module):\n    \"\"\"\n    CNN_Small_V1 backbone output features sequence fed into 2-layer GRU(128) head.\n    Input: (B, 1, 128, 313)\n    Output: (B, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes):\n        super().__init__()\n        \n        # 1. Backbone: cnn_small_v1\n        self.backbone = CnnSmallV1()\n\n        # 2. Global Pooling: Collapse spatial dims (H, W) -> (1, 1)\n        self.pool = nn.AdaptiveAvgPool2d((1, 1))\n        \n        # 3. Temporal reshaping: (B, 128, 1, 1\n",
+  "output": {
+    "validation": "passed",
+    "code_bytes": 1177
+  },
+  "error": null,
+  "started_at": "2026-04-13T05:48:18.798836Z",
+  "completed_at": "2026-04-13T05:48:18.799379Z"
+}

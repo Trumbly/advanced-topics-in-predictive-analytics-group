@@ -1,0 +1,996 @@
+[
+  {
+    "experiment_id": "exp_001",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_001_task_01_propose_architecture",
+      "exp_001_task_02_generate_code",
+      "exp_001_task_03_validate_code",
+      "exp_001_task_04_execute_training",
+      "exp_001_task_05_capture_metrics",
+      "exp_001_task_06_analyze_results"
+    ],
+    "config": {
+      "architecture": "[custom_cnn] cnn_small_v1 baseline",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": false
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.5876860277919599,
+        "cmap_at_5": 0.16992990188336393,
+        "f1_macro": 0.0594822336493086,
+        "loss": 1.210352897644043
+      },
+      "training_curves": {
+        "loss": [
+          1.210352897644043
+        ],
+        "roc_auc_macro": [
+          0.5876860277919599
+        ],
+        "cmap_at_5": [
+          0.16992990188336393
+        ],
+        "f1_macro": [
+          0.0594822336493086
+        ]
+      },
+      "duration_seconds": 114.15212321281433,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-13T02:14:53.660091Z",
+    "started_at": "2026-04-13T02:14:53.660091Z",
+    "completed_at": "2026-04-13T02:19:15.026474Z"
+  },
+  {
+    "experiment_id": "exp_002",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_002_task_01_propose_architecture",
+      "exp_002_task_02_generate_code",
+      "exp_002_task_03_validate_code",
+      "exp_002_codegen_retry_01",
+      "exp_002_task_04_validate_code",
+      "exp_002_codegen_retry_02",
+      "exp_002_task_05_validate_code",
+      "exp_002_codegen_retry_03",
+      "exp_002_task_06_validate_code",
+      "exp_002_codegen_retry_04",
+      "exp_002_task_07_validate_code",
+      "exp_002_codegen_retry_05",
+      "exp_002_task_08_validate_code",
+      "exp_002_recovery_01_error_recovery",
+      "exp_002_task_09_validate_code",
+      "exp_002_recovery_02_error_recovery",
+      "exp_002_task_10_validate_code",
+      "exp_002_recovery_03_error_recovery",
+      "exp_002_task_11_validate_code",
+      "exp_002_task_12_execute_training",
+      "exp_002_task_13_capture_metrics",
+      "exp_002_task_14_analyze_results"
+    ],
+    "config": {
+      "architecture": "[cnn_attention] 3-conv CNN front-end followed by Self-Attention pooling layer",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.4438452886068373,
+        "cmap_at_5": 0.14324617230961395,
+        "f1_macro": 0.14102465489653968,
+        "loss": 1.1597670316696167
+      },
+      "training_curves": {
+        "loss": [
+          1.1597670316696167
+        ],
+        "roc_auc_macro": [
+          0.4438452886068373
+        ],
+        "cmap_at_5": [
+          0.14324617230961395
+        ],
+        "f1_macro": [
+          0.14102465489653968
+        ]
+      },
+      "duration_seconds": 43.45171093940735,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-13T02:19:15.031338Z",
+    "started_at": "2026-04-13T02:19:15.031338Z",
+    "completed_at": "2026-04-13T02:40:01.597113Z"
+  },
+  {
+    "experiment_id": "exp_003",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_003_task_01_propose_architecture",
+      "exp_003_task_02_generate_code",
+      "exp_003_task_03_validate_code",
+      "exp_003_codegen_retry_01",
+      "exp_003_task_04_validate_code",
+      "exp_003_codegen_retry_02",
+      "exp_003_task_05_validate_code",
+      "exp_003_codegen_retry_03",
+      "exp_003_task_06_validate_code",
+      "exp_003_task_07_execute_training",
+      "exp_003_recovery_01_error_recovery",
+      "exp_003_task_08_validate_code",
+      "exp_003_task_09_execute_training",
+      "exp_003_recovery_02_error_recovery",
+      "exp_003_task_10_validate_code",
+      "exp_003_task_11_execute_training",
+      "exp_003_task_12_capture_metrics",
+      "exp_003_recovery_03_error_recovery",
+      "exp_003_task_13_validate_code",
+      "exp_003_task_14_execute_training",
+      "exp_003_task_15_capture_metrics",
+      "exp_003_task_16_analyze_results"
+    ],
+    "config": {
+      "architecture": "[cnn_gru_hybrid] 3-conv CNN front-end (32->64 channels) -> Global AvgPool over feature channels -> 2-layer GRU(128) head",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.0,
+        "loss": 1.1360844373703003
+      },
+      "training_curves": {},
+      "duration_seconds": 0.0,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-13T02:40:01.600663Z",
+    "started_at": "2026-04-13T02:40:01.600663Z",
+    "completed_at": "2026-04-13T02:56:38.730011Z"
+  },
+  {
+    "experiment_id": "exp_004",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_004_task_01_propose_architecture",
+      "exp_004_task_02_generate_code",
+      "exp_004_task_03_validate_code",
+      "exp_004_codegen_retry_01",
+      "exp_004_task_04_validate_code",
+      "exp_004_task_05_execute_training",
+      "exp_004_task_06_capture_metrics",
+      "exp_004_recovery_01_error_recovery",
+      "exp_004_task_07_validate_code",
+      "exp_004_codegen_retry_02",
+      "exp_004_task_08_validate_code",
+      "exp_004_codegen_retry_03",
+      "exp_004_task_09_validate_code",
+      "exp_004_task_10_execute_training",
+      "exp_004_task_11_capture_metrics",
+      "exp_004_recovery_02_error_recovery",
+      "exp_004_task_12_validate_code",
+      "exp_004_codegen_retry_04",
+      "exp_004_task_13_validate_code",
+      "exp_004_codegen_retry_05",
+      "exp_004_task_14_validate_code",
+      "exp_004_task_15_execute_training",
+      "exp_004_task_16_capture_metrics",
+      "exp_004_recovery_03_error_recovery",
+      "exp_004_task_17_validate_code",
+      "exp_004_task_18_execute_training",
+      "exp_004_task_19_capture_metrics",
+      "exp_004_recovery_04_error_recovery",
+      "exp_004_task_20_validate_code",
+      "exp_004_task_21_execute_training",
+      "exp_004_task_22_capture_metrics",
+      "exp_004_recovery_05_error_recovery",
+      "exp_004_task_23_validate_code",
+      "exp_004_task_24_execute_training",
+      "exp_004_task_25_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[deep_cnn] 5-block residual CNN stack (32->64->128->128->256 channels) followed by GlobalAvgPool",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.25
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T02:56:38.731474Z",
+    "started_at": "2026-04-13T02:56:38.731474Z",
+    "completed_at": "2026-04-13T03:21:31.546209Z"
+  },
+  {
+    "experiment_id": "exp_005",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_005_task_01_propose_architecture",
+      "exp_005_task_02_generate_code",
+      "exp_005_task_03_validate_code",
+      "exp_005_task_04_execute_training",
+      "exp_005_task_05_capture_metrics",
+      "exp_005_recovery_01_error_recovery",
+      "exp_005_task_06_validate_code",
+      "exp_005_task_07_execute_training",
+      "exp_005_task_08_capture_metrics",
+      "exp_005_recovery_02_error_recovery",
+      "exp_005_task_09_validate_code",
+      "exp_005_task_10_execute_training",
+      "exp_005_task_11_capture_metrics",
+      "exp_005_recovery_03_error_recovery",
+      "exp_005_task_12_validate_code",
+      "exp_005_task_13_execute_training",
+      "exp_005_task_14_capture_metrics",
+      "exp_005_recovery_04_error_recovery",
+      "exp_005_task_15_validate_code",
+      "exp_005_task_16_execute_training",
+      "exp_005_task_17_capture_metrics",
+      "exp_005_recovery_05_error_recovery",
+      "exp_005_task_18_validate_code",
+      "exp_005_task_19_execute_training",
+      "exp_005_task_20_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[efficientnet_b0] EfficientNet-B0 backbone with Dropout regularization added to the final classification head",
+      "pretrained_model": "efficientnet_b0",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T03:21:31.548454Z",
+    "started_at": "2026-04-13T03:21:31.548454Z",
+    "completed_at": "2026-04-13T03:32:47.741667Z"
+  },
+  {
+    "experiment_id": "exp_006",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_006_task_01_propose_architecture",
+      "exp_006_task_02_generate_code",
+      "exp_006_task_03_validate_code",
+      "exp_006_task_04_execute_training",
+      "exp_006_task_05_capture_metrics",
+      "exp_006_recovery_01_error_recovery",
+      "exp_006_task_06_validate_code",
+      "exp_006_task_07_execute_training",
+      "exp_006_task_08_capture_metrics",
+      "exp_006_recovery_02_error_recovery",
+      "exp_006_task_09_validate_code",
+      "exp_006_task_10_execute_training",
+      "exp_006_task_11_capture_metrics",
+      "exp_006_recovery_03_error_recovery",
+      "exp_006_task_12_validate_code",
+      "exp_006_task_13_execute_training",
+      "exp_006_task_14_capture_metrics",
+      "exp_006_recovery_04_error_recovery",
+      "exp_006_task_15_validate_code",
+      "exp_006_task_16_execute_training",
+      "exp_006_task_17_capture_metrics",
+      "exp_006_recovery_05_error_recovery",
+      "exp_006_task_18_validate_code",
+      "exp_006_task_19_execute_training"
+    ],
+    "config": {
+      "architecture": "[mobilenet_v3_small] MobileNetV3-Small backbone with SpecAugment regularization",
+      "pretrained_model": "mobilenet_v3_small",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.15
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T03:32:47.743108Z",
+    "started_at": "2026-04-13T03:32:47.743108Z",
+    "completed_at": "2026-04-13T03:43:48.084924Z"
+  },
+  {
+    "experiment_id": "exp_007",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_007_task_01_propose_architecture",
+      "exp_007_task_02_generate_code",
+      "exp_007_task_03_validate_code",
+      "exp_007_task_04_execute_training",
+      "exp_007_task_05_capture_metrics",
+      "exp_007_recovery_01_error_recovery",
+      "exp_007_task_06_validate_code",
+      "exp_007_task_07_execute_training",
+      "exp_007_task_08_capture_metrics",
+      "exp_007_recovery_02_error_recovery",
+      "exp_007_task_09_validate_code",
+      "exp_007_task_10_execute_training",
+      "exp_007_task_11_capture_metrics",
+      "exp_007_recovery_03_error_recovery",
+      "exp_007_task_12_validate_code",
+      "exp_007_codegen_retry_01",
+      "exp_007_task_13_validate_code",
+      "exp_007_codegen_retry_02",
+      "exp_007_task_14_validate_code",
+      "exp_007_codegen_retry_03",
+      "exp_007_task_15_validate_code",
+      "exp_007_task_16_execute_training",
+      "exp_007_task_17_capture_metrics",
+      "exp_007_recovery_04_error_recovery",
+      "exp_007_task_18_validate_code",
+      "exp_007_codegen_retry_04",
+      "exp_007_task_19_validate_code",
+      "exp_007_task_20_execute_training",
+      "exp_007_task_21_capture_metrics",
+      "exp_007_recovery_05_error_recovery",
+      "exp_007_task_22_validate_code",
+      "exp_007_task_23_execute_training",
+      "exp_007_task_24_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[deep_cnn] Custom 5-block residual CNN stack (32->64->128->256 channels)",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.0008,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.25
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T03:43:48.086031Z",
+    "started_at": "2026-04-13T03:43:48.086031Z",
+    "completed_at": "2026-04-13T04:08:52.773028Z"
+  },
+  {
+    "experiment_id": "exp_008",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_008_task_01_propose_architecture",
+      "exp_008_task_02_generate_code",
+      "exp_008_task_03_validate_code",
+      "exp_008_task_04_execute_training",
+      "exp_008_recovery_01_error_recovery",
+      "exp_008_task_05_validate_code",
+      "exp_008_task_06_execute_training",
+      "exp_008_task_07_capture_metrics",
+      "exp_008_recovery_02_error_recovery",
+      "exp_008_task_08_validate_code",
+      "exp_008_task_09_execute_training",
+      "exp_008_task_10_capture_metrics",
+      "exp_008_recovery_03_error_recovery",
+      "exp_008_task_11_validate_code",
+      "exp_008_task_12_execute_training",
+      "exp_008_task_13_capture_metrics",
+      "exp_008_recovery_04_error_recovery",
+      "exp_008_task_14_validate_code",
+      "exp_008_task_15_execute_training",
+      "exp_008_task_16_capture_metrics",
+      "exp_008_recovery_05_error_recovery",
+      "exp_008_task_17_validate_code",
+      "exp_008_task_18_execute_training",
+      "exp_008_task_19_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[efficientnet_b0] EfficientNet-B0 via TorchvisionAdapter, standard feature extraction",
+      "pretrained_model": "efficientnet_b0",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.15
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T04:08:52.787167Z",
+    "started_at": "2026-04-13T04:08:52.787167Z",
+    "completed_at": "2026-04-13T04:21:25.890188Z"
+  },
+  {
+    "experiment_id": "exp_009",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_009_task_01_propose_architecture",
+      "exp_009_task_02_generate_code",
+      "exp_009_task_03_validate_code",
+      "exp_009_codegen_retry_01",
+      "exp_009_task_04_validate_code",
+      "exp_009_codegen_retry_02",
+      "exp_009_task_05_validate_code",
+      "exp_009_codegen_retry_03",
+      "exp_009_task_06_validate_code",
+      "exp_009_codegen_retry_04",
+      "exp_009_task_07_validate_code",
+      "exp_009_task_08_execute_training",
+      "exp_009_task_09_capture_metrics",
+      "exp_009_recovery_01_error_recovery",
+      "exp_009_task_10_validate_code",
+      "exp_009_task_11_execute_training",
+      "exp_009_task_12_capture_metrics",
+      "exp_009_recovery_02_error_recovery",
+      "exp_009_task_13_validate_code",
+      "exp_009_task_14_execute_training",
+      "exp_009_task_15_capture_metrics",
+      "exp_009_recovery_03_error_recovery",
+      "exp_009_task_16_validate_code",
+      "exp_009_task_17_execute_training",
+      "exp_009_task_18_capture_metrics",
+      "exp_009_recovery_04_error_recovery",
+      "exp_009_task_19_validate_code",
+      "exp_009_task_20_execute_training",
+      "exp_009_task_21_capture_metrics",
+      "exp_009_recovery_05_error_recovery",
+      "exp_009_task_22_validate_code",
+      "exp_009_task_23_execute_training",
+      "exp_009_task_24_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[mobilenet_v3_small] MobileNetV3 Small backbone adapted for spectrograms, followed by a dedicated Temporal Attention Pooling layer",
+      "pretrained_model": "mobilenet_v3_small",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T04:21:25.891521Z",
+    "started_at": "2026-04-13T04:21:25.891521Z",
+    "completed_at": "2026-04-13T04:43:15.781203Z"
+  },
+  {
+    "experiment_id": "exp_010",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_010_task_01_propose_architecture",
+      "exp_010_task_02_generate_code",
+      "exp_010_task_03_validate_code",
+      "exp_010_task_04_execute_training",
+      "exp_010_task_05_capture_metrics",
+      "exp_010_recovery_01_error_recovery",
+      "exp_010_task_06_validate_code",
+      "exp_010_task_07_execute_training",
+      "exp_010_task_08_capture_metrics",
+      "exp_010_recovery_02_error_recovery",
+      "exp_010_task_09_validate_code",
+      "exp_010_task_10_execute_training",
+      "exp_010_task_11_capture_metrics",
+      "exp_010_recovery_03_error_recovery",
+      "exp_010_task_12_validate_code",
+      "exp_010_task_13_execute_training",
+      "exp_010_task_14_capture_metrics",
+      "exp_010_recovery_04_error_recovery",
+      "exp_010_task_15_validate_code",
+      "exp_010_task_16_execute_training",
+      "exp_010_task_17_capture_metrics",
+      "exp_010_recovery_05_error_recovery",
+      "exp_010_task_18_validate_code",
+      "exp_010_task_19_execute_training",
+      "exp_010_task_20_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[deep_cnn] 5-block residual CNN stack (32->64->128 channels) with BatchNorm and Global AvgPool head",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": true,
+        "mixup": 0.2,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T04:43:15.782194Z",
+    "started_at": "2026-04-13T04:43:15.782194Z",
+    "completed_at": "2026-04-13T04:54:12.417252Z"
+  },
+  {
+    "experiment_id": "exp_011",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_011_task_01_propose_architecture",
+      "exp_011_task_02_generate_code",
+      "exp_011_task_03_validate_code",
+      "exp_011_task_04_execute_training",
+      "exp_011_task_05_capture_metrics",
+      "exp_011_recovery_01_error_recovery",
+      "exp_011_task_06_validate_code",
+      "exp_011_task_07_execute_training",
+      "exp_011_task_08_capture_metrics",
+      "exp_011_recovery_02_error_recovery",
+      "exp_011_task_09_validate_code",
+      "exp_011_codegen_retry_01",
+      "exp_011_task_10_validate_code",
+      "exp_011_task_11_execute_training",
+      "exp_011_task_12_capture_metrics",
+      "exp_011_recovery_03_error_recovery",
+      "exp_011_task_13_validate_code",
+      "exp_011_codegen_retry_02",
+      "exp_011_task_14_validate_code",
+      "exp_011_task_15_execute_training",
+      "exp_011_task_16_capture_metrics",
+      "exp_011_recovery_04_error_recovery",
+      "exp_011_task_17_validate_code",
+      "exp_011_task_18_execute_training",
+      "exp_011_task_19_capture_metrics",
+      "exp_011_recovery_05_error_recovery",
+      "exp_011_task_20_validate_code",
+      "exp_011_task_21_execute_training",
+      "exp_011_task_22_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[specaugment_cnn] Custom 4-block CNN front-end with residual connections, followed by Global Average Pooling head",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.25
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T04:54:12.419233Z",
+    "started_at": "2026-04-13T04:54:12.419233Z",
+    "completed_at": "2026-04-13T05:15:00.923957Z"
+  },
+  {
+    "experiment_id": "exp_012",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_012_task_01_propose_architecture",
+      "exp_012_task_02_generate_code",
+      "exp_012_task_03_validate_code",
+      "exp_012_task_04_execute_training",
+      "exp_012_task_05_capture_metrics",
+      "exp_012_recovery_01_error_recovery",
+      "exp_012_task_06_validate_code",
+      "exp_012_task_07_execute_training",
+      "exp_012_task_08_capture_metrics",
+      "exp_012_recovery_02_error_recovery",
+      "exp_012_task_09_validate_code",
+      "exp_012_task_10_execute_training",
+      "exp_012_task_11_capture_metrics",
+      "exp_012_recovery_03_error_recovery",
+      "exp_012_task_12_validate_code",
+      "exp_012_codegen_retry_01",
+      "exp_012_task_13_validate_code",
+      "exp_012_codegen_retry_02",
+      "exp_012_task_14_validate_code",
+      "exp_012_task_15_execute_training",
+      "exp_012_recovery_04_error_recovery",
+      "exp_012_task_16_validate_code",
+      "exp_012_task_17_execute_training",
+      "exp_012_task_18_capture_metrics",
+      "exp_012_task_19_analyze_results"
+    ],
+    "config": {
+      "architecture": "[mobilenet_v3_small] MobileNetV3 Small via TorchvisionAdapter, optimized for spectrogram feature extraction",
+      "pretrained_model": "mobilenet_v3_small",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.25
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.45974254969996914,
+        "cmap_at_5": 0.10075987331778724,
+        "f1_macro": 0.08819160917273249,
+        "loss": 1.1355116367340088
+      },
+      "training_curves": {
+        "loss": [
+          1.1355116367340088
+        ],
+        "roc_auc_macro": [
+          0.45974254969996914
+        ],
+        "cmap_at_5": [
+          0.10075987331778724
+        ],
+        "f1_macro": [
+          0.08819160917273249
+        ]
+      },
+      "duration_seconds": 13.86684799194336,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-13T05:15:00.941023Z",
+    "started_at": "2026-04-13T05:15:00.941023Z",
+    "completed_at": "2026-04-13T05:29:34.758735Z"
+  },
+  {
+    "experiment_id": "exp_013",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_013_task_01_propose_architecture",
+      "exp_013_task_02_generate_code",
+      "exp_013_task_03_validate_code",
+      "exp_013_codegen_retry_01",
+      "exp_013_task_04_validate_code",
+      "exp_013_task_05_execute_training",
+      "exp_013_task_06_capture_metrics",
+      "exp_013_task_07_analyze_results"
+    ],
+    "config": {
+      "architecture": "[efficientnet_b0] EfficientNet-B0 via TorchvisionAdapter, full backbone training from scratch",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.6789270683753902,
+        "cmap_at_5": 0.24529835259007254,
+        "f1_macro": 0.08809814735578003,
+        "loss": 1.1573275327682495
+      },
+      "training_curves": {
+        "loss": [
+          1.1573275327682495
+        ],
+        "roc_auc_macro": [
+          0.6789270683753902
+        ],
+        "cmap_at_5": [
+          0.24529835259007254
+        ],
+        "f1_macro": [
+          0.08809814735578003
+        ]
+      },
+      "duration_seconds": 7.435533046722412,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-13T05:29:34.759971Z",
+    "started_at": "2026-04-13T05:29:34.759971Z",
+    "completed_at": "2026-04-13T05:35:08.628330Z"
+  },
+  {
+    "experiment_id": "exp_014",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_014_task_01_propose_architecture",
+      "exp_014_task_02_generate_code",
+      "exp_014_task_03_validate_code",
+      "exp_014_task_04_execute_training",
+      "exp_014_recovery_01_error_recovery",
+      "exp_014_task_05_validate_code",
+      "exp_014_codegen_retry_01",
+      "exp_014_task_06_validate_code",
+      "exp_014_task_07_execute_training",
+      "exp_014_task_08_capture_metrics",
+      "exp_014_recovery_02_error_recovery",
+      "exp_014_task_09_validate_code",
+      "exp_014_task_10_execute_training",
+      "exp_014_recovery_03_error_recovery",
+      "exp_014_task_11_validate_code",
+      "exp_014_task_12_execute_training",
+      "exp_014_task_13_capture_metrics",
+      "exp_014_recovery_04_error_recovery",
+      "exp_014_task_14_validate_code",
+      "exp_014_task_15_execute_training",
+      "exp_014_recovery_05_error_recovery",
+      "exp_014_task_16_validate_code",
+      "exp_014_task_17_execute_training"
+    ],
+    "config": {
+      "architecture": "[cnn_gru_hybrid] cnn_small_v1 backbone output features sequence fed into 2-layer GRU(128) head",
+      "pretrained_model": "cnn_small_v1",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.3
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T05:35:08.630419Z",
+    "started_at": "2026-04-13T05:35:08.630419Z",
+    "completed_at": "2026-04-13T05:49:48.325001Z"
+  },
+  {
+    "experiment_id": "exp_015",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_015_task_01_propose_architecture",
+      "exp_015_task_02_generate_code",
+      "exp_015_task_03_validate_code",
+      "exp_015_codegen_retry_01",
+      "exp_015_task_04_validate_code",
+      "exp_015_task_05_execute_training",
+      "exp_015_recovery_01_error_recovery",
+      "exp_015_task_06_validate_code",
+      "exp_015_task_07_execute_training",
+      "exp_015_task_08_capture_metrics",
+      "exp_015_recovery_02_error_recovery",
+      "exp_015_task_09_validate_code",
+      "exp_015_task_10_execute_training",
+      "exp_015_task_11_capture_metrics",
+      "exp_015_recovery_03_error_recovery",
+      "exp_015_task_12_validate_code",
+      "exp_015_task_13_execute_training",
+      "exp_015_task_14_capture_metrics",
+      "exp_015_recovery_04_error_recovery",
+      "exp_015_task_15_validate_code",
+      "exp_015_task_16_execute_training",
+      "exp_015_task_17_capture_metrics",
+      "exp_015_recovery_05_error_recovery",
+      "exp_015_task_18_validate_code",
+      "exp_015_task_19_execute_training",
+      "exp_015_task_20_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[deep_cnn] 5-block deep residual-style CNN stack (32->64->128 channels) with BatchNorm and a final GlobalAveragePooling head",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T05:49:48.326264Z",
+    "started_at": "2026-04-13T05:49:48.326264Z",
+    "completed_at": "2026-04-13T06:05:02.203199Z"
+  },
+  {
+    "experiment_id": "exp_016",
+    "study_id": "study_20260413_021453_baseline_run_v3",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_016_task_01_propose_architecture",
+      "exp_016_task_02_generate_code",
+      "exp_016_task_03_validate_code",
+      "exp_016_codegen_retry_01",
+      "exp_016_task_04_validate_code",
+      "exp_016_codegen_retry_02",
+      "exp_016_task_05_validate_code",
+      "exp_016_codegen_retry_03",
+      "exp_016_task_06_validate_code",
+      "exp_016_codegen_retry_04",
+      "exp_016_task_07_validate_code",
+      "exp_016_codegen_retry_05",
+      "exp_016_task_08_validate_code",
+      "exp_016_recovery_01_error_recovery",
+      "exp_016_task_09_validate_code",
+      "exp_016_task_10_execute_training",
+      "exp_016_task_11_capture_metrics",
+      "exp_016_recovery_02_error_recovery",
+      "exp_016_task_12_validate_code",
+      "exp_016_task_13_execute_training",
+      "exp_016_task_14_capture_metrics",
+      "exp_016_recovery_03_error_recovery",
+      "exp_016_task_15_validate_code",
+      "exp_016_task_16_execute_training",
+      "exp_016_task_17_capture_metrics",
+      "exp_016_recovery_04_error_recovery",
+      "exp_016_task_18_validate_code",
+      "exp_016_task_19_execute_training",
+      "exp_016_task_20_capture_metrics",
+      "exp_016_recovery_05_error_recovery",
+      "exp_016_task_21_validate_code",
+      "exp_016_task_22_execute_training",
+      "exp_016_task_23_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[cnn_attention] MobileNetV3 Small backbone followed by a dedicated Time-Aware Self-Attention block",
+      "pretrained_model": "mobilenet_v3_small",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-13T06:05:02.239625Z",
+    "started_at": "2026-04-13T06:05:02.239625Z",
+    "completed_at": "2026-04-13T06:29:41.825846Z"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_011_task_16_capture_metrics",
+  "experiment_id": "exp_011",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_011/results.json",
+    "raw_results": {
+      "error": "RuntimeError: MPS backend out of memory (MPS allocated: 41.52 GiB, other allocations: 14.84 MiB, max allowed: 47.74 GiB). Tried to allocate 6.74 GiB on private pool. Use PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 to disable upper limit for memory allocations (may cause system failure)."
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: MPS backend out of memory (MPS allocated: 41.52 GiB, other allocations: 14.84 MiB, max allowed: 47.74 GiB). Tried to allocate 6.74 GiB on private pool. Use PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 to disable upper limit for memory allocations (may cause system failure).",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T05:10:12.274686Z",
+  "completed_at": "2026-04-13T05:10:12.277189Z"
+}

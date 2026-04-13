@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_005_task_08_capture_metrics",
+  "experiment_id": "exp_005",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_005/results.json",
+    "raw_results": {
+      "error": "RuntimeError: Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [100, 1, 1, 128, 313]"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: Expected 3D (unbatched) or 4D (batched) input to conv2d, but got input of size: [100, 1, 1, 128, 313]",
+    "traceback": null
+  },
+  "started_at": "2026-04-13T03:26:15.656137Z",
+  "completed_at": "2026-04-13T03:26:15.656286Z"
+}

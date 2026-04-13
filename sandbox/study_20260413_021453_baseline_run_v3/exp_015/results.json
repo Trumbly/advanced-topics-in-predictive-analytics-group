@@ -1,0 +1,3 @@
+{
+    "error": "ValueError: Target size (torch.Size([353, 10])) must be the same as input size (torch.Size([353, 128, 10]))"
+}

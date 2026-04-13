@@ -1,0 +1,16 @@
+# Task exp_005_task_05_capture_metrics
+
+- **Experiment:** exp_005
+- **Type:** predefined
+- **Name:** capture_metrics
+- **Status:** failed
+- **Started:** 2026-04-13 03:24:28.847188+00:00
+- **Completed:** 2026-04-13 03:24:28.847339+00:00
+
+## Output
+- **results_json_path:** /Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_021453_baseline_run_v3/exp_005/results.json
+- **raw_results:** {'error': "NameError: name 'load_precomputed_dataset' is not defined"}
+
+## Error
+- **type:** ScriptReportedError
+- **message:** NameError: name 'load_precomputed_dataset' is not defined

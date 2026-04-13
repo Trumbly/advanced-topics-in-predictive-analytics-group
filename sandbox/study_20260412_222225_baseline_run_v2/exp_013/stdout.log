@@ -1,0 +1,4 @@
+device: mps
+loading data...
+data loaded: 10 classes, 353 train samples, 89 val samples
+training failed: AttributeError: 'tuple' object has no attribute 'squeeze'
