@@ -1,0 +1,64 @@
+{
+  "task_id": "exp_001_task_05_capture_metrics",
+  "experiment_id": "exp_001",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_203901_full_dataset_v1/exp_001/results.json",
+    "raw_results": {
+      "metrics": {
+        "roc_auc_macro": 0.8298445056329052,
+        "cmap_at_5": 0.06005944027534846,
+        "f1_macro": 0.06265544828968933,
+        "loss": 0.4512326558649172
+      },
+      "training_curves": {
+        "loss": [
+          0.4512326558649172
+        ],
+        "roc_auc_macro": [
+          0.8298445056329052
+        ],
+        "cmap_at_5": [
+          0.06005944027534846
+        ],
+        "f1_macro": [
+          0.06265544828968933
+        ]
+      },
+      "duration_seconds": 500.2369170188904
+    },
+    "training_results": {
+      "metrics": {
+        "roc_auc_macro": 0.8298445056329052,
+        "cmap_at_5": 0.06005944027534846,
+        "f1_macro": 0.06265544828968933,
+        "loss": 0.4512326558649172
+      },
+      "training_curves": {
+        "loss": [
+          0.4512326558649172
+        ],
+        "roc_auc_macro": [
+          0.8298445056329052
+        ],
+        "cmap_at_5": [
+          0.06005944027534846
+        ],
+        "f1_macro": [
+          0.06265544828968933
+        ]
+      },
+      "duration_seconds": 500.2369170188904,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    }
+  },
+  "error": null,
+  "started_at": "2026-04-13T20:49:51.522978Z",
+  "completed_at": "2026-04-13T20:49:51.523267Z"
+}

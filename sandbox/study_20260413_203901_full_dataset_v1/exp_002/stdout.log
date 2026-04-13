@@ -1,0 +1,19 @@
+device: mps
+loading data...
+data loaded: 206 classes, 186478 train samples, 46623 val samples
+model built: 4,271,434 parameters
+epoch 1/1 starting (2914 batches)...
+  epoch 1 [ 10.0%] batch 291/2914 loss=0.4051
+  epoch 1 [ 20.0%] batch 582/2914 loss=0.3050
+  epoch 1 [ 30.0%] batch 873/2914 loss=0.2927
+  epoch 1 [ 39.9%] batch 1164/2914 loss=0.3075
+  epoch 1 [ 49.9%] batch 1455/2914 loss=0.2428
+  epoch 1 [ 59.9%] batch 1746/2914 loss=0.1905
+  epoch 1 [ 69.9%] batch 2037/2914 loss=0.2015
+  epoch 1 [ 79.9%] batch 2328/2914 loss=0.2640
+  epoch 1 [ 89.9%] batch 2619/2914 loss=0.2728
+  epoch 1 [ 99.9%] batch 2910/2914 loss=0.2192
+  epoch 1 [100.0%] batch 2914/2914 loss=0.2730
+epoch 1: running validation...
+epoch 1/1 done: loss=0.2901 roc_auc=0.9590 cmap@5=0.3697 f1=0.1800
+all done: roc_auc=0.9590 cmap@5=0.3697 f1=0.1800

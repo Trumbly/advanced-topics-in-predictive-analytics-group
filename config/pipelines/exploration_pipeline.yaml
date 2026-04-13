@@ -22,7 +22,7 @@ steps:
     handler: agent.handlers.validate_code
     config:
       check_imports: [torch, pipelines]
-      max_epochs: 1
+      max_epochs: 25
 
   - task_name: execute_training
     task_type: predefined

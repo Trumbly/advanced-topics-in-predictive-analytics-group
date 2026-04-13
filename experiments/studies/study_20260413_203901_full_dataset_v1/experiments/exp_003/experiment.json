@@ -1,0 +1,42 @@
+{
+  "experiment_id": "exp_003",
+  "study_id": "study_20260413_203901_full_dataset_v1",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_003_task_01_propose_architecture",
+    "exp_003_task_02_generate_code",
+    "exp_003_task_03_validate_code",
+    "exp_003_codegen_retry_01",
+    "exp_003_task_04_validate_code",
+    "exp_003_codegen_retry_02",
+    "exp_003_task_05_validate_code",
+    "exp_003_codegen_retry_03",
+    "exp_003_task_06_validate_code",
+    "exp_003_codegen_retry_04",
+    "exp_003_task_07_validate_code"
+  ],
+  "config": {
+    "architecture": "[cnn_gru_hybrid] 3-conv CNN front-end (32->64 channels) → GRU(128) → Linear",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.15
+    },
+    "augmentation": {
+      "time_shift": false,
+      "noise_injection": false,
+      "mixup": 0.0,
+      "specaugment": false
+    }
+  },
+  "results": null,
+  "submission_path": null,
+  "status": "running",
+  "created_at": "2026-04-13T21:23:53.226720Z",
+  "started_at": "2026-04-13T21:23:53.226720Z",
+  "completed_at": null
+}
