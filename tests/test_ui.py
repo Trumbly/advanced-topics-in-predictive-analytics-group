@@ -259,7 +259,9 @@ class TestLoaders:
         assert a.completed_count == 2
         assert a.failed_count == 1
         assert a.best_experiment_id == "exp_001"
-        assert a.best_score == 0.73
+        # F1 is now the primary metric (0.65 from exp_001)
+        assert a.best_score == 0.65
+        assert a.best_score_metric == "F1"
 
     def test_empty_studies_root(self, tmp_path: Path) -> None:
         assert list_studies(tmp_path / "no-such-dir") == []
@@ -347,7 +349,7 @@ class TestRoutes:
 
     def test_index_shows_best_score(self, client: TestClient) -> None:
         r = client.get("/")
-        assert "0.7300" in r.text  # formatted best score for Study A
+        assert "0.6500" in r.text  # formatted best F1 for Study A
 
     def test_study_detail_shows_experiments(self, client: TestClient) -> None:
         r = client.get("/studies/study_a")

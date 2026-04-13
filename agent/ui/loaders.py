@@ -62,6 +62,7 @@ class StudySummary:
     failed_count: int
     best_experiment_id: str | None
     best_score: float | None
+    best_score_metric: str  # "F1" or "ROC-AUC" — which metric the score is from
     created_at: str
     updated_at: str
     has_report: bool
@@ -193,6 +194,29 @@ def _tail(path: Path, *, max_lines: int = _LOG_TAIL_LINES) -> str | None:
     return "...[truncated]...\n" + "\n".join(lines[-max_lines:])
 
 
+def _find_best_scores(
+    study_dir: Path, study: Any
+) -> tuple[float | None, float | None]:
+    """Scan experiments for the best F1 and best ROC-AUC scores."""
+    best_f1: float | None = None
+    best_roc: float | None = None
+    exp_root = study_dir / "experiments"
+    if not exp_root.exists():
+        return None, None
+    for eid in getattr(study, "experiment_ids", []):
+        data = _read_json(exp_root / eid / "experiment.json")
+        if data is None or data.get("status") != "completed":
+            continue
+        metrics = (data.get("results") or {}).get("metrics") or {}
+        f1 = metrics.get("f1_macro")
+        roc = metrics.get("roc_auc_macro")
+        if f1 is not None and (best_f1 is None or f1 > best_f1):
+            best_f1 = f1
+        if roc is not None and (best_roc is None or roc > best_roc):
+            best_roc = roc
+    return best_f1, best_roc
+
+
 def _fmt_dt(value: Any) -> str:
     if value is None:
         return ""
@@ -258,6 +282,21 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
             else None
         )
 
+        # Compute best F1 (preferred) or fall back to ROC-AUC for old studies
+        best_f1, best_roc = _find_best_scores(study_dir, study)
+        if best_f1 is not None:
+            display_score = best_f1
+            display_metric = "F1"
+        elif best_roc is not None:
+            display_score = best_roc
+            display_metric = "ROC-AUC"
+        elif study.best_score is not None:
+            display_score = study.best_score
+            display_metric = "ROC-AUC"
+        else:
+            display_score = None
+            display_metric = "F1"
+
         rows.append(
             StudySummary(
                 study_id=study.study_id,
@@ -268,7 +307,8 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
                 completed_count=completed,
                 failed_count=failed,
                 best_experiment_id=study.best_experiment_id,
-                best_score=study.best_score,
+                best_score=display_score,
+                best_score_metric=display_metric,
                 created_at=_fmt_dt(study.created_at),
                 updated_at=_fmt_dt(study.updated_at),
                 has_report=(study_dir / "report" / "report.md").exists(),
