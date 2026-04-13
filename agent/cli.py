@@ -351,7 +351,16 @@ def start(
                f"{budget.max_wallclock_minutes} min wallclock")
     click.echo()
 
-    study, stop_reason = orchestrator.run()
+    try:
+        study, stop_reason = orchestrator.run()
+    except KeyboardInterrupt:
+        click.echo("\nInterrupted — saving study as aborted...")
+        orchestrator.request_abort()
+        study = orchestrator.study
+        study.status = StudyStatus.ABORTED
+        study.updated_at = datetime.now(timezone.utc).isoformat()
+        orchestrator._save_study()
+        stop_reason = StopReason.USER_ABORT
 
     click.echo()
     click.echo(f"Stopped: {stop_reason}")
@@ -389,7 +398,17 @@ def resume(ctx: click.Context, study_id: str) -> None:
     click.echo(f"  best score:         {study.best_score}")
     click.echo()
 
-    study, stop_reason = orchestrator.run()
+    try:
+        study, stop_reason = orchestrator.run()
+    except KeyboardInterrupt:
+        click.echo("\nInterrupted — saving study as aborted...")
+        orchestrator.request_abort()
+        study = orchestrator.study
+        study.status = StudyStatus.ABORTED
+        study.updated_at = datetime.now(timezone.utc).isoformat()
+        orchestrator._save_study()
+        stop_reason = StopReason.USER_ABORT
+
     click.echo(f"Stopped: {stop_reason}")
 
 

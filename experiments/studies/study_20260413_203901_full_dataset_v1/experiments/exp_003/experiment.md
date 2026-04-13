@@ -38,3 +38,6 @@
 - exp_003_recovery_01_error_recovery
 - exp_003_task_09_validate_code
 - exp_003_task_10_execute_training
+- exp_003_recovery_02_error_recovery
+- exp_003_task_11_validate_code
+- exp_003_task_12_execute_training

@@ -1,3 +1,14 @@
+# Task exp_003_task_12_execute_training
+
+- **Experiment:** exp_003
+- **Type:** predefined
+- **Name:** execute_training
+- **Status:** failed
+- **Started:** 2026-04-13 21:42:07.934171+00:00
+- **Completed:** 2026-04-13 21:42:09.919244+00:00
+
+## Code Used
+```python
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -205,3 +216,42 @@ if __name__ == "__main__":
         json.dump(results, f, indent=4)
     
     print("\nModel training and evaluation complete. Results saved to results.json.")
+
+```
+
+## Output
+- **exit_code:** 1
+- **duration_seconds:** 1.984337083005812
+- **workdir:** /Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_203901_full_dataset_v1/exp_003
+- **results_json_path:** None
+- **timed_out:** False
+
+## Error
+- **type:** ValueError
+- **message:** raise ValueError(
+
+```
+/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/rnn.py:1364: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.15 and num_layers=1
+  super().__init__("GRU", *args, **kwargs)
+Traceback (most recent call last):
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_203901_full_dataset_v1/exp_003/code.py", line 168, in <module>
+    model(dummy_input)
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260413_203901_full_dataset_v1/exp_003/code.py", line 68, in forward
+    output, _ = self.gru(x) 
+                ^^^^^^^^^^^
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/.venv/lib/python3.11/site-packages/torch/nn/modules/rnn.py", line 1411, in forward
+    raise ValueError(
+ValueError: GRU: Expected input to be 2D or 3D, got 4D instead
+```

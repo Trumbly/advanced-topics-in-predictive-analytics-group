@@ -1,10 +1,10 @@
 {
-  "study_id": "study_20260413_203901_full_dataset_v1",
-  "name": "full_dataset_v1",
-  "hypothesis": "25 epochs, cosine LR, pretrained backbones, full 233K dataset",
+  "study_id": "study_20260413_214602_full_dataset_v2",
+  "name": "full_dataset_v2",
+  "hypothesis": "25 epochs max, early stopping patience=5, cosine LR, pretrained backbones, full 233K dataset",
   "mode": "autonomous",
   "compute_budget": {
-    "max_experiments": 10,
+    "max_experiments": 5,
     "max_wallclock_minutes": 480,
     "max_experiment_seconds": 7200,
     "max_epochs_per_run": 25,
@@ -21,14 +21,12 @@
   "dataset_profile_path": "data/processed/dataset_profile.json",
   "model_registry_path": "registry/models.yaml",
   "experiment_ids": [
-    "exp_001",
-    "exp_002",
-    "exp_003"
+    "exp_001"
   ],
-  "best_experiment_id": "exp_002",
-  "best_score": 0.9590005391279278,
+  "best_experiment_id": null,
+  "best_score": null,
   "submissions": [],
-  "status": "aborted",
-  "created_at": "2026-04-13T20:39:01.717370Z",
-  "updated_at": "2026-04-13T21:23:53.226940Z"
+  "status": "active",
+  "created_at": "2026-04-13T21:46:02.890102Z",
+  "updated_at": "2026-04-13T21:46:03.469342Z"
 }

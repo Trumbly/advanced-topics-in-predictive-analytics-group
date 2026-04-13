@@ -26,7 +26,7 @@ llm:
 compute_budget:
   max_experiments: 20
   max_wallclock_minutes: 480
-  max_experiment_seconds: 7200            # 2 hours per experiment
+  max_experiment_seconds: 14400           # 4 hours per experiment
   max_epochs_per_run: 25                  # allow enough epochs to converge
   max_recovery_attempts: 5                # retries per experiment when code fails
 
@@ -48,7 +48,7 @@ logging:
 # is still enforced even when training locally on GPU.
 training:
   device: mps                              # auto | cpu | mps | cuda. auto picks mps on Apple Silicon.
-  batch_size: 64                            # keep small for MPS memory; 512 causes OOM
+  batch_size: 128                           # safe for 24GB M3/M4 Pro; 512 causes OOM
   num_workers: 8                         # null = auto-tune (min(6, cpu_count//2))
   persistent_workers: true                  # keep workers across epochs (macOS spawn cost)
   prefetch_factor: 4                        # batches each worker buffers ahead of the loop

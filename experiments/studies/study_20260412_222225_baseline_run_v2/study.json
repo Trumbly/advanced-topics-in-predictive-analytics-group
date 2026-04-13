@@ -40,7 +40,7 @@
   "best_experiment_id": "exp_001",
   "best_score": 0.6676162486178272,
   "submissions": [],
-  "status": "active",
+  "status": "aborted",
   "created_at": "2026-04-12T22:22:25.176744Z",
   "updated_at": "2026-04-13T01:30:21.687511Z"
 }
