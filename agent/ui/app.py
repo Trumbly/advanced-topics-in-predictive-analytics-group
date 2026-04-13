@@ -401,6 +401,16 @@ def create_app(
             status_code=201,
         )
 
+    @app.get("/api/prompts/registry")
+    def api_prompts_registry() -> JSONResponse:
+        """Return the full prompt registry as JSON for the UI selectors."""
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
+
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        mgr = PromptRegistryManager(prompts_dir)
+        registry = mgr.load_registry()
+        return JSONResponse(registry.model_dump(mode="json"))
+
     @app.post("/api/prompts/{task_name}/default")
     async def api_set_prompt_default(
         request: Request, task_name: str

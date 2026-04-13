@@ -44,7 +44,7 @@ class ExperimentMemory:
     """In-memory + on-disk store of experiments belonging to one Study."""
 
     study_dir: Path
-    score_metric: str = "roc_auc_macro"
+    score_metric: str = "f1_macro"
     _experiments: list[Experiment] = field(default_factory=list)
 
     # -- lifecycle ----------------------------------------------------------
@@ -100,7 +100,7 @@ class ExperimentMemory:
     def seed_from_predecessor(
         new_study_dir: Path,
         predecessor_study_dir: Path,
-        score_metric: str = "roc_auc_macro",
+        score_metric: str = "f1_macro",
     ) -> "ExperimentMemory":
         """Create a new ExperimentMemory pre-populated with a predecessor study's experiments.
 

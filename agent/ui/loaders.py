@@ -163,7 +163,7 @@ class ExperimentDetail:
 # ---------------------------------------------------------------------------
 
 
-_SCORE_METRIC = "roc_auc_macro"
+_SCORE_METRIC = "f1_macro"
 _LOG_TAIL_LINES = 200
 # How fresh the stdout.log mtime has to be for us to consider a
 # sandboxed experiment "currently running". Must be comfortably

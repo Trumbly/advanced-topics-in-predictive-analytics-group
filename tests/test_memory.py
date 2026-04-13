@@ -53,7 +53,7 @@ def _make_experiment(
 
 @pytest.fixture
 def memory(tmp_path: Path) -> ExperimentMemory:
-    return ExperimentMemory(study_dir=tmp_path / "study")
+    return ExperimentMemory(study_dir=tmp_path / "study", score_metric="roc_auc_macro")
 
 
 # ---------------------------------------------------------------------------
@@ -98,11 +98,11 @@ class TestBasics:
 class TestPersistence:
     def test_save_and_reload(self, tmp_path: Path) -> None:
         study_dir = tmp_path / "study"
-        mem1 = ExperimentMemory(study_dir=study_dir)
+        mem1 = ExperimentMemory(study_dir=study_dir, score_metric="roc_auc_macro")
         mem1.append(_make_experiment("exp_001", score=0.5))
         mem1.append(_make_experiment("exp_002", score=0.7))
 
-        mem2 = ExperimentMemory(study_dir=study_dir)
+        mem2 = ExperimentMemory(study_dir=study_dir, score_metric="roc_auc_macro")
         assert len(mem2) == 2
         assert mem2.best_score() == 0.7
 

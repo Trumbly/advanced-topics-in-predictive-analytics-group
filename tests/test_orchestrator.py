@@ -194,7 +194,7 @@ def _make_orchestrator(
     registry = ModelRegistry("registry/models.yaml")
     dataset_profile = DatasetProfile.from_json_file(study.dataset_profile_path)
     study_dir = tmp_path / "study_dir"
-    memory = ExperimentMemory(study_dir=study_dir)
+    memory = ExperimentMemory(study_dir=study_dir, score_metric="roc_auc_macro")
     experiment_logger = ExperimentLogger(study_dir=study_dir)
     executor = CodeExecutor(
         sandbox_root=tmp_path / "sandbox",

@@ -96,8 +96,8 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
         ],
         config=ModelConfig(architecture="[custom_cnn] cnn_small_v1 baseline"),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.73, "loss": 0.42},
-            training_curves={"loss": [0.9, 0.6, 0.42], "roc_auc_macro": [0.5, 0.68, 0.73]},
+            metrics={"roc_auc_macro": 0.73, "f1_macro": 0.65, "loss": 0.42},
+            training_curves={"loss": [0.9, 0.6, 0.42], "roc_auc_macro": [0.5, 0.68, 0.73], "f1_macro": [0.3, 0.5, 0.65]},
             duration_seconds=120.5,
         ),
         status=ExperimentStatus.COMPLETED,
@@ -163,7 +163,7 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
             architecture="[efficientnet_b0] TorchvisionAdapter(efficientnet_b0)"
         ),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.68, "loss": 0.5},
+            metrics={"roc_auc_macro": 0.68, "f1_macro": 0.55, "loss": 0.5},
             training_curves={"loss": [0.8, 0.5]},
             duration_seconds=210.0,
         ),
@@ -271,12 +271,12 @@ class TestLoaders:
         detail = load_study_detail(studies_root, "study_a")
         assert detail is not None
         assert len(detail.experiments) == 3
-        # scores in insertion order: 0.73, None (failed), 0.68
+        # scores in insertion order (f1_macro): 0.65, None (failed), 0.55
         scores = [p["score"] for p in detail.score_progression]
-        assert scores == [0.73, None, 0.68]
+        assert scores == [0.65, None, 0.55]
         # best_so_far tracks the running max
         best = [p["best_so_far"] for p in detail.score_progression]
-        assert best == [0.73, 0.73, 0.73]
+        assert best == [0.65, 0.65, 0.65]
 
     def test_study_detail_failure_breakdown(
         self, on_disk_studies: tuple[Path, Path]
@@ -387,11 +387,11 @@ class TestRoutes:
         r = client.get("/api/studies/study_a/score_progression")
         assert r.status_code == 200
         body = r.json()
-        assert body["metric"] == "roc_auc_macro"
+        assert body["metric"] == "f1_macro"
         assert len(body["points"]) == 3
-        assert body["points"][0]["score"] == 0.73
+        assert body["points"][0]["score"] == 0.65
         assert body["points"][1]["score"] is None  # failed exp
-        assert body["points"][2]["score"] == 0.68
+        assert body["points"][2]["score"] == 0.55
 
     def test_failure_breakdown_api(self, client: TestClient) -> None:
         r = client.get("/api/studies/study_a/failure_breakdown")

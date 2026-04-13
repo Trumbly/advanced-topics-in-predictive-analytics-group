@@ -29,7 +29,7 @@ class PromptScoreStats:
 
 def aggregate_prompt_scores(
     studies_root: Path,
-    score_metric: str = "roc_auc_macro",
+    score_metric: str = "f1_macro",
 ) -> dict[str, dict[str, PromptScoreStats]]:
     """Return {task_name: {version: PromptScoreStats}} across all studies.
 

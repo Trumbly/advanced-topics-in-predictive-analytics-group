@@ -49,6 +49,16 @@
         <option value="">Start fresh</option>
       </select>
     </div>
+    <div class="md:col-span-2">
+      <details class="rounded border border-slate-200 bg-white">
+        <summary class="px-3 py-2 text-xs font-semibold text-slate-600 cursor-pointer hover:bg-slate-50">
+          ▶ Prompt selection per task (optional — defaults used if not expanded)
+        </summary>
+        <div class="px-3 py-3 border-t border-slate-200 grid md:grid-cols-3 gap-3" id="prompt-selectors">
+          <p class="md:col-span-3 text-xs text-slate-500">Loading prompt versions...</p>
+        </div>
+      </details>
+    </div>
     <div class="md:col-span-2 flex items-center gap-3">
       <button type="submit"
         class="inline-flex items-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
@@ -60,6 +70,38 @@
 </div>
 
 <script>
+// Populate prompt selectors
+fetch("/api/prompts/registry").then(r => r.json()).then(data => {
+  const container = document.getElementById("prompt-selectors");
+  if (!data.tasks || Object.keys(data.tasks).length === 0) {
+    container.innerHTML = '<p class="md:col-span-3 text-xs text-slate-500">No prompt versions found.</p>';
+    return;
+  }
+  container.innerHTML = "";
+  for (const [task, entry] of Object.entries(data.tasks)) {
+    const div = document.createElement("div");
+    const label = document.createElement("label");
+    label.className = "block text-xs font-semibold text-slate-600 mb-1";
+    label.textContent = task;
+    const select = document.createElement("select");
+    select.name = "prompt_" + task;
+    select.className = "w-full rounded border border-slate-300 px-2 py-1.5 text-xs";
+    const defOpt = document.createElement("option");
+    defOpt.value = "default";
+    defOpt.textContent = "Use default (" + entry.default_version + ")";
+    select.appendChild(defOpt);
+    for (const v of Object.keys(entry.versions).sort()) {
+      const opt = document.createElement("option");
+      opt.value = v;
+      opt.textContent = v + (v === entry.default_version ? " ★" : "");
+      select.appendChild(opt);
+    }
+    div.appendChild(label);
+    div.appendChild(select);
+    container.appendChild(div);
+  }
+}).catch(() => {});
+
 // Populate predecessor dropdown
 fetch("/api/studies").then(r => r.json()).then(studies => {
   const sel = document.getElementById("predecessor-select");
@@ -81,12 +123,20 @@ document.getElementById("new-study-form").addEventListener("submit", async funct
   statusEl.textContent = "Starting...";
   statusEl.className = "text-sm text-slate-600";
 
+  // Collect prompt selection from the selectors
+  const promptSelection = {};
+  document.querySelectorAll('#prompt-selectors select').forEach(sel => {
+    const task = sel.name.replace('prompt_', '');
+    if (sel.value && sel.value !== 'default') promptSelection[task] = sel.value;
+  });
+
   const body = {
     name: form.name.value,
     hypothesis: form.hypothesis.value || "Launched from the dashboard",
     max_experiments: parseInt(form.max_experiments.value || "25", 10),
     model: form.model.value || null,
     predecessor: form.predecessor.value || null,
+    prompt_selection: Object.keys(promptSelection).length > 0 ? promptSelection : null,
   };
 
   try {
