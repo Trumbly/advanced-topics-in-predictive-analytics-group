@@ -1,0 +1,43 @@
+# Core ML
+# NOTE: TensorFlow currently supports Python 3.9–3.12. If you hit
+# "No matching distribution found for tensorflow", you are likely on
+# Python 3.13+. Use a conda env with Python 3.11:
+#   conda create -n birdclef python=3.11 -y && conda activate birdclef
+tensorflow>=2.15.0
+torch>=2.2.0
+torchvision>=0.17.0
+torchaudio>=2.2.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# LLM integration (Ollama)
+ollama>=0.4.0
+openai>=1.0.0
+
+# Data models & config
+pydantic>=2.6.0
+
+# CLI
+click>=8.1.0
+
+# Dashboard (FastAPI + Jinja2 + HTMX, all served from the `agent ui` command)
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+jinja2>=3.1.0
+
+# Utilities
+tqdm>=4.65.0
+pyyaml>=6.0
+psutil>=5.9.0              # used by the executor heartbeat for CPU utilization
+
+# Testing
+pytest>=8.0.0

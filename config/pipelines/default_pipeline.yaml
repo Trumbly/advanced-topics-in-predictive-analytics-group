@@ -1,0 +1,45 @@
+# Default pipeline for BirdCLEF experiments.
+# The orchestrator executes these steps in order for each experiment.
+# Task types:
+#   - llm:        calls the LLM with the referenced prompt template
+#   - predefined: calls a Python handler module
+
+name: default_birdclef
+description: Baseline loop — propose -> generate -> validate -> train -> capture -> analyze
+
+steps:
+  - task_name: propose_architecture
+    task_type: llm
+    prompt_template: config/prompts/propose_architecture.yaml
+
+  - task_name: generate_code
+    task_type: llm
+    prompt_template: config/prompts/generate_code.yaml
+
+  - task_name: validate_code
+    task_type: predefined
+    handler: agent.handlers.validate_code
+    config:
+      check_imports: [torch, tensorflow, keras, pipelines]
+      max_epochs: 1                       # hard cap, fast-iteration mode
+      reject_patterns:
+        - "os.system"
+        - "subprocess.Popen"
+        - "urllib.request"
+        - "requests.get"
+        - "requests.post"
+
+  - task_name: execute_training
+    task_type: predefined
+    handler: agent.handlers.execute_training
+    config:
+      timeout_seconds: 7200                 # 2 hours — real BirdCLEF training on CPU is slow
+      catch_errors: [OOM, SyntaxError, ShapeMismatch, Timeout]
+
+  - task_name: capture_metrics
+    task_type: predefined
+    handler: agent.handlers.capture_metrics
+
+  - task_name: analyze_results
+    task_type: llm
+    prompt_template: config/prompts/analyze_results.yaml

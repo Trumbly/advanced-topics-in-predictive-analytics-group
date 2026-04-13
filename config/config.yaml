@@ -1,0 +1,54 @@
+# Global runtime configuration for the BirdCLEF autonomous research agent.
+# Loaded once at startup. Paths are resolved relative to the repository root.
+
+project: birdclef-2026-agent
+version: "0.1.0"
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  dataset_profile: data/processed/dataset_profile.json
+  experiments: experiments/studies
+  models: models
+  sandbox: sandbox
+  model_registry: registry/models.yaml
+
+llm:
+  provider: ollama                        # ollama | lmstudio | openai
+  base_url: http://localhost:11434/v1
+  default_model: gemma4:e4b
+  temperature: 0.7
+  max_tokens: 8192
+  timeout_seconds: 300
+  retry_attempts: 3
+  retry_backoff_seconds: 5
+
+compute_budget:
+  max_experiments: 20
+  max_wallclock_minutes: 240
+  max_experiment_seconds: 7200            # 2 hours per experiment
+  max_epochs_per_run: 1                   # fast-iteration mode: 1 epoch per run
+  max_recovery_attempts: 2                # retries per experiment when code fails
+
+context:
+  max_prompt_tokens: 8000
+  memory_top_k: 5                         # top-K experiments injected into each prompt
+  memory_format: markdown                 # markdown is token-efficient for LLM context
+
+logging:
+  level: DEBUG
+  console: true
+  file: experiments/agent.log
+
+# Training knobs forwarded to the sandbox subprocess as BIRDCLEF_* env vars.
+# `pipelines.data_loader.load_precomputed_dataset` and the LLM-generated
+# training script read these when the code does not override them explicitly.
+# NOTE: The SubmissionExporter always forces device=cpu in the final Kaggle
+# notebook regardless of the value here, so Kaggle's CPU-only constraint
+# is still enforced even when training locally on GPU.
+training:
+  device: mps                              # auto | cpu | mps | cuda. auto picks mps on Apple Silicon.
+  batch_size: 64                            # keep small for MPS memory; 512 causes OOM
+  num_workers: 8                         # null = auto-tune (min(6, cpu_count//2))
+  persistent_workers: true                  # keep workers across epochs (macOS spawn cost)
+  prefetch_factor: 4                        # batches each worker buffers ahead of the loop
