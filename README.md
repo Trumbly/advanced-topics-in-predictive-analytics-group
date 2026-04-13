@@ -2,9 +2,11 @@
 
 **Advanced Predictive Analytics 2025/2026 — Course Project (Track B)**
 
-An AI-powered autonomous research agent that designs, trains, evaluates, and iterates on deep learning models for bird species recognition from audio recordings. The agent uses a locally-hosted LLM to drive the ML experimentation loop.
+An AI-powered autonomous research agent that designs, trains, evaluates, and iterates on deep learning models for bird species recognition from audio recordings. The agent uses a locally-hosted LLM (via Ollama) to drive the entire ML experimentation loop — from architecture proposal to code generation, training, evaluation, and error recovery — without human intervention.
 
 **Competition:** [BirdCLEF+ 2026](https://www.kaggle.com/competitions/birdclef-2026)
+
+---
 
 ## Team
 
@@ -15,292 +17,407 @@ An AI-powered autonomous research agent that designs, trains, evaluates, and ite
 | Sebastian Mis | [@SebastianMis23](https://github.com/SebastianMis23) | Collaborator |
 | Danish Mujtaba Qureshi | [@danish-m-qureshi](https://github.com/danish-m-qureshi) | Collaborator |
 
-## Project Structure
+---
 
-```
-.
-├── agent/                  # Agent loop modules
-│   ├── models.py               # Pydantic data models (Study, Experiment, Task, ...)
-│   ├── orchestrator.py         # Main loop
-│   ├── llm_client.py           # Ollama (OpenAI-compatible) client
-│   ├── prompt_engine.py        # YAML prompt template loader
-│   ├── context_handler.py      # Assembles final LLM prompts
-│   ├── memory.py               # ExperimentMemory (top-k, markdown)
-│   ├── executor.py             # Sandbox subprocess runner
-│   ├── metrics.py              # Parses results.json
-│   ├── logger.py               # JSON + Markdown study/experiment/task logs
-│   ├── submission.py           # Kaggle notebook exporter
-│   ├── cli.py                  # Click CLI (start / resume / list / status / submit)
-│   ├── main.py                 # python -m agent.main entry point
-│   └── handlers/               # Predefined task handlers
-│       ├── validate_code.py
-│       ├── execute_training.py
-│       ├── capture_metrics.py
-│       └── generate_submission.py
-├── pipelines/              # Fixed audio preprocessing (NOT modified by the agent)
-│   ├── audio_pipeline.py       # Mel-spectrogram, windowing, augmentation
-│   ├── dataset_profile.py      # DatasetProfile builder
-│   └── data_loader.py          # Reads precomputed .npy files into torch datasets
-├── registry/               # Pretrained model catalog
-│   ├── models.yaml             # LLM picks from this catalog
-│   └── registry.py             # Loader + markdown export for prompt injection
-├── config/
-│   ├── config.yaml             # Global runtime config
-│   ├── pipelines/              # default / exploration / exploitation
-│   ├── prompts/                # propose_architecture / generate_code / analyze_results / error_recovery
-│   └── tasks/                  # Predefined handler documentation
-├── scripts/
-│   ├── preprocess.sh           # One-shot download + build_profile
-│   ├── download_data.py        # Kaggle CLI wrapper
-│   └── build_profile.py        # Runs AudioPipeline + builds DatasetProfile
-├── experiments/
-│   └── studies/                # Per-study JSON + Markdown logs (gitignored)
-├── data/
-│   ├── raw/                    # Kaggle download (gitignored)
-│   └── processed/              # .npy spectrograms + dataset_profile.json (gitignored)
-├── sandbox/                # Subprocess workdir for generated code (gitignored)
-├── models/                 # Saved model checkpoints (gitignored)
-├── notebooks/
-│   └── manual_baseline.ipynb   # Hand-crafted baseline for the report comparison
-├── reports/figures/        # Report assets
-├── tests/                  # pytest suite (154 tests)
-├── Project_Handout.pdf
-├── requirements.txt
-└── README.md
-```
+## Quick Start (for Dummies)
 
-### Architecture Overview
+> **Prerequisite:** macOS or Linux with at least 16 GB RAM. An Apple Silicon Mac (M1/M2/M3/M4) is recommended for MPS GPU acceleration.
 
-The agent is composed of several decoupled modules that work together in an autonomous experimentation loop:
-
-| Module | Location | Description |
-|--------|----------|-------------|
-| **Orchestrator** | `agent/` | Main loop controller. Drives the Propose → Generate → Execute → Evaluate → Iterate cycle. Manages stopping criteria (max iterations, score plateau, time budget) and two-phase strategy: broad exploration first, then exploitation of best candidates. |
-| **LLM Client** | `agent/` | Model-agnostic interface to locally-hosted LLMs via OpenAI-compatible API (Ollama). Supports swapping between Gemma 4, Qwen 3, DeepSeek-R1, etc. without code changes. |
-| **Prompt Engine** | `prompts/` | Situational prompt templates instead of one monolithic prompt. Separate templates for exploration, exploitation, error recovery, and final submission. Slots are filled dynamically with experiment history and metrics. |
-| **Context Handler** | `agent/` | Assembles the final LLM prompt from templates + experiment memory. Handles context window management — decides what fits and what gets trimmed. |
-| **Experiment Memory** | `experiments/memory/` | Structured JSON registry of all past runs: architecture, hyperparameters, score, duration, errors. Prevents the LLM from repeating failed experiments. Compact summaries are injected into the LLM context. |
-| **Experiment Logger** | `experiments/logs/` | Full logs for every run: the prompt sent, code generated, training metrics, and LLM analysis. Human-readable markdown + structured JSON. Essential for the report and debugging. |
-| **Code Generator** | `agent/` | Translates LLM output into executable Python code. Only architecture, hyperparameters, and training config are generated — fixed building blocks (audio pipeline, data loader) are referenced, not rewritten. |
-| **Code Executor / Sandbox** | `sandbox/` | Runs generated code in isolation. Catches errors (OOM, syntax, shape mismatch, timeouts). Returns structured results (metrics, logs, exit status). Enforces compute budget per run. |
-| **Audio Pipeline** | `pipelines/` | Fixed, well-tested code for audio preprocessing: mel-spectrogram generation, 5-second windowing, augmentation (time-shift, noise injection, mixup). Parameters are configurable by the agent, but the code itself is stable. |
-| **Model Registry** | `registry/` | Catalog of verified building blocks (CnnSmallV1 baseline, torchvision backbones) with metadata (input shape, output dim, size, suitability) and ready-to-use import snippets. The agent uses the registry as a starting point, but is **not limited to it** — it is free to design custom `nn.Module` architectures inline and combine them with any public `torch` / `torchvision` / `torchaudio` APIs. |
-| **Metrics Collector** | `agent/` | Collects ROC-AUC (macro-averaged), loss, learning curves, run duration, and resource usage. Enables comparison across runs. |
-| **Submission Exporter** | `agent/` | Exports the best model + inference pipeline as a standalone Kaggle notebook that meets the CPU-only, 90-minute runtime constraint. |
-| **Dashboard** *(optional)* | `dashboard/` | Web-based UI (FastAPI + React/HTMX) for live monitoring, experiment browsing, prompt management, and one-click Kaggle export. |
-
-### Agent Loop
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     ORCHESTRATOR                        │
-│                                                         │
-│   ┌──────────┐    ┌──────────┐    ┌──────────────┐     │
-│   │  Prompt   │───>│   LLM    │───>│    Code      │     │
-│   │  Engine   │    │  Client  │    │  Generator   │     │
-│   └────▲─────┘    └──────────┘    └──────┬───────┘     │
-│        │                                  │             │
-│        │                                  ▼             │
-│   ┌────┴─────┐    ┌──────────┐    ┌──────────────┐     │
-│   │ Context  │    │ Metrics  │<───│   Sandbox    │     │
-│   │ Handler  │    │ Collector│    │  (Executor)  │     │
-│   └────▲─────┘    └────┬─────┘    └──────────────┘     │
-│        │               │                                │
-│        │               ▼                                │
-│   ┌────┴───────────────────────┐                       │
-│   │    Experiment Memory       │                       │
-│   └────────────────────────────┘                       │
-│                                                         │
-│   Phase 1: EXPLORATION (broad, fast, few epochs)       │
-│   Phase 2: EXPLOITATION (scale best candidates)        │
-└─────────────────────────────────────────────────────────┘
-
-Fixed modules (not generated by agent):
-  ├── Audio Pipeline (pipelines/)
-  └── Model Registry (registry/)
-```
-
-### Core Principles
-
-1. **Fixed pipeline, free-form architectures** — The audio pipeline and data loader are stable, tested code (spectrogram generation, windowing, augmentation presets). The agent varies *everything above that*: model architecture (from registry **or** custom `nn.Module` classes written inline), hyperparameters, training config, loss design, ensembling.
-2. **Registry = starting points, not a cage** — The Model Registry (`registry/models.yaml`) is a catalog of verified building blocks with ready-to-copy import snippets. The agent uses it when it fits, but it is encouraged to design novel architectures from `torch.nn` primitives when the situation calls for it.
-3. **Explore cheap, exploit deep** — Start with small models, few epochs, data subsets. Only invest heavy compute into the most promising candidates (neural scaling laws).
-4. **Log everything** — Every experiment is fully logged: prompt, code, metrics, LLM analysis. This powers both the agent's memory and the project report.
-5. **Model-agnostic LLM** — The agent works with any locally-hosted LLM via the OpenAI-compatible API. Swap models without changing code.
-
-## Setup
-
-### 1. Clone and install dependencies
-
-We recommend **conda with Python 3.11** because TensorFlow currently only
-ships wheels for Python 3.9–3.12, and most ML libraries are best-tested on
-3.11. A plain `venv` with Python 3.11/3.12 works too.
+### Step 1: Clone the repo
 
 ```bash
 git clone git@github.com:Trumbly/advanced-topics-in-predictive-analytics-group.git
 cd advanced-topics-in-predictive-analytics-group
+```
 
-# Option A (recommended): conda
+### Step 2: Set up the Python environment
+
+We use **conda** with Python 3.11. This is mandatory because some dependencies (TensorFlow) don't support newer Python versions.
+
+```bash
+# Install conda if you don't have it: https://docs.conda.io/en/latest/miniconda.html
+
 conda create -n birdclef python=3.11 -y
 conda activate birdclef
 pip install -r requirements.txt
-
-# Option B: venv (only works if your system python is 3.11 or 3.12)
-python3.11 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
-> If you see `ERROR: Could not find a version that satisfies the requirement tensorflow`,
-> your Python is too new for TF. Use conda with `python=3.11` as shown above.
+> **Troubleshooting:** If you see `ERROR: Could not find a version that satisfies the requirement tensorflow`, your Python is too new. Use conda with `python=3.11` as shown above.
 
-### 2. Install and start a local LLM
+### Step 3: Install and start Ollama (the local LLM server)
 
-We use [Ollama](https://ollama.com) to run LLMs locally.
+Ollama lets you run LLMs locally without needing a GPU cloud service.
+
+1. Download from https://ollama.com/download and install it
+2. Pull a model:
 
 ```bash
-# Install Ollama from https://ollama.com/download
-# Start the Ollama server (macOS/Windows: it's a background service)
-ollama serve &
+# Our recommended model (~10 GB download, strong code generation)
+ollama pull gemma4:e4b
 
-# Pull a model — any of these work, Gemma 4 E4B is the default
-ollama pull gemma4:e4b      # ~10 GB, strong all-rounder
-ollama pull qwen3:9b        # ~6 GB, lighter
-ollama pull deepseek-r1:8b  # ~5 GB, reasoning-focused
+# Alternatives (lighter but less reliable code generation):
+ollama pull qwen3:9b        # ~6 GB
+ollama pull nemotron-3-nano:4b  # ~3 GB, smallest
 ```
 
-You can change the default model in `config/config.yaml` (`llm.default_model`)
-or pass `--model` on the command line.
+Ollama runs as a background service — no need to start it manually after installation.
 
-### 3. Download and preprocess the competition data
+### Step 4: Download and preprocess the BirdCLEF data
 
-First-time setup (requires a Kaggle account and an API token at
-`~/.kaggle/kaggle.json`):
+You need a Kaggle account and an API token at `~/.kaggle/kaggle.json`:
 
 ```bash
 pip install kaggle
 python scripts/download_data.py --dest data/raw
-```
-
-Then run the preprocessing pipeline once. This converts raw audio into
-mel-spectrograms, writes a label file, and builds the `DatasetProfile`
-the agent reads at runtime:
-
-```bash
-# Quick smoke test with a small subset
-python scripts/build_profile.py --sample 100
-
-# Full dataset (slow, but only has to run once)
 bash scripts/preprocess.sh
 ```
 
-After this step, `data/processed/` contains:
-- `spectrograms/*.npy`       — precomputed mel-spectrograms
-- `labels.csv`               — sample_id → class_id mapping
-- `dataset_profile.json`     — statistics + train/val split (seed=42)
+This creates mel-spectrograms from the audio files. It only needs to run **once**.
 
-### 4. Run the agent
+### Step 5: Launch the Web Dashboard
 
 ```bash
-# Show available commands
-python -m agent.main --help
+conda activate birdclef
+python -m agent.cli ui
+```
 
-# List existing studies
-python -m agent.main list
+Open http://127.0.0.1:8000/ in your browser. You'll see the **BirdCLEF Agent Dashboard**.
 
-# Start a new study (uses config/pipelines/default_pipeline.yaml by default)
-python -m agent.main start \
-    --study baseline_run \
-    --hypothesis "First end-to-end baseline with small CNN" \
+### Step 6: Start your first study
+
+**Option A — From the Dashboard (recommended for beginners):**
+
+1. Click **"+ New study"** on the dashboard
+2. Fill in:
+   - **Name:** `my first study`
+   - **Hypothesis:** `Testing the baseline CNN architecture`
+   - **Max experiments:** `5` (start small!)
+3. Click **"Launch study"**
+4. Watch the live progress on the study detail page
+
+**Option B — From the Terminal:**
+
+```bash
+python -m agent.cli start \
+    --study "my first study" \
+    --hypothesis "Testing the baseline CNN" \
     --max-experiments 5
-
-# Resume an existing study
-python -m agent.main resume study_20260410_120000_baseline_run
-
-# Check status of the most recent study
-python -m agent.main status
-
-# Pretty-print the best experiment
-python -m agent.main show-best
-
-# Export the best experiment as a Kaggle submission notebook
-python -m agent.main submit
 ```
 
-Artifacts are written under `experiments/studies/<study_id>/`:
-- `study.json` / `study.md`           — study metadata
-- `memory.json` / `memory.md`         — experiment memory (what the LLM sees)
-- `experiments/<exp_id>/`             — per-experiment JSON + Markdown + tasks
-- `submissions/<exp_id>_submission.ipynb`  — exported Kaggle notebook
+### Step 7: Watch the agent work
 
-### 5. Run the test suite
+On the study detail page you'll see:
+- A **blue "Agent running" card** with a pipeline progress bar showing which step the agent is on (propose → generate → validate → execute → capture → analyze)
+- **Live stdout** from the training subprocess (click "Show live stdout" to expand)
+- The **experiment table** fills up in real time as experiments complete
+- **Score progression chart** and **failure breakdown chart** update automatically
 
-```bash
-pytest tests/                     # 154 tests, runs in ~2s
-pytest tests/ -v                  # verbose
-pytest tests/test_orchestrator.py # just the end-to-end smoke tests
+### Step 8: Export for Kaggle
+
+Once the study finishes and you have a good score:
+1. Click **"📦 Export Kaggle submission"** on the study detail page
+2. The agent creates a Kaggle-compatible `.ipynb` notebook with `BIRDCLEF_DEVICE=cpu` pinned
+3. Upload the notebook to Kaggle and submit
+
+---
+
+## Features
+
+### Autonomous ML Research Loop
+
+The agent runs a fully autonomous loop for each experiment:
+
 ```
+┌──────────────────────────────────────────────────────────────┐
+│                        ORCHESTRATOR                          │
+│                                                              │
+│  1. Propose Architecture (LLM)                               │
+│     → "[efficientnet_b0] EfficientNet via TorchvisionAdapter"│
+│                                                              │
+│  2. Generate Code (LLM)                                      │
+│     → Complete Python training script with __main__ guard     │
+│                                                              │
+│  3. Validate Code (static checks)                            │
+│     → AST analysis: forbidden imports, hallucinated layers,  │
+│       missing __main__ guard, EPOCHS cap                     │
+│                                                              │
+│  4. Execute Training (sandbox subprocess)                    │
+│     → Runs on MPS/CUDA/CPU, live stdout streaming            │
+│                                                              │
+│  5. Capture Metrics                                          │
+│     → F1 (primary), ROC-AUC, cmap@5, loss, training curves  │
+│                                                              │
+│  6. Analyze Results (LLM)                                    │
+│     → "The SE attention helped. Next: try a deeper ResNet."  │
+│                                                              │
+│  ↻ Repeat for N experiments (configurable budget)            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Error Recovery (two-layer retry system)
+
+Most generated code has bugs. The agent tries hard to fix them:
+
+- **Layer 1 — Codegen retry** (fast, ~10s each): When validation fails, the LLM regenerates the code with the validation error as feedback. Up to 5 retries. No subprocess needed.
+- **Layer 2 — Error recovery** (slower, ~5-15 min each): When execution crashes, the `error_recovery` prompt gives the LLM the broken code + traceback and asks for a fix. Up to 5 retries.
+
+Total: up to **10 fix attempts** per experiment before giving up.
+
+### Web Dashboard
+
+A full web dashboard at http://127.0.0.1:8000/ with:
+
+| Page | What it shows |
+|------|--------------|
+| **Studies** | All studies with best score, status, experiment counts. Click "+ New study" to start one from the UI. |
+| **Study Detail** | Experiment table (F1, ROC-AUC, cmap@5, duration), score progression chart, failure breakdown chart, live running-experiment card with pipeline progress bar + stdout |
+| **Experiment Detail** | Generated code, full task chain (prompts, LLM responses, errors), training curves, stdout/stderr logs |
+| **Prompts** | A/B testing dashboard: create immutable prompt versions, compare mean scores, set defaults |
+| **Report** | Auto-generated study report with rendered Markdown, charts, and figures |
+
+### Prompt A/B Testing
+
+- Prompts are **versioned** (`config/prompts/<task>/v1.yaml`, `v2.yaml`, ...)
+- Versions are **immutable** once created — no editing, no score tampering
+- The dashboard shows **mean experiment scores per prompt version**
+- When starting a study, you can select which prompt version to use per task
+- Each study records which prompts it used in `study.json`
+
+### Study Continuation
+
+Build on a previous study instead of starting from scratch:
+- Click **"🔄 Continue study"** on any completed study's detail page
+- The new study inherits the predecessor's full experiment memory
+- The LLM sees all previous architectures, scores, and failures
+- No baseline repeat — it starts at experiment N+1
+
+### GPU Support (MPS/CUDA/CPU)
+
+Training runs on the best available device:
+
+| Setting in `config.yaml` | Behavior |
+|--------------------------|----------|
+| `training.device: auto` | MPS on Apple Silicon, CUDA on NVIDIA, CPU fallback |
+| `training.device: mps` | Force Apple MPS (M1/M2/M3/M4) |
+| `training.device: cuda` | Force NVIDIA CUDA |
+| `training.device: cpu` | Force CPU (slow but always works) |
+
+The Kaggle submission **always** uses CPU regardless (automatically enforced).
+
+### Git-Transportable Studies
+
+Study results are committed to Git so the team can share them:
+- `experiments/studies/` is tracked (not gitignored)
+- Each experiment's `code.py` is copied into the study directory
+- `scripts/commit_study.sh <study_id>` commits a study with a descriptive message
+- `.gitattributes` prevents merge conflicts on parallel commits
+
+### Metrics
+
+Three metrics are computed per experiment:
+
+| Metric | Description | Use |
+|--------|-------------|-----|
+| **F1 (macro)** | Primary metric. Measures actual classification performance at threshold 0.5. | Sorting, comparison, "best score" |
+| **ROC-AUC (macro)** | Ranking quality. How well the model separates classes regardless of threshold. | Secondary comparison |
+| **cmap@5** | Class-mean average precision at k=5. The real BirdCLEF competition metric. | Competition alignment |
+
+---
+
+## Project Structure
+
+```
+.
+├── agent/                      # Agent core modules
+│   ├── models.py                   # Pydantic data models (Study, Experiment, Task, ...)
+│   ├── orchestrator.py             # Main agent loop with error recovery
+│   ├── llm_client.py               # Ollama (OpenAI-compatible) client
+│   ├── prompt_engine.py            # YAML prompt template loader
+│   ├── prompt_registry.py          # Versioned prompt management (A/B testing)
+│   ├── prompt_scoring.py           # Score aggregation per prompt version
+│   ├── context_handler.py          # Assembles LLM prompts (memory + profile + registry)
+│   ├── memory.py                   # ExperimentMemory (top-k, seeding from predecessor)
+│   ├── executor.py                 # Sandbox subprocess runner (live stdout streaming)
+│   ├── metrics.py                  # Parses results.json
+│   ├── logger.py                   # JSON + Markdown study/experiment/task logs
+│   ├── submission.py               # Kaggle notebook exporter (forces CPU)
+│   ├── report.py                   # Auto-generated study report with charts
+│   ├── cli.py                      # Click CLI
+│   ├── handlers/                   # Predefined task handlers
+│   │   ├── validate_code.py            # AST validation (torch.nn reflection, __main__ guard)
+│   │   ├── execute_training.py
+│   │   ├── capture_metrics.py
+│   │   └── generate_submission.py
+│   └── ui/                         # Web dashboard
+│       ├── app.py                      # FastAPI app factory + all routes
+│       ├── loaders.py                  # Read-only disk access for the UI
+│       ├── process_manager.py          # Start/stop study subprocesses
+│       └── templates/                  # Jinja2 + HTMX + Chart.js + Tailwind (CDN)
+│           ├── base.html
+│           ├── index.html              # Studies list + "New study" form
+│           ├── study.html              # Study detail + charts + experiments
+│           ├── experiment.html         # Experiment detail + code + tasks + logs
+│           ├── report.html             # Rendered Markdown report
+│           ├── prompts_dashboard.html  # Prompt A/B testing dashboard
+│           ├── prompt_version.html     # Read-only version viewer
+│           └── _partials/              # HTMX auto-refresh fragments
+├── pipelines/                  # Fixed audio preprocessing
+│   ├── audio_pipeline.py
+│   ├── data_loader.py              # PyTorch DataLoader with pos_weight helper
+│   └── models.py                   # CnnSmallV1 + TorchvisionAdapter
+├── registry/                   # Model catalog
+│   ├── models.yaml                 # cnn_small_v1, efficientnet_b0, resnet18, mobilenet_v3_small
+│   └── registry.py
+├── config/
+│   ├── config.yaml                 # Global config (device, epochs, batch_size, LLM model)
+│   ├── pipelines/                  # Pipeline YAML definitions
+│   └── prompts/                    # Versioned prompt templates
+│       ├── _registry.yaml              # Version metadata + defaults
+│       ├── generate_code/v1.yaml
+│       ├── propose_architecture/v1.yaml
+│       ├── error_recovery/v1.yaml
+│       ├── analyze_results/v1.yaml
+│       └── report/v1.yaml
+├── experiments/studies/        # Study results (committed to git)
+├── sandbox/                    # Temp execution workdir (gitignored)
+├── scripts/
+│   ├── commit_study.sh             # Convenience: commit one study
+│   ├── migrate_prompts_to_versioned.py
+│   ├── build_profile.py
+│   └── download_data.py
+├── tests/                      # 324 pytest tests
+├── requirements.txt
+└── README.md
+```
+
+---
 
 ## CLI Reference
 
-| Command | Description |
-|---------|-------------|
-| `start --study <name>` | Create a new Study and run the full loop |
-| `resume <study_id>` | Continue an existing Study from its saved state |
-| `list` | Table of all Studies on disk |
-| `status [<study_id>]` | Show one Study's metadata (defaults to most recent) |
-| `show-best [<study_id>]` | Pretty-print the best experiment's JSON |
-| `submit [<study_id>]` | Export the best experiment as a Kaggle notebook |
+```bash
+# Start the web dashboard
+python -m agent.cli ui [--port 8000] [--host 127.0.0.1]
 
-Global options:
-- `--config <path>` — override `config/config.yaml`
-- `--log-level {DEBUG,INFO,WARNING,ERROR}`
+# Start a new study
+python -m agent.cli start \
+    --study "study name" \
+    --hypothesis "what we're testing" \
+    [--max-experiments 20] \
+    [--model gemma4:e4b] \
+    [--predecessor study_20260412_...] \
+    [--prompt-selection '{"generate_code": "v2"}']
 
-Per-command options for `start`:
-- `--hypothesis <text>` — one-line description of what the study tests
-- `--pipeline <yaml>` — override the default pipeline
-- `--model <name>` — override the LLM model (e.g. `gemma4:e4b`, `qwen3:9b`)
-- `--max-experiments <N>` — override the compute budget
-- `--mode {autonomous,interactive}` — interactive mode is a placeholder
+# Resume / inspect / export
+python -m agent.cli resume <study_id>
+python -m agent.cli list
+python -m agent.cli status [<study_id>]
+python -m agent.cli show-best [<study_id>]
+python -m agent.cli report [<study_id>]
+python -m agent.cli submit [<study_id>]
+```
 
-## How it works
+---
 
-### Pipelines are data, not code
+## Configuration
 
-The agent's execution flow is defined entirely by YAML files under
-`config/pipelines/`. Each pipeline is a sequence of steps, and each step is
-either an LLM call (with a prompt template) or a predefined Python handler.
-To add a new experiment flavor, copy `default_pipeline.yaml`, edit the steps,
-and pass `--pipeline path/to/your.yaml` to `start`.
+All tunable settings live in `config/config.yaml`:
 
-### Two-phase strategy
+```yaml
+llm:
+  default_model: gemma4:e4b      # Which Ollama model to use
+  temperature: 0.7               # Higher = more creative architectures
 
-`exploration_pipeline.yaml` runs with tiny models, 3 epochs, and 10% of the
-data — ideal for the first ~10 experiments to quickly probe architecture
-families. Once you identify a promising family, switch to
-`exploitation_pipeline.yaml`, which scales the same flow to full data and
-longer training.
+compute_budget:
+  max_experiments: 20            # Experiments per study
+  max_epochs_per_run: 5          # Epochs per experiment (wired to BIRDCLEF_EPOCHS)
+  max_experiment_seconds: 7200   # 2h timeout per experiment
 
-### Memory and prompt construction
+training:
+  device: auto                   # auto | cpu | mps | cuda
+  batch_size: 512
+  num_workers: 8
+  persistent_workers: true
+```
 
-`ExperimentMemory` persists every experiment as JSON + regenerated
-Markdown. On each new experiment, the `ContextHandler` pulls the top-K
-successes and recent failures from memory, combines them with the
-`DatasetProfile` + `ModelRegistry`, and fills the prompt template.
-If the assembled prompt exceeds the token budget, memory is progressively
-trimmed until it fits.
+---
 
-### Validation before execution
+## How the Agent Works (Technical)
 
-LLM-generated code runs through `agent.handlers.validate_code` before it
-ever reaches the sandbox subprocess:
-- AST-level rejection of forbidden imports (`subprocess`, `urllib`,
-  `requests`, `socket`, ...)
-- Substring rejection of dangerous patterns (`os.system`, `eval(`,
-  `exec(`, ...)
-- Optional allowlist of expected imports (configured in the pipeline YAML)
+### 1. Prompt-driven architecture
 
-This catches most bad-code cases before spending sandbox time on them.
+Every LLM task is driven by a **YAML prompt template** (in `config/prompts/`). The template has a `system` prompt (rules, skeleton code, pitfalls) and a `template` with `{slot}` placeholders that get filled dynamically with experiment memory, dataset profile, and model registry.
+
+### 2. The validation gauntlet
+
+LLM-generated code passes through multiple static checks BEFORE execution:
+- **Forbidden imports** (subprocess, urllib, requests, socket)
+- **Hallucinated torch.nn layers** (reflection against `dir(torch.nn)`, suggests correct names)
+- **Missing `__main__` guard** (required for multiprocessing DataLoader workers)
+- **EPOCHS cap** (rejects literal overrides)
+- **LazyLinear initialization** (requires dummy forward pass before optimizer)
+
+### 3. Live training monitoring
+
+The executor writes `stdout.log` **line by line** as the training subprocess produces output. The dashboard's HTMX partial polls every 2 seconds. You see epoch progress, loss values, and "model built" messages in real time.
+
+### 4. Study continuation
+
+When you "continue" a study, the new study's `ExperimentMemory` is pre-seeded with the predecessor's experiments. The LLM sees this full history in its context, so it doesn't repeat the baseline — it proposes the N+1 architecture based on everything learned so far.
+
+---
+
+## Changelog
+
+All changes on the `max_development` branch, newest first:
+
+| Date | Change | Impact |
+|------|--------|--------|
+| Apr 13 | **F1 as primary metric**, fallback to ROC-AUC for old studies | Index + detail pages show F1 first |
+| Apr 13 | **Continue-study button** with modal on study detail page | One-click study continuation |
+| Apr 13 | **Prompt selection** in new-study form (collapsible) | Choose prompt versions per task |
+| Apr 13 | **Prompt A/B testing** — versioned prompts, immutable, score dashboard | `config/prompts/<task>/v1.yaml` layout |
+| Apr 13 | **Git-transportable studies** — .gitignore updated, code.py copied | Team can share study results |
+| Apr 13 | **Study continuation** — predecessor dropdown, memory seeding | Build on previous study's work |
+| Apr 13 | **cmap@5 + macro-F1** added alongside ROC-AUC | Three metrics per experiment |
+| Apr 13 | **Live stdout.log** — written line-by-line during training | Real-time training progress in UI |
+| Apr 13 | **More aggressive retries** (5+5), blacklist instead of whitelist | Higher success rate |
+| Apr 13 | **Prompt sidebar fix** — filename as label, not YAML name | report.yaml now accessible |
+| Apr 13 | **Fix stopped study status** — patches study.json on SIGTERM | Immediate UI update on stop |
+| Apr 13 | **Report rendering** with marked.js + figure serving | Markdown + charts in browser |
+| Apr 13 | **Prompt editor** — view/edit YAML prompts from dashboard | `/prompts` nav link |
+| Apr 13 | **Richer report figures** — score comparison + architecture families charts | 5 figures in report |
+| Apr 13 | **Codegen retry loop** (Layer 1) — re-generate on validation failure | 5 cheap retries before execution |
+| Apr 13 | **Fix 234→num_classes** — prompts no longer hardcode 234 | Correct for 206-class dataset |
+| Apr 13 | **Fix top 5 runtime errors** — LazyLinear dummy forward, GRU guidance | 20x UninitializedParameter eliminated |
+| Apr 12 | **Live experiment visibility** — pipeline progress bar, agent status | See what the agent is doing |
+| Apr 12 | **Start/Stop controls** — process manager, new-study form | Launch studies from the UI |
+| Apr 12 | **Live monitoring** — HTMX auto-refresh, running detection | Auto-updating stat cards |
+| Apr 12 | **Kaggle submission button** — one-click export + history | Export from the dashboard |
+| Apr 12 | **Web dashboard** — FastAPI + Jinja2 + HTMX + Chart.js | Full UI at localhost:8000 |
+| Apr 12 | **Agent reliability P0-P2** — retry-on-empty, LazyLinear, torchvision adapter, validation, pos_weight, anti-herding | Success rate 40%→83% |
+| Apr 12 | **MPS/CUDA device support** — configurable via config.yaml | GPU training on Apple Silicon |
+| Apr 11 | **DataLoader pickle fix** — _TorchAdapter at module scope | Fixed every training crash |
+| Apr 11 | **__main__ guard** — required in skeleton, enforced by validator | Fixed multiprocessing bootstrap error |
+| Apr 11 | **Configurable training** — batch_size, workers, epochs via config.yaml | No more hardcoded values |
+| Apr 11 | **CPU saturation** — OMP_NUM_THREADS, bigger batches, persistent workers | Full core utilization |
+| Apr 11 | **Auto-generated report** — LLM writes study summary with charts | Score progression, failure breakdown, learning curves |
+| Apr 11 | **Error recovery loop** — LLM rewrites broken code with traceback context | Resilient experimentation |
+| Apr 11 | **Live subprocess streaming** — stdout/stderr streamed to terminal | See training progress live |
+| Apr 10 | **Phases 0–6** — Full agent implementation from scratch | Data models → CLI → orchestrator → executor → submission |
+
+---
+
+## Running Tests
+
+```bash
+conda activate birdclef
+pytest tests/ -q              # 324 tests, ~15 seconds
+pytest tests/ -v              # verbose output
+pytest tests/test_ui.py       # just the dashboard tests
+pytest tests/test_orchestrator.py  # end-to-end agent loop tests
+```
+
+---
 
 ## License
 
