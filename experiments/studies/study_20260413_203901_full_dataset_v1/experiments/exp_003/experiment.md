@@ -33,3 +33,8 @@
 - exp_003_task_06_validate_code
 - exp_003_codegen_retry_04
 - exp_003_task_07_validate_code
+- exp_003_codegen_retry_05
+- exp_003_task_08_validate_code
+- exp_003_recovery_01_error_recovery
+- exp_003_task_09_validate_code
+- exp_003_task_10_execute_training

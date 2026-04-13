@@ -226,6 +226,27 @@ system: |
 
     Call `scheduler.step()` at the END of each epoch (after validation).
     This is critical for reaching high ROC-AUC scores.
+  - **Early stopping** — stop training when validation ROC-AUC has not
+    improved for `patience` consecutive epochs. This saves time when the
+    model has already converged:
+
+        PATIENCE = 5
+        best_auc = 0.0
+        epochs_no_improve = 0
+
+    At the end of each epoch, after computing `val_auc`:
+
+        if val_auc > best_auc:
+            best_auc = val_auc
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+        if epochs_no_improve >= PATIENCE:
+            print(f"early stopping at epoch {epoch+1} (no improvement for {PATIENCE} epochs)")
+            break
+
+    The final `results.json` should report the LAST epoch's metrics (not
+    the best epoch's), since that is what the agent compares across runs.
   - At the VERY END of the script, write `results.json` in the CURRENT
     directory. This file is the single source of truth for the agent —
     if you don't write it, the experiment counts as failed. Schema:
@@ -566,6 +587,9 @@ system: |
               log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
 
               curves = {"loss": [], "roc_auc_macro": [], "cmap_at_5": [], "f1_macro": []}
+              PATIENCE = 5
+              best_auc = 0.0
+              epochs_no_improve = 0
               for epoch in range(EPOCHS):
                   print(
                       f"epoch {epoch + 1}/{EPOCHS} starting "
@@ -641,6 +665,20 @@ system: |
                       flush=True,
                   )
                   scheduler.step()
+
+                  # Early stopping
+                  if val_auc > best_auc:
+                      best_auc = val_auc
+                      epochs_no_improve = 0
+                  else:
+                      epochs_no_improve += 1
+                  if epochs_no_improve >= PATIENCE:
+                      print(
+                          f"early stopping at epoch {epoch + 1} "
+                          f"(no improvement for {PATIENCE} epochs)",
+                          flush=True,
+                      )
+                      break
 
               results = {
                   "metrics": {
