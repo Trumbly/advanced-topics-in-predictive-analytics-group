@@ -6,3 +6,16 @@ epoch 1/25 starting (2914 batches)...
   epoch 1 [ 10.0%] batch 291/2914 loss=0.5238
   epoch 1 [ 20.0%] batch 582/2914 loss=0.5118
   epoch 1 [ 30.0%] batch 873/2914 loss=0.4827
+  epoch 1 [ 39.9%] batch 1164/2914 loss=0.5056
+  epoch 1 [ 49.9%] batch 1455/2914 loss=0.4387
+  epoch 1 [ 59.9%] batch 1746/2914 loss=0.4520
+  epoch 1 [ 69.9%] batch 2037/2914 loss=0.4412
+  epoch 1 [ 79.9%] batch 2328/2914 loss=0.4729
+  epoch 1 [ 89.9%] batch 2619/2914 loss=0.4535
+  epoch 1 [ 99.9%] batch 2910/2914 loss=0.4696
+  epoch 1 [100.0%] batch 2914/2914 loss=0.4641
+epoch 1: running validation...
+epoch 1/25 done: loss=0.4821 roc_auc=0.7454 cmap@5=0.0219 f1=0.0282
+epoch 2/25 starting (2914 batches)...
+  epoch 2 [ 10.0%] batch 291/2914 loss=0.4499
+  epoch 2 [ 20.0%] batch 582/2914 loss=0.4456

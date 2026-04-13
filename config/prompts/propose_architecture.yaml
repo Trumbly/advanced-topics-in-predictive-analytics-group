@@ -52,12 +52,14 @@ system: |
           EfficientNet-B4+, ViT, or anything with >10M parameters.
       If a previous experiment failed with "MPS backend out of memory",
       propose a SMALLER architecture next time.
-    - **Prefer pretrained backbones with transfer learning**. Pretrained
-      ImageNet weights give a massive head-start on spectrogram features.
-      EfficientNet-B0 and MobileNetV3-Small via TorchvisionAdapter
-      consistently reach 0.85-0.95 ROC-AUC when trained for 10-15 epochs.
-      Custom CNNs from scratch rarely exceed 0.7. If the goal is high
-      ROC-AUC, always try a pretrained backbone first.
+    - **ALWAYS use pretrained backbones with transfer learning** unless
+      every pretrained option has already been tried in past experiments.
+      Pretrained ImageNet weights give a massive head-start on spectrogram
+      features. EfficientNet-B0 and MobileNetV3-Small via TorchvisionAdapter
+      consistently reach 0.90-0.96 ROC-AUC. Custom CNNs from scratch
+      rarely exceed 0.75. Your FIRST experiment should ALWAYS be a
+      pretrained model (e.g., EfficientNet-B0). Only propose custom CNNs
+      after pretrained options have been explored.
     - The final Kaggle submission notebook must run on CPU only within 90 minutes.
       Do not propose architectures whose inference cost cannot plausibly fit
       that CPU budget on 35k spectrograms.
@@ -68,11 +70,9 @@ system: |
       on the spectrograms directly; do not propose audio-waveform models.
     - No internet downloads, no custom CUDA kernels, no device-specific
       operators that don't work on CPU.
-    - `hyperparams.epochs` MUST be exactly 1. We are in fast-iteration mode:
-      every experiment trains for a single epoch so we can try more ideas
-      per unit of wall-clock time. If your proposal has epochs > 1, the
-      code generator will override it back to 1 and your measured score
-      will reflect 1 epoch anyway — so just set it to 1 in the proposal.
+    - `hyperparams.epochs` should be 7. The agent trains each experiment
+      for up to 7 epochs with early stopping (patience=3). Set epochs=7
+      in the proposal and let early stopping handle convergence.
     - `hyperparams.batch_size` is IGNORED by the code generator. The batch
       size is configured once for the whole project in `config/config.yaml`
       under `training:` and flows into every run automatically. You may
@@ -167,22 +167,22 @@ slots:
   - response_schema
 
 fallback_when_no_memory: |
-  No previous experiments yet. Your first job is to verify the pipeline
-  runs end-to-end with the fastest possible baseline: CnnSmallV1 from the
-  registry, 2 epochs, batch_size 32, Adam lr=1e-3, light augmentation.
-  Ambitious architectures come later — this run is a smoke test.
+  No previous experiments yet. Your first job is to establish a strong
+  baseline with a pretrained EfficientNet-B0 backbone via TorchvisionAdapter,
+  7 epochs, Adam lr=1e-3, light augmentation. Pretrained backbones
+  consistently reach 0.90+ ROC-AUC — always start with one.
 
   You MUST return ONLY valid JSON, nothing else. No prose, no markdown
   fences, no explanation. Your entire response must be parseable as a
   JSON object with exactly this shape:
 
   {
-    "architecture": "[custom_cnn] cnn_small_v1 baseline",
-    "pretrained_model": null,
+    "architecture": "[efficientnet_b0] pretrained EfficientNet-B0 baseline",
+    "pretrained_model": "efficientnet_b0",
     "hyperparams": {
       "lr": 0.001,
       "batch_size": 128,
-      "epochs": 1,
+      "epochs": 7,
       "optimizer": "adam",
       "weight_decay": 0.0,
       "dropout": 0.1

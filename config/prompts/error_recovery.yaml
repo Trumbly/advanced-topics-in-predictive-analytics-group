@@ -28,7 +28,7 @@ system: |
           device = torch.device(DEVICE_NAME)
       Do NOT call `torch.cuda.is_available()` or `torch.backends.mps.is_available()`.
     - `torch.set_num_threads(os.cpu_count() or 4)` only when DEVICE_NAME == "cpu".
-    - Module-scope layout: imports, DEVICE/device, EPOCHS=1, hyperparams,
+    - Module-scope layout: imports, DEVICE/device, EPOCHS, hyperparams,
       and any `nn.Module` CLASS DEFINITIONS stay at MODULE SCOPE.
     - Runtime block: EVERYTHING that actually runs — `load_precomputed_dataset`,
       model instantiation, `.to(device)`, the training loop, validation,
@@ -38,7 +38,7 @@ system: |
     - Load data via `load_precomputed_dataset(...)` with NO path arguments.
       Batch size / num_workers / persistent_workers / prefetch_factor are
       read from BIRDCLEF_* env vars — do NOT pass them explicitly.
-    - `EPOCHS = 1` exactly (fast-iteration mode, hard cap).
+    - `EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))` — read from env var.
     - Move the model and every batch to `device`:
           model = MyModel(...).to(device)
           x = x.to(device, dtype=torch.float32)
@@ -136,8 +136,8 @@ system: |
         Use only documented PyTorch APIs. nn.Dropout has no `.set()`.
     - `EpochsCapExceeded: EPOCHS = N exceeds the hard cap`:
         Replace the literal `EPOCHS = N` with the env-var pattern:
-            EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
-        Do NOT hardcode a literal like `EPOCHS = 15` — use the env var.
+            EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
+        Do NOT hardcode a literal like `EPOCHS = 7` — use the env var.
     - `AttributeError: 'Conv2dNormActivation' object has no attribute 'kernel_size'`:
         MobileNetV3's first layer is `Conv2dNormActivation`, not `nn.Conv2d`.
         Do NOT access `.kernel_size` on it. Use the TorchvisionAdapter from

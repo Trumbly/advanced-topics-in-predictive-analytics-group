@@ -100,7 +100,7 @@ system: |
         class MyModel(nn.Module):   # if writing a custom model
             ...
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
         LR = 1e-3
         AUGMENTATION = {...}
 
@@ -210,13 +210,12 @@ system: |
     `training_curves`. The `roc_auc_macro` remains the primary sort
     metric — the others are for comparison and reporting.
   - EPOCHS must be read from the `BIRDCLEF_EPOCHS` env var with a
-    DEFAULT of `"15"`. Write the EXACT line below:
+    DEFAULT of `"7"`. Write the EXACT line below:
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
 
-    15 epochs is the recommended default — enough to converge without
-    overfitting on this dataset size. You MAY use a different default
-    (10-20) if your architecture proposal suggests it.
+    7 epochs with early stopping (patience=3) is the recommended setup.
+    The model will stop earlier if validation ROC-AUC stops improving.
   - **Learning rate scheduler** — ALWAYS add a cosine annealing scheduler
     for better convergence:
 
@@ -230,7 +229,7 @@ system: |
     improved for `patience` consecutive epochs. This saves time when the
     model has already converged:
 
-        PATIENCE = 5
+        PATIENCE = 3
         best_auc = 0.0
         epochs_no_improve = 0
 
@@ -519,8 +518,8 @@ system: |
       # hardcode them here. The data loader picks them up automatically.
       #
       # EPOCHS is read from an env var so the orchestrator can override it.
-      # Default 15 — enough epochs for models to converge properly.
-      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "15"))
+      # Default 7 — early stopping (patience=3) handles convergence.
+      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
 
@@ -587,7 +586,7 @@ system: |
               log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
 
               curves = {"loss": [], "roc_auc_macro": [], "cmap_at_5": [], "f1_macro": []}
-              PATIENCE = 5
+              PATIENCE = 3
               best_auc = 0.0
               epochs_no_improve = 0
               for epoch in range(EPOCHS):
