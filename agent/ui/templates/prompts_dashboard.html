@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Prompt A/B Testing · BirdCLEF Agent{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+  <h1 class="text-3xl font-bold">Prompt A/B Testing</h1>
+  <p class="text-slate-600 mt-1">
+    Compare prompt versions by their mean experiment scores. Versions are immutable once created.
+  </p>
+</div>
+
+{% for task_name in tasks %}
+{% set versions = task_versions[task_name] %}
+{% set scores = task_scores.get(task_name, {}) %}
+{% set default_v = task_defaults.get(task_name, "v1") %}
+
+<div class="rounded-lg border border-slate-200 bg-white overflow-hidden mb-6">
+  <div class="px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+    <h2 class="font-semibold text-lg">{{ task_name }}</h2>
+    <button onclick="document.getElementById('create-{{ task_name }}').classList.toggle('hidden')"
+      class="text-sm text-sky-600 hover:text-sky-800 font-semibold">+ New version</button>
+  </div>
+
+  {# Create form (hidden by default) #}
+  <div id="create-{{ task_name }}" class="hidden border-b border-slate-200 bg-sky-50 p-5">
+    <form onsubmit="return createVersion(event, '{{ task_name }}')">
+      <div class="grid md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+          <input name="description" type="text" placeholder="What changed in this version?"
+            class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Created by</label>
+          <input name="created_by" type="text" placeholder="Your name"
+            class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm">
+        </div>
+      </div>
+      <label class="block text-xs font-semibold text-slate-600 mb-1">YAML content</label>
+      <textarea name="content" required rows="12" spellcheck="false"
+        class="w-full font-mono text-xs bg-slate-900 text-slate-100 p-3 rounded border-0 mb-3"
+        style="tab-size: 2;"
+        placeholder="Paste the full YAML prompt template here..."></textarea>
+      <div class="flex items-center gap-3">
+        <button type="submit" class="rounded bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 text-sm font-semibold text-white">
+          Create (immutable)
+        </button>
+        <span class="create-status text-sm"></span>
+      </div>
+    </form>
+  </div>
+
+  {# Version table #}
+  <table class="w-full text-sm">
+    <thead class="bg-slate-50 text-xs text-slate-600 uppercase tracking-wide">
+      <tr>
+        <th class="text-left px-5 py-2">Version</th>
+        <th class="text-left px-5 py-2">Description</th>
+        <th class="text-right px-5 py-2">Mean Score</th>
+        <th class="text-right px-5 py-2">Experiments</th>
+        <th class="text-right px-5 py-2">Studies</th>
+        <th class="text-center px-5 py-2">Default</th>
+        <th class="text-right px-5 py-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in versions %}
+      {% set stats = scores.get(v.version) %}
+      {% set is_default = v.version == default_v %}
+      <tr class="border-t border-slate-100 {% if is_default %}bg-emerald-50{% endif %}">
+        <td class="px-5 py-2 font-mono font-semibold">
+          {{ v.version }}
+          {% if is_default %}<span class="ml-1 text-emerald-600 text-xs">★ default</span>{% endif %}
+        </td>
+        <td class="px-5 py-2 text-slate-600">{{ v.description or "—" }}</td>
+        <td class="px-5 py-2 text-right font-mono">
+          {% if stats %}{{ "%.4f"|format(stats.mean_score) }}{% else %}<span class="text-slate-300">—</span>{% endif %}
+        </td>
+        <td class="px-5 py-2 text-right font-mono">
+          {% if stats %}{{ stats.experiment_count }}{% else %}0{% endif %}
+        </td>
+        <td class="px-5 py-2 text-right font-mono">
+          {% if stats %}{{ stats.study_count }}{% else %}0{% endif %}
+        </td>
+        <td class="px-5 py-2 text-center">
+          {% if not is_default %}
+          <button onclick="setDefault('{{ task_name }}', '{{ v.version }}')"
+            class="text-xs text-sky-600 hover:text-sky-800">Set default</button>
+          {% endif %}
+        </td>
+        <td class="px-5 py-2 text-right">
+          <a href="/prompts/{{ task_name }}/{{ v.version }}" class="text-xs text-sky-600 hover:underline">View</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endfor %}
+
+<script>
+async function createVersion(e, taskName) {
+  e.preventDefault();
+  const form = e.target;
+  const statusEl = form.querySelector('.create-status');
+  statusEl.textContent = "Creating...";
+  const body = {
+    content: form.content.value,
+    description: form.description.value,
+    created_by: form.created_by.value,
+  };
+  try {
+    const r = await fetch(`/api/prompts/${taskName}/versions`, {
+      method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (r.ok) {
+      statusEl.textContent = "✓ Created " + data.version;
+      statusEl.className = "create-status text-sm text-emerald-600";
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      statusEl.textContent = "✗ " + (data.detail || r.statusText);
+      statusEl.className = "create-status text-sm text-rose-600";
+    }
+  } catch (err) {
+    statusEl.textContent = "✗ " + err.message;
+    statusEl.className = "create-status text-sm text-rose-600";
+  }
+  return false;
+}
+
+async function setDefault(taskName, version) {
+  const r = await fetch(`/api/prompts/${taskName}/default`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({version})
+  });
+  if (r.ok) window.location.reload();
+  else alert("Failed: " + (await r.json()).detail);
+}
+</script>
+
+{% endblock %}

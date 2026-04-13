@@ -1,0 +1,41 @@
+{
+  "experiment_id": "exp_005",
+  "study_id": "study_20260412_093854_ui_study_start_test",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_005_task_01_propose_architecture",
+    "exp_005_task_02_generate_code",
+    "exp_005_task_03_validate_code",
+    "exp_005_recovery_01_error_recovery",
+    "exp_005_task_04_validate_code",
+    "exp_005_task_05_execute_training",
+    "exp_005_recovery_02_error_recovery",
+    "exp_005_task_06_validate_code",
+    "exp_005_task_07_execute_training",
+    "exp_005_task_08_capture_metrics"
+  ],
+  "config": {
+    "architecture": "[cnn_gru_hybrid] 3-conv CNN front-end (2-3 blocks) extracting spectral features, followed by a 1-layer GRU(256) processing the temporal sequence, and a final linear projection.",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.0005,
+      "dropout": 0.3
+    },
+    "augmentation": {
+      "time_shift": true,
+      "noise_injection": true,
+      "mixup": 0.0,
+      "specaugment": true
+    }
+  },
+  "results": null,
+  "submission_path": null,
+  "status": "failed",
+  "created_at": "2026-04-12T07:48:44.336520Z",
+  "started_at": "2026-04-12T07:48:44.336520Z",
+  "completed_at": "2026-04-12T07:51:28.418195Z"
+}

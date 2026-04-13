@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_005_task_05_capture_metrics",
+  "experiment_id": "exp_005",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_174848_multiple_epochs_test/exp_005/results.json",
+    "raw_results": {
+      "error": "RuntimeError: Adaptive pool MPS: input sizes must be divisible by output sizes. Non-divisible input sizes are not implemented on MPS device yet. For now, you can manually transfer tensor to cpu in this case. Please refer to [this issue](https://github.com/pytorch/pytorch/issues/96056)"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: Adaptive pool MPS: input sizes must be divisible by output sizes. Non-divisible input sizes are not implemented on MPS device yet. For now, you can manually transfer tensor to cpu in this case. Please refer to [this issue](https://github.com/pytorch/pytorch/issues/96056)",
+    "traceback": null
+  },
+  "started_at": "2026-04-12T19:37:46.978850Z",
+  "completed_at": "2026-04-12T19:37:46.978989Z"
+}

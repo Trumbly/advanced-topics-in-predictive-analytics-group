@@ -1,0 +1,184 @@
+[
+  {
+    "experiment_id": "exp_001",
+    "study_id": "study_20260412_103619_ui_study_start_test",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_001_task_01_propose_architecture",
+      "exp_001_task_02_generate_code",
+      "exp_001_task_03_validate_code",
+      "exp_001_task_04_execute_training",
+      "exp_001_task_05_capture_metrics",
+      "exp_001_recovery_01_error_recovery",
+      "exp_001_task_06_validate_code",
+      "exp_001_task_07_execute_training",
+      "exp_001_task_08_capture_metrics",
+      "exp_001_task_09_analyze_results"
+    ],
+    "config": {
+      "architecture": "[custom_cnn] cnn_small_v1 baseline",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": false
+      }
+    },
+    "results": {
+      "metrics": {
+        "roc_auc_macro": 0.7019286264291019,
+        "loss": 0.5063594109391513
+      },
+      "training_curves": {
+        "loss": [
+          0.5063594109391513
+        ],
+        "roc_auc_macro": [
+          0.7019286264291019
+        ]
+      },
+      "duration_seconds": 201.9684419631958,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    },
+    "submission_path": null,
+    "status": "completed",
+    "created_at": "2026-04-12T08:36:20.197211Z",
+    "started_at": "2026-04-12T08:36:20.197211Z",
+    "completed_at": "2026-04-12T08:41:29.896798Z"
+  },
+  {
+    "experiment_id": "exp_002",
+    "study_id": "study_20260412_103619_ui_study_start_test",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_002_task_01_propose_architecture"
+    ],
+    "config": null,
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-12T08:41:29.897876Z",
+    "started_at": "2026-04-12T08:41:29.897876Z",
+    "completed_at": "2026-04-12T08:41:46.206646Z"
+  },
+  {
+    "experiment_id": "exp_003",
+    "study_id": "study_20260412_103619_ui_study_start_test",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_003_task_01_propose_architecture",
+      "exp_003_task_02_generate_code",
+      "exp_003_task_03_validate_code",
+      "exp_003_task_04_execute_training",
+      "exp_003_task_05_capture_metrics",
+      "exp_003_recovery_01_error_recovery",
+      "exp_003_task_06_validate_code",
+      "exp_003_task_07_execute_training",
+      "exp_003_task_08_capture_metrics",
+      "exp_003_recovery_02_error_recovery",
+      "exp_003_task_09_validate_code",
+      "exp_003_task_10_execute_training",
+      "exp_003_task_11_capture_metrics",
+      "exp_003_recovery_03_error_recovery",
+      "exp_003_task_12_validate_code",
+      "exp_003_task_13_execute_training",
+      "exp_003_task_14_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[mobilenet_v3_small] MobileNetV3 backbone with Global Average Pooling (GAP) before the final classification head",
+      "pretrained_model": "mobilenet_v3_small",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": false,
+        "noise_injection": false,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-12T08:41:46.208330Z",
+    "started_at": "2026-04-12T08:41:46.208330Z",
+    "completed_at": "2026-04-12T08:45:06.116248Z"
+  },
+  {
+    "experiment_id": "exp_004",
+    "study_id": "study_20260412_103619_ui_study_start_test",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_004_task_01_propose_architecture"
+    ],
+    "config": null,
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-12T08:45:06.116828Z",
+    "started_at": "2026-04-12T08:45:06.116828Z",
+    "completed_at": "2026-04-12T08:45:21.029828Z"
+  },
+  {
+    "experiment_id": "exp_005",
+    "study_id": "study_20260412_103619_ui_study_start_test",
+    "llm_model": "gemma4:e4b",
+    "task_ids": [
+      "exp_005_task_01_propose_architecture",
+      "exp_005_task_02_generate_code",
+      "exp_005_task_03_validate_code",
+      "exp_005_task_04_execute_training",
+      "exp_005_recovery_01_error_recovery",
+      "exp_005_task_05_validate_code",
+      "exp_005_task_06_execute_training",
+      "exp_005_task_07_capture_metrics",
+      "exp_005_recovery_02_error_recovery",
+      "exp_005_task_08_validate_code",
+      "exp_005_task_09_execute_training",
+      "exp_005_task_10_capture_metrics",
+      "exp_005_recovery_03_error_recovery",
+      "exp_005_task_11_validate_code",
+      "exp_005_task_12_execute_training",
+      "exp_005_task_13_capture_metrics"
+    ],
+    "config": {
+      "architecture": "[efficientnet_b0] EfficientNet-B0 backbone followed by a multi-head self-attention pooling layer before the final classification head",
+      "pretrained_model": "efficientnet_b0",
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 128,
+        "epochs": 1,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.2
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": true
+      }
+    },
+    "results": null,
+    "submission_path": null,
+    "status": "failed",
+    "created_at": "2026-04-12T08:45:21.031569Z",
+    "started_at": "2026-04-12T08:45:21.031569Z",
+    "completed_at": "2026-04-12T08:48:52.059220Z"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "task_id": "exp_004_task_04_execute_training",
+  "experiment_id": "exp_004",
+  "task_type": "predefined",
+  "task_name": "execute_training",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "cnn_small_v1",
+  "output": {
+    "exit_code": 1,
+    "duration_seconds": 0.011739332985598594,
+    "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_004",
+    "results_json_path": null,
+    "timed_out": false
+  },
+  "error": {
+    "error_type": "UnknownError",
+    "message": "NameError: name 'cnn_small_v1' is not defined",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_004/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+  },
+  "started_at": "2026-04-10T13:20:45.587032Z",
+  "completed_at": "2026-04-10T13:20:45.599746Z"
+}

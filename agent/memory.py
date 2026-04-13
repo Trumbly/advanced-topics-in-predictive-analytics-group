@@ -96,6 +96,36 @@ class ExperimentMemory:
         for exp in experiments:
             self.append(exp)
 
+    @staticmethod
+    def seed_from_predecessor(
+        new_study_dir: Path,
+        predecessor_study_dir: Path,
+        score_metric: str = "roc_auc_macro",
+    ) -> "ExperimentMemory":
+        """Create a new ExperimentMemory pre-populated with a predecessor study's experiments.
+
+        Used by the 'study continuation' feature: the new study starts
+        with the predecessor's full history so the LLM sees what was
+        tried before and doesn't repeat the same baselines.
+
+        The predecessor's experiments are loaded into memory, not into
+        the new study's `experiment_ids`. This means the new study's
+        own experiments start fresh at `exp_001` — no ID collisions.
+        """
+        predecessor = ExperimentMemory(
+            study_dir=predecessor_study_dir,
+            score_metric=score_metric,
+        )
+        new_memory = ExperimentMemory(
+            study_dir=new_study_dir,
+            score_metric=score_metric,
+        )
+        # Copy experiments by value (not reference)
+        for exp in predecessor.all():
+            new_memory._experiments.append(exp)
+        new_memory.save()
+        return new_memory
+
     # -- queries ------------------------------------------------------------
 
     def __len__(self) -> int:

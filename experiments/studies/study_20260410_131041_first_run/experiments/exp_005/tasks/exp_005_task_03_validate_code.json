@@ -1,0 +1,20 @@
+{
+  "task_id": "exp_005_task_03_validate_code",
+  "experiment_id": "exp_005",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import json\nimport torch\nimport torch.nn as nn\nimport numpy as np\nimport time\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import cnn_small_v1\n\ndef main():\n    try:\n        train_loader, val_loader, num_classes = load_precomputed_dataset()\n        hyperparams = {\n            \"lr\": 5e-05,\n            \"batch_size\": 256,\n            \"epochs\": 60,\n            \"optimizer\": \"adam\",\n            \"weight_decay\": 0.0001,\n            \"dropout\": 0.1\n        }\n        device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n        model = cnn_small_v1(num_classes=num_classes, drop_rate=hyperparams[\"dropout\"]).to(device)\n        criterion = nn.BCEWithLogitsLoss()\n        optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams[\"lr\"], weight_decay=hyperparams[\"weight_decay\"])\n        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(\n            optimizer, mode=\"max\", factor=0.5, patience=5, verbose=False\n        )\n        train_losses = []\n        val_losses = []\n        val_aucs = []\n        start_time = time.time()\n        for epoch in range(1, hyperparams[\"epochs\"] + 1):\n            model.train()\n            epoch_loss = 0.0\n            for batch in train_loader:\n                x = batch[\"spectrogram\"].to(device)\n                y = batch[\"labels\"].to(device)\n                logits = model(x)\n                loss = criterion(logits, y)\n                optimizer.zero_grad()\n                loss.backward()\n                optimizer.step()\n                epoch_loss += loss.item()\n            train_losses.append(epoch_loss / len(train_loader))\n\n            model.eval()\n            val_loss_sum = 0.0\n            all_pred = []\n            all_true = []\n            with torch.no_grad():\n                for batch in val_loader:\n                    x = batch[\"spectrogram\"].to(device)\n                    y = batch[\"labels\"].to(device)\n                    logits = model(x)\n                    val_loss_sum += criterion(logits, y).item()\n                    probs = torch.sigmoid(logits)\n                    pred = (probs > 0.5).float().cpu()\n                    all_pred.append(pred)\n                    all_true.append(y.cpu())\n            val_losses.append(val_loss_sum / len(val_loader))\n            y_true = np.concatenate(all_true)\n            y_pred = np.concatenate(all_pred)\n            val_aucs.append(roc_auc_score(y_true, y_pred))\n\n            scheduler.step(val_losses[-1])\n\n        metrics = {\n            \"roc_auc_macro\": val_aucs[-1],\n            \"loss\": val_losses[-1]\n        }\n        training_curves = {\n            \"loss\": train_losses,\n            \"roc_auc_macro\": val_aucs\n        }\n        duration_seconds = time.time() - start_time\n        result = {\"metrics\": metrics, \"training_curves\": training_curves, \"duration_seconds\": duration_seconds}\n        with open(\"results.json\", \"w\") as f:\n            json.dump(result, f, indent=2)\n\n    except Exception as e:\n        result = {\"error\": str(e), \"metrics\": None, \"training_curves\": None, \"duration_seconds\": 0.0}\n        with open(\"results.json\", \"w\") as f:\n            json.dump(result, f, indent=2)\n\nif __name__ == \"__main__\":\n    main()\n",
+  "output": {
+    "validation": "failed"
+  },
+  "error": {
+    "error_type": "ForbiddenPattern",
+    "message": "Forbidden pattern found: 'eval('",
+    "traceback": null
+  },
+  "started_at": "2026-04-10T13:13:18.766535Z",
+  "completed_at": "2026-04-10T13:13:18.768333Z"
+}

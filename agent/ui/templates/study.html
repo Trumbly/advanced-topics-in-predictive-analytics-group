@@ -14,6 +14,11 @@
     {% endif %}
   </div>
   <p class="text-xs text-slate-500 font-mono mt-1">{{ study.study_id }}</p>
+  {% if study.predecessor_study_id %}
+  <p class="text-sm text-sky-700 mt-1">
+    Builds on: <a href="/studies/{{ study.predecessor_study_id }}" class="font-mono hover:underline">{{ study.predecessor_study_id }}</a>
+  </p>
+  {% endif %}
   <p class="text-slate-600 mt-3">{{ study.hypothesis }}</p>
 
   <div class="mt-4 flex items-center gap-3">

@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_008_task_18_capture_metrics",
+  "experiment_id": "exp_008",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_142736_nemotron_3/exp_008/results.json",
+    "raw_results": {
+      "error": "RuntimeError: Given groups=1, weight of size [32, 3, 3, 3], expected input[512, 1, 128, 313] to have 3 channels, but got 1 channels instead"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: Given groups=1, weight of size [32, 3, 3, 3], expected input[512, 1, 128, 313] to have 3 channels, but got 1 channels instead",
+    "traceback": null
+  },
+  "started_at": "2026-04-12T14:00:24.769219Z",
+  "completed_at": "2026-04-12T14:00:24.769352Z"
+}

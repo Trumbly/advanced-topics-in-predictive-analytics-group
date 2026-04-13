@@ -44,9 +44,11 @@ models/
 *.onnx
 *.pkl
 
-# Experiment logs (keep structure, ignore large outputs)
+# Experiment logs — commit study results for team sharing,
+# but ignore machine-specific process artifacts and large files
 experiments/*/outputs/
-experiments/studies/
+experiments/studies/**/.orchestrator.pid
+experiments/studies/**/orchestrator.log
 
 # Sandbox workdir (all per-study subdirs are ignored)
 sandbox/*

@@ -1,0 +1,20 @@
+{
+  "task_id": "exp_004_task_08_validate_code",
+  "experiment_id": "exp_004",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torch.utils.data as data\nimport os\nimport json\nimport numpy as np\n\nDEVICE_NAME = os.environ.get(\"BIRDCLEF_DEVICE\", \"cpu\")\ndevice = torch.device(DEVICE_NAME)\n\nif DEVICE_NAME == \"cpu\":\n    torch.set_num_threads(os.cpu_count() or 4)\n\nclass MyModel(nn.Module):\n    def __init__(self, num_classes):\n        super().__init__()\n        self.fc = nn.LazyLinear(num_classes)\n    def forward(self, x):\n        return self.fc(x.view(x.size(0), -1))\n\ndef load_precomputed_dataset():\n    from pipelines.data_loader import load_precomputed_dataset\n    return load_precomputed_dataset()\n\ndef compute_pos_weight():\n    from pipelines.data_loader import compute_pos_weight\n    return compute_pos_weight()\n\nEPOCHS = 1\nlr = 0.001\nbatch_size = 128\ndropout = 0.1\n\ndef train():\n    model = MyModel(num_classes=10).to(device)\n    criterion = nn.BCEWithLogitsLoss(pos_weight=compute_pos_weight().to(device))\n    optimizer = torch.optim.Adam(model.fc.parameters(), lr=lr, weight_decay=0.0)\n    dataset = load_precomputed_dataset()\n    num_workers = int(os.getenv(\"BIRDCLEF_NUM_WORKERS\", \"0\"))\n    prefetch_factor = int(os.getenv(\"BIRDCLEF_PREFACTOR\", \"2\"))\n    loader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True,\n                             num_workers=num_workers, pin_memory=True,\n                             persistent_workers=True, prefetch_factor=prefetch_factor)\n\n    results = {\n        \"loss\": 0.0,\n        \"auc\": 0.0,\n        \"epochs\": 0,\n        \"hyperparams\": {\"lr\": lr, \"batch_size\": batch_size, \"epochs\": EPOCHS,\n                        \"optimizer\": \"adam\", \"weight_decay\": 0.0, \"dropout\": dropout}\n    }\n\n    for epoch in range(EPOCHS):\n        model.train()\n        epoch_loss = 0.0\n        for xb, yb in loader:\n            xb = xb.to(device, dtype=torch.float32)\n            yb = yb.to(device, dtype=torch.float32)\n            optimizer.zero_grad()\n            logits = model(xb)\n            loss = criterion(logits, yb)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item() * xb.size(0)\n        results[\"loss\"] = epoch_loss / len(dataset)\n        results[\"epochs\"] = epoch + 1\n\n        model.eval()\n        all_logits = []\n        all_labels = []\n        with torch.no_grad():\n            for xb, yb in loader:\n                xb = xb.to(device, dtype=torch.float32)\n                yb = yb.float()\n                logits = model(xb)\n                all_logits.append(logits.cpu().numpy())\n                all_labels.append(yb.cpu().numpy())\n        all_logits = np.concatenate(all_logits, axis=0)\n        all_labels = np.concatenate(all_labels, axis=0)\n        from sklearn.metrics import roc_auc_score\n        results[\"auc\"] = roc_auc_score(all_labels, all_logits)\n\n        print(f\"Epoch {epoch+1}/{EPOCHS} - Loss: {results['loss']:.4f} - AUC: {results['auc']:.4f}\", flush=True)\n        model.train()\n\n    with open(\"results.json\", \"w\") as\n",
+  "output": {
+    "validation": "failed"
+  },
+  "error": {
+    "error_type": "SyntaxError",
+    "message": "Line 87: invalid syntax",
+    "traceback": null
+  },
+  "started_at": "2026-04-12T12:43:22.474892Z",
+  "completed_at": "2026-04-12T12:43:22.476287Z"
+}

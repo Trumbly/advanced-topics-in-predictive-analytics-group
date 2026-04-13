@@ -314,116 +314,114 @@ def create_app(
             {"detail": detail, "study": detail.study},
         )
 
-    # ---- Prompt engineering -----------------------------------------------
+    # ---- Prompt A/B testing ------------------------------------------------
 
     @app.get("/prompts", response_class=HTMLResponse)
-    def prompts_index(request: Request) -> Any:
-        """List all prompt templates with no active selection."""
-        prompt_list = _load_prompt_summaries()
-        return templates.TemplateResponse(
-            request,
-            "prompts.html",
-            {
-                "prompts": prompt_list,
-                "active_prompt": None,
-                "active_file_stem": None,
-                "active_content": "",
-                "active_path": "",
-            },
-        )
+    def prompts_dashboard(request: Request) -> Any:
+        """Prompt A/B testing dashboard: versions, scores, create form."""
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
+        from agent.prompt_scoring import aggregate_prompt_scores  # noqa: PLC0415
 
-    @app.get("/prompts/{prompt_name}", response_class=HTMLResponse)
-    def prompt_detail(request: Request, prompt_name: str) -> Any:
-        """View/edit a specific prompt template."""
-        prompt_list = _load_prompt_summaries()
         prompts_dir = studies_root.parent.parent / "config" / "prompts"
-        yaml_path = prompts_dir / f"{prompt_name}.yaml"
-        if not yaml_path.exists():
-            raise HTTPException(status_code=404, detail=f"Prompt {prompt_name} not found")
-
-        raw_content = yaml_path.read_text()
-
-        # Load the parsed template for metadata display
-        try:
-            from agent.prompt_engine import PromptEngine  # noqa: PLC0415
-
-            pe = PromptEngine()
-            tmpl = pe.load(yaml_path)
-        except Exception:  # noqa: BLE001
-            tmpl = None
+        mgr = PromptRegistryManager(prompts_dir)
+        task_names = mgr.list_tasks()
+        task_versions = {t: mgr.list_versions(t) for t in task_names}
+        task_defaults = {t: mgr.get_default_version(t) or "v1" for t in task_names}
+        task_scores = aggregate_prompt_scores(studies_root)
 
         return templates.TemplateResponse(
             request,
-            "prompts.html",
+            "prompts_dashboard.html",
             {
-                "prompts": prompt_list,
-                "active_prompt": tmpl,
-                "active_file_stem": prompt_name,  # for sidebar matching
-                "active_content": raw_content,
-                "active_path": str(yaml_path.relative_to(studies_root.parent.parent)),
+                "tasks": task_names,
+                "task_versions": task_versions,
+                "task_defaults": task_defaults,
+                "task_scores": task_scores,
             },
         )
 
-    @app.post("/prompts/{prompt_name}/save")
-    async def prompt_save(request: Request, prompt_name: str) -> JSONResponse:
-        """Save an edited prompt template back to disk."""
-        prompts_dir = studies_root.parent.parent / "config" / "prompts"
-        yaml_path = prompts_dir / f"{prompt_name}.yaml"
-        if not yaml_path.exists():
-            raise HTTPException(status_code=404, detail=f"Prompt {prompt_name} not found")
+    @app.get("/prompts/{task_name}/{version}", response_class=HTMLResponse)
+    def prompt_version_view(
+        request: Request, task_name: str, version: str
+    ) -> Any:
+        """Read-only viewer for an immutable prompt version."""
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
 
-        form = await request.form()
-        content = form.get("content", "")
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        mgr = PromptRegistryManager(prompts_dir)
+        path = mgr.get_version_path(task_name, version)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail=f"{task_name}/{version} not found")
+
+        content = path.read_text()
+        versions = mgr.list_versions(task_name)
+        meta = next((v for v in versions if v.version == version), None)
+
+        return templates.TemplateResponse(
+            request,
+            "prompt_version.html",
+            {
+                "task_name": task_name,
+                "version": version,
+                "content": content,
+                "meta": meta,
+            },
+        )
+
+    @app.post("/api/prompts/{task_name}/versions")
+    async def api_create_prompt_version(
+        request: Request, task_name: str
+    ) -> JSONResponse:
+        """Create a new immutable prompt version."""
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
+
+        body = await request.json()
+        content = body.get("content", "")
+        description = body.get("description", "")
+        created_by = body.get("created_by", "")
+
         if not content or not isinstance(content, str):
-            raise HTTPException(status_code=422, detail="Content is empty")
+            raise HTTPException(status_code=422, detail="'content' is required")
 
-        # Validate that the YAML is parseable before saving
-        try:
-            import yaml as _yaml  # noqa: PLC0415
-
-            _yaml.safe_load(content)
-        except Exception as exc:  # noqa: BLE001
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid YAML: {exc}",
-            ) from exc
-
-        yaml_path.write_text(content)
-        return JSONResponse({"ok": True, "prompt_name": prompt_name})
-
-    def _load_prompt_summaries() -> list[dict[str, Any]]:
-        """Load summary info for all prompt YAML files.
-
-        Returns dicts with `file_stem` (filename without .yaml, used for
-        URL routing) plus the parsed template fields. We use `file_stem`
-        instead of the YAML `name` field because they can differ — e.g.
-        `report.yaml` has `name: study_report`.
-        """
         prompts_dir = studies_root.parent.parent / "config" / "prompts"
-        if not prompts_dir.exists():
-            return []
-        summaries: list[dict[str, Any]] = []
-        try:
-            from agent.prompt_engine import PromptEngine  # noqa: PLC0415
+        mgr = PromptRegistryManager(prompts_dir)
 
-            pe = PromptEngine()
-        except Exception:  # noqa: BLE001
-            return []
-        for yaml_path in sorted(prompts_dir.glob("*.yaml")):
-            try:
-                tmpl = pe.load(yaml_path)
-                summaries.append(
-                    {
-                        "file_stem": yaml_path.stem,  # e.g. "report"
-                        "name": tmpl.name,  # e.g. "study_report"
-                        "description": tmpl.description,
-                        "slots": tmpl.slots,
-                        "system": tmpl.system,
-                    }
-                )
-            except Exception:  # noqa: BLE001
-                continue
-        return summaries
+        try:
+            version = mgr.create_version(
+                task_name,
+                content,
+                description=description,
+                created_by=created_by,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        return JSONResponse(
+            {"ok": True, "task_name": task_name, "version": version},
+            status_code=201,
+        )
+
+    @app.post("/api/prompts/{task_name}/default")
+    async def api_set_prompt_default(
+        request: Request, task_name: str
+    ) -> JSONResponse:
+        """Set the default version for a task."""
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
+
+        body = await request.json()
+        version = body.get("version", "")
+        if not version:
+            raise HTTPException(status_code=422, detail="'version' is required")
+
+        prompts_dir = studies_root.parent.parent / "config" / "prompts"
+        mgr = PromptRegistryManager(prompts_dir)
+
+        try:
+            mgr.set_default(task_name, version)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        return JSONResponse({"ok": True, "task_name": task_name, "default": version})
 
     # ---- Kaggle submission -----------------------------------------------
 
@@ -490,6 +488,24 @@ def create_app(
             }
         )
 
+    # ---- Study listing (for dropdowns) ------------------------------------
+
+    @app.get("/api/studies")
+    def api_list_studies() -> JSONResponse:
+        """Return completed studies for the predecessor dropdown."""
+        studies = list_studies(studies_root)
+        return JSONResponse([
+            {
+                "study_id": s.study_id,
+                "name": s.name,
+                "best_score": s.best_score,
+                "status": s.status,
+                "experiment_count": s.experiment_count,
+            }
+            for s in studies
+            if s.status in ("completed", "aborted")
+        ])
+
     # ---- Start / Stop controls -------------------------------------------
 
     @app.post("/api/studies/start")
@@ -510,6 +526,8 @@ def create_app(
         hypothesis = body.get("hypothesis", "Launched from the dashboard")
         max_experiments = int(body.get("max_experiments", 20))
         model = body.get("model")
+        predecessor = body.get("predecessor") or None
+        prompt_selection = body.get("prompt_selection") or None
 
         # Derive the study_id the same way the CLI does so we know
         # which directory will be created.
@@ -523,6 +541,15 @@ def create_app(
         # is two levels up.
         repo_root = studies_root.parent.parent
 
+        # Build extra CLI args for predecessor + prompt selection
+        extra_args: list[str] = []
+        if predecessor:
+            extra_args.extend(["--predecessor", predecessor])
+        if prompt_selection and isinstance(prompt_selection, dict):
+            import json as _json  # noqa: PLC0415
+
+            extra_args.extend(["--prompt-selection", _json.dumps(prompt_selection)])
+
         try:
             info = pm_start_study(
                 python_executable=sys.executable,
@@ -532,6 +559,7 @@ def create_app(
                 max_experiments=max_experiments,
                 model=model,
                 repo_root=repo_root,
+                extra_cli_args=extra_args if extra_args else None,
             )
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc

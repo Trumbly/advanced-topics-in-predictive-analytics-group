@@ -1,0 +1,24 @@
+{
+  "task_id": "exp_010_task_07_execute_training",
+  "experiment_id": "exp_010",
+  "task_type": "predefined",
+  "task_name": "execute_training",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn\n",
+  "output": {
+    "exit_code": 0,
+    "duration_seconds": 0.6832387910108082,
+    "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_090326_first_run/exp_010",
+    "results_json_path": null,
+    "timed_out": false
+  },
+  "error": {
+    "error_type": "NoResultsFile",
+    "message": "Script exited with status 0 but did not produce a results.json file in the working directory. Make sure your code writes `results.json` at the end of training.",
+    "traceback": null
+  },
+  "started_at": "2026-04-11T10:17:21.464697Z",
+  "completed_at": "2026-04-11T10:17:22.149614Z"
+}

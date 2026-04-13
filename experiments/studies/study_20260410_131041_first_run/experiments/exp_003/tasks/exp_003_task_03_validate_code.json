@@ -1,0 +1,17 @@
+{
+  "task_id": "exp_003_task_03_validate_code",
+  "experiment_id": "exp_003",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import json, time, torch, torch.nn as nn, torch.optim as optim, numpy as np\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import import_snippet\n\narchitecture = \"cnn_small_v1\"\nimport_snippet = \"cnn_small_v1\"\nmodel_class = import_snippet()\nmodel = model_class()\n\nlr = 0.001\nbatch_size = 128\nepochs = 40\nweight_decay = 0.0005\ndropout = 0.1\n\noptimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)\ncriterion = nn.BCEWithLogitsLoss()\n\ntrain_loader, val_loader, num_classes = load_precomputed_dataset()\n\ntrain_losses = []\ntrain_roc_aucs = []\n\nstart = time.time()\nfor epoch in range(epochs):\n    model.train()\n    epoch_loss = 0.0\n    epoch_total = 0\n    all_preds = []\n    all_labels = []\n    for samples, labels in train_loader:\n        optimizer.zero_grad()\n        outputs = model(samples)\n        loss = criterion(outputs, labels.float())\n        loss.backward()\n        optimizer.step()\n        epoch_loss += loss.item() * samples.size(0)\n        epoch_total += samples.size(0)\n        all_preds.append(outputs.detach().cpu())\n        all_labels.append(labels.float().cpu())\n    train_losses.append(epoch_loss / epoch_total)\n\n    all_val_preds = []\n    all_val_labels = []\n    with torch.no_grad():\n        for val_s, val_l in val_loader:\n            preds = model(val_s).cpu().numpy()\n            all_val_preds.append(preds)\n            all_val_labels.append(val_l.numpy())\n    preds = np.concatenate(all_val_preds).ravel()\n    labels = np.concatenate(all_val_labels).ravel()\n    auc = roc_auc_score(labels, preds, average='macro')\n    train_roc_aucs.append(auc)\n\n    model.train()\n\nend = time.time()\n\nwith torch.no_grad():\n    all_preds = []\n    all_labels = []\n    for val_s, val_l in val_loader:\n        preds = model(val_s).cpu().numpy()\n        all_preds.append(preds)\n        all_labels.append(val_l.numpy())\n    preds = np.concatenate(all_preds).ravel()\n    labels = np.concatenate(all_labels).ravel()\n    final_auc = roc_auc_score(labels, preds, average='macro')\n\nresults = {\n    \"metrics\": {\"roc_auc_macro\": final_auc, \"loss\": train_losses[-1]},\n    \"training_curves\": {\"loss\": train_losses, \"roc_auc_macro\": train_roc_aucs},\n    \"duration_seconds\": end - start\n}\ntry:\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=4)\nexcept Exception as e:\n    results[\"error\"] = str(e)\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=4)\n",
+  "output": {
+    "validation": "passed",
+    "code_bytes": 2491
+  },
+  "error": null,
+  "started_at": "2026-04-10T13:12:11.302756Z",
+  "completed_at": "2026-04-10T13:12:11.304683Z"
+}

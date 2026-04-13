@@ -1,0 +1,48 @@
+{
+  "task_id": "exp_007_task_05_capture_metrics",
+  "experiment_id": "exp_007",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_090326_first_run/exp_007/results.json",
+    "raw_results": {
+      "metrics": {
+        "roc_auc_macro": 0.5612601361324079,
+        "loss": 0.03822999892577733
+      },
+      "training_curves": {
+        "loss": [
+          0.03822999892577733
+        ],
+        "roc_auc_macro": [
+          0.5612601361324079
+        ]
+      },
+      "duration_seconds": 755.0105299949646
+    },
+    "training_results": {
+      "metrics": {
+        "roc_auc_macro": 0.5612601361324079,
+        "loss": 0.03822999892577733
+      },
+      "training_curves": {
+        "loss": [
+          0.03822999892577733
+        ],
+        "roc_auc_macro": [
+          0.5612601361324079
+        ]
+      },
+      "duration_seconds": 755.0105299949646,
+      "peak_ram_mb": null,
+      "val_predictions_path": null
+    }
+  },
+  "error": null,
+  "started_at": "2026-04-11T10:09:38.065053Z",
+  "completed_at": "2026-04-11T10:09:38.065224Z"
+}

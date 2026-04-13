@@ -620,6 +620,7 @@ class Orchestrator:
         # All steps succeeded
         experiment.status = ExperimentStatus.COMPLETED
         experiment.completed_at = _now()
+        self._copy_code_to_study(experiment)
         self.experiment_logger.write_experiment(experiment)
         self.memory.append(experiment)
         score = None
@@ -1177,6 +1178,23 @@ class Orchestrator:
         else:
             experiment.status = ExperimentStatus.FAILED
         experiment.completed_at = _now()
+        self._copy_code_to_study(experiment)
+
+    def _copy_code_to_study(self, experiment: Experiment) -> None:
+        """Copy sandbox code.py into the study experiment dir for git tracking."""
+        try:
+            source = self.executor.sandbox_root / experiment.experiment_id / "code.py"
+            if not source.exists():
+                return
+            dest_dir = (
+                self.experiment_logger.study_dir
+                / "experiments"
+                / experiment.experiment_id
+            )
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / "code.py").write_text(source.read_text())
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Could not copy code.py to study dir: %s", exc)
 
     # -- slot / response helpers --------------------------------------------
 

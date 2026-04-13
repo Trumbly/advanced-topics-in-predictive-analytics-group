@@ -1,0 +1,26 @@
+{
+  "study_id": "study_20260411_084006_qwen_retry",
+  "name": "qwen_retry",
+  "hypothesis": "Explore architectures for BirdCLEF 2026.",
+  "mode": "autonomous",
+  "compute_budget": {
+    "max_experiments": 1,
+    "max_wallclock_minutes": 240,
+    "max_experiment_seconds": 7200,
+    "max_epochs_per_run": 1,
+    "max_recovery_attempts": 2
+  },
+  "pipeline_config_path": "config/pipelines/default_pipeline.yaml",
+  "prompt_template_paths": {},
+  "dataset_profile_path": "data/processed/dataset_profile.json",
+  "model_registry_path": "registry/models.yaml",
+  "experiment_ids": [
+    "exp_001"
+  ],
+  "best_experiment_id": null,
+  "best_score": null,
+  "submissions": [],
+  "status": "completed",
+  "created_at": "2026-04-11T08:40:06.112907Z",
+  "updated_at": "2026-04-11T08:40:59.583567Z"
+}

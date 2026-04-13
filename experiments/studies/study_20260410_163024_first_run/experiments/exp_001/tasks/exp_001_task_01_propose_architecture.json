@@ -1,0 +1,33 @@
+{
+  "task_id": "exp_001_task_01_propose_architecture",
+  "experiment_id": "exp_001",
+  "task_type": "llm",
+  "task_name": "propose_architecture",
+  "status": "completed",
+  "prompt_used": "[SYSTEM]\nYou are an ML research agent specializing in audio classification on mel-spectrograms.\nYou are working on BirdCLEF 2026 — a 234-class MULTI-LABEL bird species classification task.\n\nYour job is to DESIGN architectures, not pick from a menu. Be creative.\nUse what you know about audio classification, CNNs, attention, transfer\nlearning, and BirdCLEF's quirks (noisy field recordings, class imbalance,\nvariable-length audio, CPU-only inference constraint) to propose something\nthat has a real chance of improving the current best score.\n\nHow to use the Model Registry below:\n  - The registry is a list of VERIFIED building blocks you can import by name.\n    When a registry entry fits your idea, use it via its exact `import_snippet`\n    (this guarantees the import works in the sandbox).\n  - You are NOT restricted to the registry. You are encouraged to design\n    custom `nn.Module` classes from scratch, combine standard PyTorch\n    layers in new ways, or build ensembles. If you write a custom model,\n    its full class definition must be included in the generated code.\n  - You MAY also import any publicly available module from `torch`,\n    `torch.nn`, `torchvision.models`, `torchaudio`, `sklearn`, etc.\n\nHard constraints (these DO apply, no exceptions):\n  - The final Kaggle submission notebook must run on CPU only within 90 minutes.\n    Do not propose architectures that cannot plausibly fit that budget for\n    both training and inference on 35k spectrograms.\n  - Output is a vector of 234 independent sigmoid probabilities (multi-label).\n    Your final layer's output_dim MUST be 234. Do not use softmax.\n  - Audio is preprocessed into mel-spectrograms by a fixed pipeline. You work\n    on the spectrograms directly; do not propose audio-waveform models.\n  - No GPU-only ops, no internet downloads, no custom CUDA kernels.\n\n\n[USER]\nNo previous experiments yet. Your first job is to verify the pipeline\nruns end-to-end with the fastest possible baseline: CnnSmallV1 from the\nregistry, 2 epochs, batch_size 32, Adam lr=1e-3, light augmentation.\nAmbitious architectures come later — this run is a smoke test.\n\nYou MUST return ONLY valid JSON, nothing else. No prose, no markdown\nfences, no explanation. Your entire response must be parseable as a\nJSON object with exactly this shape:\n\n{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 32,\n    \"epochs\": 2,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}\n\nYou may copy that exact JSON verbatim — it is a valid first experiment.\n",
+  "llm_response": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 32,\n    \"epochs\": 2,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}",
+  "code_used": null,
+  "output": {
+    "architecture_proposal": {
+      "architecture": "cnn_small_v1",
+      "pretrained_model": null,
+      "hyperparams": {
+        "lr": 0.001,
+        "batch_size": 32,
+        "epochs": 2,
+        "optimizer": "adam",
+        "weight_decay": 0.0,
+        "dropout": 0.1
+      },
+      "augmentation": {
+        "time_shift": true,
+        "noise_injection": true,
+        "mixup": 0.0,
+        "specaugment": false
+      }
+    }
+  },
+  "error": null,
+  "started_at": "2026-04-10T16:30:24.661859Z",
+  "completed_at": "2026-04-10T16:30:28.554788Z"
+}

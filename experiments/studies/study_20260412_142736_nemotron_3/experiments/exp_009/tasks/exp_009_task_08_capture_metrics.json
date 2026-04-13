@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_009_task_08_capture_metrics",
+  "experiment_id": "exp_009",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_142736_nemotron_3/exp_009/results.json",
+    "raw_results": {
+      "error": "ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions",
+    "traceback": null
+  },
+  "started_at": "2026-04-12T14:02:21.954502Z",
+  "completed_at": "2026-04-12T14:02:21.954655Z"
+}

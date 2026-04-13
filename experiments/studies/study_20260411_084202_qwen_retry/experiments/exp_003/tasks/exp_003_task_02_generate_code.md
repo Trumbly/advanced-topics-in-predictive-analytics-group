@@ -1,0 +1,838 @@
+# Task exp_003_task_02_generate_code
+
+- **Experiment:** exp_003
+- **Type:** llm
+- **Name:** generate_code
+- **Status:** completed
+- **Started:** 2026-04-11 08:44:18.511244+00:00
+- **Completed:** 2026-04-11 08:44:50.289158+00:00
+
+## Prompt Used
+```
+[SYSTEM]
+You are a Python ML engineer. Write a single, self-contained Python script
+that trains and evaluates the architecture from the proposal for the BirdCLEF
+2026 multi-label task.
+
+## Input tensor shape — READ THIS FIRST
+
+The data loader produces tensors of shape **(batch, 1, n_mels, time_frames)** —
+a 4-dimensional tensor, image-like. Typical values: (32, 1, 128, 313).
+This means:
+  - Use `nn.Conv2d`, NOT `nn.Conv1d`. Conv1d only accepts 3D tensors
+    (batch, channels, time) and will crash on 4D input.
+  - Use `nn.MaxPool2d` / `nn.AdaptiveAvgPool2d`, not the 1D versions.
+  - Treat each spectrogram as an image with 1 channel.
+
+## Channel tracking in stacked Conv2d layers
+
+The FIRST Conv2d must have `in_channels=1` because the input has 1 channel.
+Every subsequent Conv2d's `in_channels` MUST equal the previous Conv2d's
+`out_channels`. A common LLM mistake is:
+
+    self.conv1 = nn.Conv2d(1, 64, 3)    # out: 64
+    self.conv2 = nn.Conv2d(1, 64, 3)    # WRONG: expects 1 channel, gets 64
+
+The correct version:
+
+    self.conv1 = nn.Conv2d(1, 64, 3)    # out: 64
+    self.conv2 = nn.Conv2d(64, 128, 3)  # in=64 matches conv1 out=64
+
+Before writing each Conv2d, think about what tensor flows into it and
+explicitly set `in_channels` to the previous layer's `out_channels`.
+If you are unsure, use `nn.AdaptiveAvgPool2d((1, 1))` to collapse the
+spatial dims and a `nn.Linear(out_channels, num_classes)` at the end —
+that guarantees the output dimension is correct regardless of input size.
+
+## Architecture sources — TWO valid paths
+
+The proposal's `architecture` field tells you what to build:
+
+(A) REGISTRY MODEL — the `architecture` value matches a name in the Model
+    Registry (e.g. "cnn_small_v1", "efficientnet_b0"):
+      → Copy the registry's `import_snippet` VERBATIM. Use the EXACT
+        capitalization shown there (e.g. `CnnSmallV1`, NOT `cnn_small_v1`).
+      → Registry models are in `pipelines.models` or in `torchvision.models`.
+        The snippet tells you which. Do NOT invent imports like
+        `from torchvision.models import CnnSmallV1` — that is wrong;
+        CnnSmallV1 lives in `pipelines.models`.
+
+(B) CUSTOM MODEL — the `architecture` describes a free-form design that is
+    not a registry name (e.g. "ResNet-style 4-block CNN with SE attention"):
+      → Define the full `nn.Module` class(es) inline. Everything must be
+        imported from `torch`, `torch.nn`, `torchvision`, `torchaudio`,
+        `sklearn`, `numpy`, or `pipelines`, OR defined within the script.
+      → The final logit vector MUST have length 234 (multi-label output).
+      → If your custom model USES a registry model as a backbone or sub-
+        component (e.g. `self.backbone = CnnSmallV1(...)`), you MUST
+        import it at the TOP of the file:
+            from pipelines.models import CnnSmallV1
+        Imports inside class definitions do NOT work — Python resolves
+        the name when the __init__ runs, not when the class is defined.
+
+## Hard requirements (apply to BOTH paths)
+
+- Write code at MODULE scope, not inside a main() function. The script is
+  executed top-to-bottom as a standalone Python file.
+- `import torch` at the top. Also import `torch.nn as nn`, `numpy as np`,
+  `json`, and `time` — you will need all of them.
+- CPU-only. Do NOT reference `torch.cuda`, `.cuda()`, `.to('cuda')`, or any
+  GPU-specific API.
+- Use the fixed data loader. DO NOT pass any path arguments — it reads
+  them from environment variables set by the sandbox. ALSO DO NOT pass
+  `batch_size`, `num_workers`, `persistent_workers` or `prefetch_factor`:
+  these are configured once for the whole project in `config/config.yaml`
+  under the `training:` section and flow into the sandbox via BIRDCLEF_*
+  env vars. The data loader reads them automatically. Just do:
+
+      from pipelines.data_loader import load_precomputed_dataset
+      train_loader, val_loader, num_classes = load_precomputed_dataset(
+          augmentation={"time_shift": True, "noise_injection": True},
+      )
+
+  If a specific experiment genuinely needs to override one of these
+  (e.g. a very memory-hungry model that can't use the configured
+  batch_size), you may pass that one argument explicitly — everything
+  else still falls back to the config.
+
+- CPU saturation: immediately after `import torch`, set the thread count
+  explicitly so PyTorch uses every available core:
+
+      import os
+      torch.set_num_threads(os.cpu_count() or 4)
+
+  Without this, some conda / macOS setups silently run single-threaded
+  even on a 10-core machine. The executor also sets OMP_NUM_THREADS via
+  the subprocess env, but calling torch.set_num_threads is the belt-and-
+  suspenders guarantee.
+
+- Multi-label loss: `nn.BCEWithLogitsLoss()`. The model must output raw
+  logits of shape `(batch, num_classes)`. Apply `torch.sigmoid` only when
+  computing metrics.
+- Metric: macro-averaged ROC-AUC over classes that have at least one
+  positive label. Use `sklearn.metrics.roc_auc_score` per column and
+  take the mean. Skip columns with no positives to avoid the sklearn error.
+- HARD CAP: `EPOCHS = 1`. Always. No exceptions. Write literally
+  `EPOCHS = 1` in your code. Do NOT copy the proposed epochs value,
+  do NOT use max(1, ...) or anything fancy. Just `EPOCHS = 1`. We are
+  in fast-iteration mode — longer training is not what we want right
+  now. Any code with `EPOCHS > 1` will be rejected.
+- At the VERY END of the script, write `results.json` in the CURRENT
+  directory. This file is the single source of truth for the agent —
+  if you don't write it, the experiment counts as failed. Schema:
+
+      {"metrics": {"roc_auc_macro": <float>, "loss": <float>},
+       "training_curves": {"loss": [...], "roc_auc_macro": [...]},
+       "duration_seconds": <float>}
+
+  If training fails, still write `results.json` with an `error` key:
+
+      {"error": "<exception message>"}
+
+- Do NOT import: subprocess, urllib, requests, socket.
+- Do NOT call `os.system(...)`, `eval(...)`, `exec(...)`, or `__import__`.
+- Do NOT download anything from the internet.
+- Do NOT write files outside the current directory.
+
+## Progress logging — IMPORTANT
+
+The agent operator is watching the live terminal output to see whether
+the training is progressing or hung. A silent script makes this
+impossible. You MUST include the following `print(..., flush=True)`
+calls so the operator can see progress in real time:
+
+  - Before loading data:        "loading data..."
+  - After load_precomputed_dataset:
+                                  "data loaded: <N> classes, <T> train, <V> val"
+  - After model instantiation:  "model built: <P> parameters"
+  - At the start of each epoch: "epoch <i+1>/<EPOCHS> starting..."
+  - Every ~10% of train batches:
+                                  "  epoch <i+1> [<pct>%] batch <b>/<N_batches> loss=<x>"
+  - Before validation:          "epoch <i+1>: running validation..."
+  - At the end of each epoch:   "epoch <i+1>/<EPOCHS> done: loss=<x> roc_auc_macro=<y>"
+  - On final completion:        "all done: final roc_auc_macro=<x>"
+  - On exception (inside except):
+                                  "training failed: <type>: <msg>"
+
+ALWAYS pass `flush=True` to print() — without it, the output is block-
+buffered and the operator sees nothing for minutes at a time.
+
+## Common PyTorch pitfalls that have crashed previous runs
+
+### 1. `self.relu` vs `F.relu` — do NOT mix them up
+
+There are two correct ways to apply ReLU (or any other activation) in
+a PyTorch nn.Module. You must pick ONE per module and stick to it.
+
+WRONG (this is the #1 cause of AttributeError failures in our runs):
+
+    class MyModel(nn.Module):
+        def __init__(self, num_classes):
+            super().__init__()
+            self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+            # forgot to define self.relu here!
+        def forward(self, x):
+            x = self.relu(self.conv1(x))    # AttributeError: no attribute 'relu'
+
+CORRECT option A — register the activation as a submodule:
+
+    class MyModel(nn.Module):
+        def __init__(self, num_classes):
+            super().__init__()
+            self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+            self.relu = nn.ReLU(inplace=True)   # <-- defined in __init__
+        def forward(self, x):
+            x = self.relu(self.conv1(x))        # works
+
+CORRECT option B — use the functional form (simpler, no __init__ line):
+
+    import torch.nn.functional as F
+
+    class MyModel(nn.Module):
+        def __init__(self, num_classes):
+            super().__init__()
+            self.conv1 = nn.Conv2d(1, 32, 3, padding=1)
+        def forward(self, x):
+            x = F.relu(self.conv1(x))           # works, no self.relu needed
+
+Rule of thumb: option B (`F.relu`) is simpler for stateless activations
+(relu, gelu, sigmoid, softmax). Use it unless you have a specific reason
+to need option A. Same applies to `F.max_pool2d`, `F.adaptive_avg_pool2d`,
+`F.dropout`, etc.
+
+### 2. Shape mismatch on the flatten → linear boundary
+
+A classic bug: after a stack of Conv2d + pooling, the spatial size of
+the feature map depends on the input. Writing `nn.Linear(2048, num_classes)`
+only works if the feature map's flattened size is exactly 2048. Change
+the input shape and it crashes with:
+    RuntimeError: mat1 and mat2 shapes cannot be multiplied (32x1600 and 2048x234)
+
+FIX: always end your Conv stack with `nn.AdaptiveAvgPool2d((1, 1))`
+before flattening. That guarantees a (batch, C, 1, 1) → (batch, C)
+tensor regardless of the input spatial size. Then `nn.Linear(C, num_classes)`
+where C is the out_channels of the last Conv2d. Example:
+
+    self.features = nn.Sequential(
+        nn.Conv2d(1, 32, 3, padding=1), nn.BatchNorm2d(32), nn.ReLU(inplace=True),
+        nn.MaxPool2d(2),
+        nn.Conv2d(32, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(inplace=True),
+        nn.MaxPool2d(2),
+        nn.Conv2d(64, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(inplace=True),
+    )
+    self.pool = nn.AdaptiveAvgPool2d((1, 1))  # → (batch, 128, 1, 1)
+    self.head = nn.Linear(128, num_classes)    # in_features = 128 (last conv out_channels)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.pool(x).flatten(1)    # → (batch, 128)
+        return self.head(x)
+
+The `.flatten(1)` collapses dimensions 1+ into one, so (batch, 128, 1, 1)
+→ (batch, 128). No shape arithmetic, no crashes.
+
+### 3. Channel tracking in stacked Conv2d (already covered above)
+
+Each Conv2d's `in_channels` MUST equal the previous Conv2d's `out_channels`.
+See the "Channel tracking in stacked Conv2d layers" section.
+
+## Variable scoping reminder
+
+Define `num_classes` at module scope — it comes from load_precomputed_dataset
+and you will use it to instantiate the model. Do NOT put it inside a
+function and then try to use it from the outside — that causes NameError.
+Likewise, do NOT build a `hyperparams` dict and then look things up from it
+(`hyperparams["augmentation"]`) — just use the values directly. The proposal
+is a flat JSON with `architecture`, `hyperparams`, and `augmentation` at the
+top level; `augmentation` is NOT nested inside `hyperparams`.
+
+## Skeleton (fill in the model-specific parts)
+
+Use this exact structure unless you have a very good reason to deviate.
+Every print() MUST use flush=True so the terminal sees progress live:
+
+    import json
+    import os
+    import time
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    from sklearn.metrics import roc_auc_score
+    from pipelines.data_loader import load_precomputed_dataset
+
+    # Saturate every CPU core for matrix ops
+    torch.set_num_threads(os.cpu_count() or 4)
+
+    # === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
+    # NOTE: batch_size / num_workers / persistent_workers / prefetch_factor
+    # come from config/config.yaml `training:` via env vars — do NOT
+    # hardcode them here. The data loader picks them up automatically.
+    EPOCHS = 1                 # CAP at 1 — fast-iteration mode
+    LR = 1e-3
+    AUGMENTATION = {"time_shift": True, "noise_injection": True}
+
+    # === Model definition ===
+    # EITHER (A): from pipelines.models import CnnSmallV1
+    #             model = CnnSmallV1(num_classes=234, in_channels=1)
+    # OR     (B): class MyModel(nn.Module): ...
+    #             model = MyModel(num_classes=234)
+
+    start = time.time()
+    results = {}
+    try:
+        print("loading data...", flush=True)
+        # batch_size / num_workers / persistent_workers / prefetch_factor
+        # are read from BIRDCLEF_* env vars (sourced from config.yaml).
+        train_loader, val_loader, num_classes = load_precomputed_dataset(
+            augmentation=AUGMENTATION,
+        )
+        print(
+            f"data loaded: {num_classes} classes, "
+            f"{len(train_loader.dataset)} train samples, "
+            f"{len(val_loader.dataset)} val samples",
+            flush=True,
+        )
+
+        # Build the model here — num_classes is now defined at MODULE scope
+        model = ...  # registry model OR your custom nn.Module instance
+        n_params = sum(p.numel() for p in model.parameters())
+        print(f"model built: {n_params:,} parameters", flush=True)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+        criterion = nn.BCEWithLogitsLoss()
+
+        n_train_batches = len(train_loader)
+        log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
+
+        curves = {"loss": [], "roc_auc_macro": []}
+        for epoch in range(EPOCHS):
+            print(
+                f"epoch {epoch + 1}/{EPOCHS} starting "
+                f"({n_train_batches} batches)...",
+                flush=True,
+            )
+            model.train()
+            epoch_losses = []
+            for batch_idx, (x, y) in enumerate(train_loader):
+                optimizer.zero_grad()
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                optimizer.step()
+                epoch_losses.append(float(loss.item()))
+
+                if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                    pct = 100.0 * (batch_idx + 1) / n_train_batches
+                    print(
+                        f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                        f"batch {batch_idx + 1}/{n_train_batches} "
+                        f"loss={loss.item():.4f}",
+                        flush=True,
+                    )
+
+            print(f"epoch {epoch + 1}: running validation...", flush=True)
+            model.eval()
+            all_probs, all_targs = [], []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    all_probs.append(torch.sigmoid(model(x)).numpy())
+                    all_targs.append(y.numpy())
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_targs, axis=0)
+
+            # Macro ROC-AUC over columns with at least one positive
+            aucs = []
+            for c in range(targs.shape[1]):
+                if targs[:, c].sum() > 0:
+                    aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
+            val_auc = float(np.mean(aucs)) if aucs else 0.0
+            epoch_loss = float(np.mean(epoch_losses))
+
+            curves["loss"].append(epoch_loss)
+            curves["roc_auc_macro"].append(val_auc)
+            print(
+                f"epoch {epoch + 1}/{EPOCHS} done: "
+                f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+                flush=True,
+            )
+
+        results = {
+            "metrics": {
+                "roc_auc_macro": curves["roc_auc_macro"][-1],
+                "loss": curves["loss"][-1],
+            },
+            "training_curves": curves,
+            "duration_seconds": time.time() - start,
+        }
+        print(
+            f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+            flush=True,
+        )
+    except Exception as exc:
+        results = {"error": f"{type(exc).__name__}: {exc}"}
+        print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
+
+    with open("results.json", "w") as fh:
+        json.dump(results, fh)
+
+Deviate from the skeleton ONLY for the parts of the model and training
+loop that your proposal actually changes.
+
+
+[USER]
+## Architecture Proposal (JSON)
+{
+  "architecture": "Lightweight 3-Block CNN with Self-Attention and Dynamic Filtering",
+  "pretrained_model": null,
+  "hyperparams": {
+    "lr": 0.001,
+    "batch_size": 128,
+    "epochs": 1,
+    "optimizer": "adam",
+    "weight_decay": 0.0001,
+    "dropout": 0.2
+  },
+  "augmentation": {
+    "time_shift": true,
+    "noise_injection": true,
+    "mixup": 0.0,
+    "specaugment": true
+  }
+}
+
+## Dataset Profile (summary)
+- num_classes: 206
+- num_samples: 233101
+- spectrogram_shape: (1, 128, 313)
+- sample_rate: 32000 Hz
+- imbalance_ratio: 6854.00 (min=1, max=6854)
+- split: stratified_kfold (seed=42)
+- train/val: 186478/46623
+- most-populated classes:
+    - coffal1: 6854
+    - rufnig1: 4907
+    - bncfly: 4630
+- least-populated classes:
+    - 116570: 1
+    - 23724: 1
+    - 23150: 3
+
+## Your Task
+Write a complete, runnable Python training script implementing the
+architecture above. Use the skeleton in the system prompt as your structure.
+Fill in the model definition and any proposal-specific training changes.
+
+Return ONLY the Python code. No explanations, no markdown fences, no prose.
+
+```
+
+## LLM Response
+```
+```python
+import json
+import os
+import time
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.metrics import roc_auc_score
+from pipelines.data_loader import load_precomputed_dataset
+
+# Saturate every CPU core for matrix ops
+torch.set_num_threads(os.cpu_count() or 4)
+
+# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
+# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor
+# come from config/config.yaml `training:` via env vars — do NOT
+# hardcode them here. The data loader picks them up automatically.
+EPOCHS = 1                 # CAP at 1 — fast-iteration mode
+LR = 1e-3
+AUGMENTATION = {"time_shift": True, "noise_injection": True, "specaugment": True}
+
+# === Model definition ===
+class SelfAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.query = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.key = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.value = nn.Conv2d(in_channels, in_channels, 1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        query = self.query(x).view(batch_size, -1, height * width).permute(0, 2, 1)
+        key = self.key(x).view(batch_size, -1, height * width)
+        attention = F.softmax(torch.bmm(query, key), dim=1)
+        value = self.value(x).view(batch_size, -1, height * width)
+        out = torch.bmm(value, attention.permute(0, 2, 1)).view(batch_size, channels, height, width)
+        return self.gamma * out + x
+
+class DynamicFilter(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, padding=1)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.attention = SelfAttention(out_channels)
+        
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        x = F.relu(x)
+        x = self.attention(x)
+        return x
+
+class Lightweight3BlockCNN(nn.Module):
+    def __init__(self, num_classes, dropout=0.2):
+        super().__init__()
+        self.block1 = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(64)
+        )
+        
+        self.block2 = nn.Sequential(
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(256)
+        )
+        
+        self.block3 = nn.Sequential(
+            nn.Conv2d(256, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 1024, 3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(1024)
+        )
+        
+        self.dynamic_filter = DynamicFilter(1024, 512)
+        
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(512, num_classes)
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.dynamic_filter(x)
+        x = self.pool(x).flatten(1)
+        x = self.dropout(x)
+        return self.classifier(x)
+
+# Build the model here — num_classes is now defined at MODULE scope
+model = Lightweight3BlockCNN(num_classes=206, dropout=0.2)
+n_params = sum(p.numel() for p in model.parameters())
+print(f"model built: {n_params:,} parameters", flush=True)
+
+start = time.time()
+results = {}
+try:
+    print("loading data...", flush=True)
+    # batch_size / num_workers / persistent_workers / prefetch_factor
+    # are read from BIRDCLEF_* env vars (sourced from config.yaml).
+    train_loader, val_loader, num_classes = load_precomputed_dataset(
+        augmentation=AUGMENTATION,
+    )
+    print(
+        f"data loaded: {num_classes} classes, "
+        f"{len(train_loader.dataset)} train samples, "
+        f"{len(val_loader.dataset)} val samples",
+        flush=True,
+    )
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=0.0001)
+    criterion = nn.BCEWithLogitsLoss()
+
+    n_train_batches = len(train_loader)
+    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
+
+    curves = {"loss": [], "roc_auc_macro": []}
+    for epoch in range(EPOCHS):
+        print(
+            f"epoch {epoch + 1}/{EPOCHS} starting "
+            f"({n_train_batches} batches)...",
+            flush=True,
+        )
+        model.train()
+        epoch_losses = []
+        for batch_idx, (x, y) in enumerate(train_loader):
+            optimizer.zero_grad()
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+            epoch_losses.append(float(loss.item()))
+
+            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                pct = 100.0 * (batch_idx + 1) / n_train_batches
+                print(
+                    f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                    f"batch {batch_idx + 1}/{n_train_batches} "
+                    f"loss={loss.item():.4f}",
+                    flush=True,
+                )
+
+        print(f"epoch {epoch + 1}: running validation...", flush=True)
+        model.eval()
+        all_probs, all_targs = [], []
+        with torch.no_grad():
+            for x, y in val_loader:
+                all_probs.append(torch.sigmoid(model(x)).numpy())
+                all_targs.append(y.numpy())
+        probs = np.concatenate(all_probs, axis=0)
+        targs = np.concatenate(all_targs, axis=0)
+
+        # Macro ROC-AUC over columns with at least one positive
+        aucs = []
+        for c in range(targs.shape[1]):
+            if targs[:, c].sum() > 0:
+                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
+        val_auc = float(np.mean(aucs)) if aucs else 0.0
+        epoch_loss = float(np.mean(epoch_losses))
+
+        curves["loss"].append(epoch_loss)
+        curves["roc_auc_macro"].append(val_auc)
+        print(
+            f"epoch {epoch + 1}/{EPOCHS} done: "
+            f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+            flush=True,
+        )
+
+    results = {
+        "metrics": {
+            "roc_auc_macro": curves["roc_auc_macro"][-1],
+            "loss": curves["loss"][-1],
+        },
+        "training_curves": curves,
+        "duration_seconds": time.time() - start,
+    }
+    print(
+        f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+        flush=True,
+    )
+except Exception as exc:
+    results = {"error": f"{type(exc).__name__}: {exc}"}
+    print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
+
+with open("results.json", "w") as fh:
+    json.dump(results, fh)
+```
+```
+
+## Output
+- **code:** import json
+import os
+import time
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from sklearn.metrics import roc_auc_score
+from pipelines.data_loader import load_precomputed_dataset
+
+# Saturate every CPU core for matrix ops
+torch.set_num_threads(os.cpu_count() or 4)
+
+# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===
+# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor
+# come from config/config.yaml `training:` via env vars — do NOT
+# hardcode them here. The data loader picks them up automatically.
+EPOCHS = 1                 # CAP at 1 — fast-iteration mode
+LR = 1e-3
+AUGMENTATION = {"time_shift": True, "noise_injection": True, "specaugment": True}
+
+# === Model definition ===
+class SelfAttention(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.query = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.key = nn.Conv2d(in_channels, in_channels // 8, 1)
+        self.value = nn.Conv2d(in_channels, in_channels, 1)
+        self.gamma = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        batch_size, channels, height, width = x.size()
+        query = self.query(x).view(batch_size, -1, height * width).permute(0, 2, 1)
+        key = self.key(x).view(batch_size, -1, height * width)
+        attention = F.softmax(torch.bmm(query, key), dim=1)
+        value = self.value(x).view(batch_size, -1, height * width)
+        out = torch.bmm(value, attention.permute(0, 2, 1)).view(batch_size, channels, height, width)
+        return self.gamma * out + x
+
+class DynamicFilter(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, padding=1)
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.attention = SelfAttention(out_channels)
+        
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.bn(x)
+        x = F.relu(x)
+        x = self.attention(x)
+        return x
+
+class Lightweight3BlockCNN(nn.Module):
+    def __init__(self, num_classes, dropout=0.2):
+        super().__init__()
+        self.block1 = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(64)
+        )
+        
+        self.block2 = nn.Sequential(
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(256)
+        )
+        
+        self.block3 = nn.Sequential(
+            nn.Conv2d(256, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 1024, 3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            SelfAttention(1024)
+        )
+        
+        self.dynamic_filter = DynamicFilter(1024, 512)
+        
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.dropout = nn.Dropout(dropout)
+        self.classifier = nn.Linear(512, num_classes)
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        x = self.block3(x)
+        x = self.dynamic_filter(x)
+        x = self.pool(x).flatten(1)
+        x = self.dropout(x)
+        return self.classifier(x)
+
+# Build the model here — num_classes is now defined at MODULE scope
+model = Lightweight3BlockCNN(num_classes=206, dropout=0.2)
+n_params = sum(p.numel() for p in model.parameters())
+print(f"model built: {n_params:,} parameters", flush=True)
+
+start = time.time()
+results = {}
+try:
+    print("loading data...", flush=True)
+    # batch_size / num_workers / persistent_workers / prefetch_factor
+    # are read from BIRDCLEF_* env vars (sourced from config.yaml).
+    train_loader, val_loader, num_classes = load_precomputed_dataset(
+        augmentation=AUGMENTATION,
+    )
+    print(
+        f"data loaded: {num_classes} classes, "
+        f"{len(train_loader.dataset)} train samples, "
+        f"{len(val_loader.dataset)} val samples",
+        flush=True,
+    )
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=0.0001)
+    criterion = nn.BCEWithLogitsLoss()
+
+    n_train_batches = len(train_loader)
+    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
+
+    curves = {"loss": [], "roc_auc_macro": []}
+    for epoch in range(EPOCHS):
+        print(
+            f"epoch {epoch + 1}/{EPOCHS} starting "
+            f"({n_train_batches} batches)...",
+            flush=True,
+        )
+        model.train()
+        epoch_losses = []
+        for batch_idx, (x, y) in enumerate(train_loader):
+            optimizer.zero_grad()
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+            epoch_losses.append(float(loss.item()))
+
+            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                pct = 100.0 * (batch_idx + 1) / n_train_batches
+                print(
+                    f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                    f"batch {batch_idx + 1}/{n_train_batches} "
+                    f"loss={loss.item():.4f}",
+                    flush=True,
+                )
+
+        print(f"epoch {epoch + 1}: running validation...", flush=True)
+        model.eval()
+        all_probs, all_targs = [], []
+        with torch.no_grad():
+            for x, y in val_loader:
+                all_probs.append(torch.sigmoid(model(x)).numpy())
+                all_targs.append(y.numpy())
+        probs = np.concatenate(all_probs, axis=0)
+        targs = np.concatenate(all_targs, axis=0)
+
+        # Macro ROC-AUC over columns with at least one positive
+        aucs = []
+        for c in range(targs.shape[1]):
+            if targs[:, c].sum() > 0:
+                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))
+        val_auc = float(np.mean(aucs)) if aucs else 0.0
+        epoch_loss = float(np.mean(epoch_losses))
+
+        curves["loss"].append(epoch_loss)
+        curves["roc_auc_macro"].append(val_auc)
+        print(
+            f"epoch {epoch + 1}/{EPOCHS} done: "
+            f"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}",
+            flush=True,
+        )
+
+    results = {
+        "metrics": {
+            "roc_auc_macro": curves["roc_auc_macro"][-1],
+            "loss": curves["loss"][-1],
+        },
+        "training_curves": curves,
+        "duration_seconds": time.time() - start,
+    }
+    print(
+        f"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}",
+        flush=True,
+    )
+except Exception as exc:
+    results = {"error": f"{type(exc).__name__}: {exc}"}
+    print(f"training failed: {type(exc).__name__}: {exc}", flush=True)
+
+with open("results.json", "w") as fh:
+    json.dump(results, fh)
+

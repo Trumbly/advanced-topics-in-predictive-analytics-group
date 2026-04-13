@@ -42,6 +42,13 @@
       <input name="model" type="text" placeholder="e.g. gemma4:e4b, qwen3:9b"
         class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
     </div>
+    <div>
+      <label class="block text-xs text-slate-600 font-semibold mb-1">Build on previous study (optional)</label>
+      <select name="predecessor" id="predecessor-select"
+        class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+        <option value="">Start fresh</option>
+      </select>
+    </div>
     <div class="md:col-span-2 flex items-center gap-3">
       <button type="submit"
         class="inline-flex items-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm">
@@ -53,6 +60,17 @@
 </div>
 
 <script>
+// Populate predecessor dropdown
+fetch("/api/studies").then(r => r.json()).then(studies => {
+  const sel = document.getElementById("predecessor-select");
+  studies.forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s.study_id;
+    opt.textContent = `${s.name} (${s.study_id}) — best: ${s.best_score ? s.best_score.toFixed(4) : "n/a"}`;
+    sel.appendChild(opt);
+  });
+});
+
 document.getElementById("new-study-form").addEventListener("submit", async function(e) {
   e.preventDefault();
   const form = e.target;
@@ -68,6 +86,7 @@ document.getElementById("new-study-form").addEventListener("submit", async funct
     hypothesis: form.hypothesis.value || "Launched from the dashboard",
     max_experiments: parseInt(form.max_experiments.value || "25", 10),
     model: form.model.value || null,
+    predecessor: form.predecessor.value || null,
   };
 
   try {

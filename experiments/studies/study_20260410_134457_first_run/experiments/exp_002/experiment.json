@@ -1,0 +1,36 @@
+{
+  "experiment_id": "exp_002",
+  "study_id": "study_20260410_134457_first_run",
+  "llm_model": "nemotron-3-nano:4b",
+  "task_ids": [
+    "exp_002_task_01_propose_architecture",
+    "exp_002_task_02_generate_code",
+    "exp_002_task_03_validate_code",
+    "exp_002_task_04_execute_training",
+    "exp_002_task_05_capture_metrics"
+  ],
+  "config": {
+    "architecture": "lightweight 3-conv CNN with channel attention",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 64,
+      "epochs": 30,
+      "optimizer": "Adam",
+      "weight_decay": 0.0,
+      "dropout": 0.2
+    },
+    "augmentation": {
+      "time_shift": true,
+      "noise_injection": true,
+      "mixup": 0.2,
+      "specaugment": true
+    }
+  },
+  "results": null,
+  "submission_path": null,
+  "status": "failed",
+  "created_at": "2026-04-10T13:45:20.901240Z",
+  "started_at": "2026-04-10T13:45:20.901240Z",
+  "completed_at": "2026-04-10T13:46:06.189612Z"
+}

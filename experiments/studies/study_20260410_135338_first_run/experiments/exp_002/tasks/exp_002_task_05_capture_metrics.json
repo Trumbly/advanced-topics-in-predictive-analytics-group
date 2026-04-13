@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_002_task_05_capture_metrics",
+  "experiment_id": "exp_002",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_135338_first_run/exp_002/results.json",
+    "raw_results": {
+      "error": "RuntimeError: Given groups=1, weight of size [64, 1, 3, 3], expected input[32, 64, 128, 313] to have 1 channels, but got 64 channels instead"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: Given groups=1, weight of size [64, 1, 3, 3], expected input[32, 64, 128, 313] to have 1 channels, but got 64 channels instead",
+    "traceback": null
+  },
+  "started_at": "2026-04-10T13:55:45.428765Z",
+  "completed_at": "2026-04-10T13:55:45.428903Z"
+}

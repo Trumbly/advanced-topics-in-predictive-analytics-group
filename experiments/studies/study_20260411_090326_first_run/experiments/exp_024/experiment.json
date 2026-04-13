@@ -1,0 +1,44 @@
+{
+  "experiment_id": "exp_024",
+  "study_id": "study_20260411_090326_first_run",
+  "llm_model": "nemotron-3-nano:4b",
+  "task_ids": [
+    "exp_024_task_01_propose_architecture",
+    "exp_024_task_02_generate_code",
+    "exp_024_task_03_validate_code",
+    "exp_024_task_04_execute_training",
+    "exp_024_task_05_capture_metrics",
+    "exp_024_recovery_01_error_recovery",
+    "exp_024_task_06_validate_code",
+    "exp_024_task_07_execute_training",
+    "exp_024_task_08_capture_metrics",
+    "exp_024_recovery_02_error_recovery",
+    "exp_024_task_09_validate_code",
+    "exp_024_task_10_execute_training",
+    "exp_024_task_11_capture_metrics"
+  ],
+  "config": {
+    "architecture": "3-conv baseline with fused SE attention and dropout",
+    "pretrained_model": "cnn_small_v1",
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0.001,
+      "dropout": 0.2
+    },
+    "augmentation": {
+      "time_shift": false,
+      "noise_injection": false,
+      "mixup": 0.0,
+      "specaugment": false
+    }
+  },
+  "results": null,
+  "submission_path": null,
+  "status": "failed",
+  "created_at": "2026-04-11T11:16:08.526865Z",
+  "started_at": "2026-04-11T11:16:08.526865Z",
+  "completed_at": "2026-04-11T11:18:18.810229Z"
+}

@@ -174,6 +174,8 @@ def _training_env_from_config(gc: GlobalConfig) -> dict[str, str]:
 def _build_orchestrator(
     study: Study,
     global_config: GlobalConfig,
+    *,
+    predecessor_study_id: str | None = None,
 ) -> Orchestrator:
     """Wire up all dependencies and return a ready-to-run Orchestrator."""
     if not study.dataset_profile_path.exists():
@@ -198,7 +200,22 @@ def _build_orchestrator(
     prompt_engine = PromptEngine()
 
     study_dir = global_config.paths.experiments / study.study_id
-    memory = ExperimentMemory(study_dir=study_dir)
+
+    # Seed memory from predecessor if specified (study continuation)
+    if predecessor_study_id:
+        predecessor_dir = global_config.paths.experiments / predecessor_study_id
+        if predecessor_dir.exists():
+            memory = ExperimentMemory.seed_from_predecessor(
+                new_study_dir=study_dir,
+                predecessor_study_dir=predecessor_dir,
+            )
+            click.echo(f"  predecessor: {predecessor_study_id} ({len(memory)} experiments inherited)")
+        else:
+            click.echo(f"  ⚠ predecessor {predecessor_study_id} not found, starting fresh")
+            memory = ExperimentMemory(study_dir=study_dir)
+    else:
+        memory = ExperimentMemory(study_dir=study_dir)
+
     experiment_logger = ExperimentLogger(study_dir=study_dir)
     executor = CodeExecutor(
         sandbox_root=global_config.paths.sandbox / study.study_id,
@@ -304,6 +321,19 @@ def cli(ctx: click.Context, config_path: Path, log_level: str) -> None:
     hidden=True,
     help="Force a specific study_id (used by the dashboard process manager).",
 )
+@click.option(
+    "--predecessor",
+    "predecessor_study_id",
+    default=None,
+    help="Study ID to build upon (inherits memory and report context).",
+)
+@click.option(
+    "--prompt-selection",
+    "prompt_selection_json",
+    default=None,
+    hidden=True,
+    help="JSON dict of task_name → version for prompt A/B testing.",
+)
 @click.pass_context
 def start(
     ctx: click.Context,
@@ -314,6 +344,8 @@ def start(
     max_experiments: int | None,
     mode: str,
     forced_study_id: str | None,
+    predecessor_study_id: str | None,
+    prompt_selection_json: str | None,
 ) -> None:
     """Start a new Study and run the agent loop to completion."""
     gc: GlobalConfig = ctx.obj["global_config"]
@@ -331,6 +363,17 @@ def start(
         max_epochs_per_run=gc.compute_budget.max_epochs_per_run,
     )
 
+    # Resolve prompt selection (A/B testing)
+    prompt_template_paths: dict[str, Path] = {}
+    if prompt_selection_json:
+        import json as _json  # noqa: PLC0415
+
+        from agent.prompt_registry import PromptRegistryManager  # noqa: PLC0415
+
+        selection = _json.loads(prompt_selection_json)
+        mgr = PromptRegistryManager(Path("config/prompts"))
+        prompt_template_paths = mgr.resolve_prompt_paths(selection)
+
     study = Study(
         study_id=study_id,
         name=study_name,
@@ -338,14 +381,16 @@ def start(
         mode=StudyMode(mode),
         compute_budget=budget,
         pipeline_config_path=pipeline_path,
+        prompt_template_paths=prompt_template_paths,
         dataset_profile_path=gc.paths.dataset_profile,
         model_registry_path=gc.paths.model_registry,
+        predecessor_study_id=predecessor_study_id,
         status=StudyStatus.ACTIVE,
         created_at=now,
         updated_at=now,
     )
 
-    orchestrator = _build_orchestrator(study, gc)
+    orchestrator = _build_orchestrator(study, gc, predecessor_study_id=predecessor_study_id)
     click.echo(f"Starting {study_id}")
     click.echo(f"  pipeline: {pipeline_path}")
     click.echo(f"  model:    {gc.llm.default_model}")

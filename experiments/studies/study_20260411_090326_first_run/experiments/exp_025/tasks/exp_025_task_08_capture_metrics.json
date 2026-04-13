@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_025_task_08_capture_metrics",
+  "experiment_id": "exp_025",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_090326_first_run/exp_025/results.json",
+    "raw_results": {
+      "error": "RuntimeError: linear(): input and weight.T shapes cannot be multiplied (1x1 and 128x128)"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "RuntimeError: linear(): input and weight.T shapes cannot be multiplied (1x1 and 128x128)",
+    "traceback": null
+  },
+  "started_at": "2026-04-11T11:20:03.717826Z",
+  "completed_at": "2026-04-11T11:20:03.717984Z"
+}

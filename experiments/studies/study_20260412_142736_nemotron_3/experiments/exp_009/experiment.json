@@ -1,0 +1,81 @@
+{
+  "experiment_id": "exp_009",
+  "study_id": "study_20260412_142736_nemotron_3",
+  "llm_model": "nemotron-3-nano:4b",
+  "task_ids": [
+    "exp_009_task_01_propose_architecture",
+    "exp_009_task_02_generate_code",
+    "exp_009_task_03_validate_code",
+    "exp_009_task_04_execute_training",
+    "exp_009_task_05_capture_metrics",
+    "exp_009_recovery_01_error_recovery",
+    "exp_009_task_06_validate_code",
+    "exp_009_task_07_execute_training",
+    "exp_009_task_08_capture_metrics",
+    "exp_009_recovery_02_error_recovery",
+    "exp_009_task_09_validate_code",
+    "exp_009_task_10_execute_training",
+    "exp_009_task_11_capture_metrics",
+    "exp_009_recovery_03_error_recovery",
+    "exp_009_task_12_validate_code",
+    "exp_009_task_13_execute_training",
+    "exp_009_task_14_capture_metrics",
+    "exp_009_recovery_04_error_recovery",
+    "exp_009_task_15_validate_code",
+    "exp_009_task_16_execute_training",
+    "exp_009_task_17_capture_metrics",
+    "exp_009_recovery_05_error_recovery",
+    "exp_009_task_18_validate_code",
+    "exp_009_task_19_execute_training",
+    "exp_009_task_20_capture_metrics",
+    "exp_009_task_21_analyze_results"
+  ],
+  "config": {
+    "architecture": "[cnn_gru_hybrid] 3-conv CNN front-end feeding a 1-layer GRU(128) → Linear",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 1,
+      "optimizer": "adam",
+      "weight_decay": 0,
+      "dropout": 0.1
+    },
+    "augmentation": {
+      "time_shift": true,
+      "noise_injection": true,
+      "mixup": 0.25,
+      "specaugment": true
+    }
+  },
+  "results": {
+    "metrics": {
+      "roc_auc_macro": 0.6677402090284278,
+      "cmap_at_5": 0.012520961220581588,
+      "f1_macro": 0.008270467564845004,
+      "loss": 0.5168643953049019
+    },
+    "training_curves": {
+      "loss": [
+        0.5168643953049019
+      ],
+      "roc_auc_macro": [
+        0.6677402090284278
+      ],
+      "cmap_at_5": [
+        0.012520961220581588
+      ],
+      "f1_macro": [
+        0.008270467564845004
+      ]
+    },
+    "duration_seconds": 973.9298360347748,
+    "peak_ram_mb": null,
+    "val_predictions_path": null
+  },
+  "submission_path": null,
+  "status": "completed",
+  "created_at": "2026-04-12T14:00:24.770574Z",
+  "started_at": "2026-04-12T14:00:24.770574Z",
+  "completed_at": "2026-04-12T14:21:17.047327Z"
+}

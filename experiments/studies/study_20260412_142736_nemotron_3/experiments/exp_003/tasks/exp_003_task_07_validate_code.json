@@ -1,0 +1,17 @@
+{
+  "task_id": "exp_003_task_07_validate_code",
+  "experiment_id": "exp_003",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import torch\nimport torch.nn as nn\nimport torch.optim as optim\n\nclass ProposalNet(nn.Module):\n    def __init__(self, input_dim, output_dim):\n        super().__init__()\n        self.fc1 = nn.Linear(input_dim, 64)\n        self.fc2 = nn.Linear(64, output_dim)\n\n    def forward(self, x):\n        return self.fc2(nn.ReLU()(self.fc1(x)))\n\nif __name__ == '__main__':\n    input_dim = 10\n    output_dim = 5\n    model = ProposalNet(input_dim, output_dim)\n    criterion = nn.CrossEntropyLoss()\n    optimizer = optim.Adam(model.parameters(), lr=0.001)\n\n    X = torch.randn(100, input_dim)\n    y = torch.randint(0, output_dim, (100,))\n\n    for epoch in range(5):\n        preds = model(X)\n        loss = criterion(preds, y)\n        optimizer.zero_grad()\n        loss.backward()\n        optimizer.step()\n        print(loss.item())\n",
+  "output": {
+    "validation": "passed",
+    "code_bytes": 816
+  },
+  "error": null,
+  "started_at": "2026-04-12T12:37:48.280522Z",
+  "completed_at": "2026-04-12T12:37:48.281914Z"
+}

@@ -1,0 +1,34 @@
+{
+  "study_id": "study_20260410_163024_first_run",
+  "name": "first_run",
+  "hypothesis": "Explore architectures for BirdCLEF 2026.",
+  "mode": "autonomous",
+  "compute_budget": {
+    "max_experiments": 25,
+    "max_wallclock_minutes": 240,
+    "max_experiment_seconds": 7200,
+    "max_epochs_per_run": 1
+  },
+  "pipeline_config_path": "config/pipelines/default_pipeline.yaml",
+  "prompt_template_paths": {},
+  "dataset_profile_path": "data/processed/dataset_profile.json",
+  "model_registry_path": "registry/models.yaml",
+  "experiment_ids": [
+    "exp_001",
+    "exp_002",
+    "exp_003",
+    "exp_004",
+    "exp_005",
+    "exp_006",
+    "exp_007",
+    "exp_008",
+    "exp_009",
+    "exp_010"
+  ],
+  "best_experiment_id": "exp_010",
+  "best_score": 0.9333856246404344,
+  "submissions": [],
+  "status": "completed",
+  "created_at": "2026-04-10T16:30:24.655063Z",
+  "updated_at": "2026-04-10T21:02:45.005336Z"
+}

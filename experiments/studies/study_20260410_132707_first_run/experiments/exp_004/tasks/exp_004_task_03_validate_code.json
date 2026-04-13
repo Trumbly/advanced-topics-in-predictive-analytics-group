@@ -1,0 +1,17 @@
+{
+  "task_id": "exp_004_task_03_validate_code",
+  "experiment_id": "exp_004",
+  "task_type": "predefined",
+  "task_name": "validate_code",
+  "status": "completed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": "import torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nimport json\nimport time\n\n# Hyperparameters\nbatch_size = 64\nlr = 0.001\nepochs = min(30, 10)  # cap at 10\noptimizer = torch.optim.Adam\nweight_decay = 0.0\ndropout = 0.0\n\n# Augmentation dict\naugmentation = {\n    \"time_shift\": True,\n    \"noise_injection\": True,\n    \"mixup\": 0.0,\n    \"specaugment\": True,\n}\n\n# Load dataset\ntrain_loader, val_loader, num_classes = load_precomputed_dataset(\n    profile_path=\"data/processed/dataset_profile.json\",\n    spectrograms_dir=\"data/processed/spectrograms\",\n    labels_csv=\"data/processed/labels.csv\",\n    batch_size=batch_size,\n    num_workers=0,\n    augmentation=augmentation,\n)\n\n# Instantiate model\nmodel = CnnSmallV1(num_classes=num_classes, dropout=dropout)\n\n# Loss\ncriterion = nn.BCEWithLogitsLoss()\n\n# Optimizer\nopt = optimizer(model.parameters(), lr=lr, weight_decay=weight_decay)\n\n# Training curves\nloss_curves = []\nauc_curves = []\n\n# Timing\nstart_time = time.time()\n\nfor epoch in range(epochs):\n    model.train()\n    total_loss = 0.0\n    n_samples = 0\n\n    for x, y in train_loader:\n        opt.zero_grad()\n        logits = model(x)\n        loss = criterion(logits, y.float())\n        loss.backward()\n        opt.step()\n\n        total_loss += loss.item()\n        n_samples += x.size(0)\n\n    loss_curves.append(total_loss / n_samples)\n\n    # Evaluate on validation set\n    model.eval()\n    all_logits = []\n    all_labels = []\n    for x, y in val_loader:\n        logits = model(x)\n        all_logits.append(logits.detach().cpu())\n        all_labels.append(y.float().cpu())\n    all_logits = torch.cat(all_logits)\n    all_labels = torch.cat(all_labels)\n\n    # Predictions\n    probs = torch.sigmoid(all_logits).numpy()\n    # Per-class AUC\n    per_class_auc = []\n    for c in range(num_classes):\n        y_true = all_labels[:, c].numpy()\n        y_pred = probs[:, c]\n        if (y_true == 1).any():\n            per_class_auc.append(roc_auc_score(y_true, y_pred))\n    # Macro avg only for classes with at least one positive\n    if per_class_auc:\n        macro_auc = sum(per_class_auc) / len(per_class_auc)\n    else:\n        macro_auc = 0.0\n    auc_curves.append(macro_auc)\n\n    loss_curves[-1] = total_loss / n_samples  # update last entry\n    loss = total_loss / n_samples\n\n# Duration\nduration = time.time() - start_time\n\n# Prepare results\nresults = {\n    \"metrics\": {\n        \"roc_auc_macro\": round(macro_auc, 4),\n        \"loss\": round(loss, 4)\n    },\n    \"training_curves\": {\n        \"loss\": loss_curves,\n        \"roc_auc_macro\": auc_curves\n    },\n    \"duration_seconds\": round(duration, 2)\n}\n\nwith open(\"results.json\", \"w\") as f:\n    json.dump(results, f, indent=2)\n",
+  "output": {
+    "validation": "passed",
+    "code_bytes": 2684
+  },
+  "error": null,
+  "started_at": "2026-04-10T13:30:07.300921Z",
+  "completed_at": "2026-04-10T13:30:07.301724Z"
+}

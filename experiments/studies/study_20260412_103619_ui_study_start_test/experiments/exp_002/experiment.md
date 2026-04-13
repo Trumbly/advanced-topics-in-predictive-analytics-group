@@ -1,0 +1,11 @@
+# Experiment exp_002
+
+- **Study:** study_20260412_103619_ui_study_start_test
+- **Status:** failed
+- **LLM:** gemma4:e4b
+- **Created:** 2026-04-12 08:41:29.897876+00:00
+- **Started:** 2026-04-12 08:41:29.897876+00:00
+- **Completed:** 2026-04-12 08:41:46.206646+00:00
+
+## Tasks
+- exp_002_task_01_propose_architecture

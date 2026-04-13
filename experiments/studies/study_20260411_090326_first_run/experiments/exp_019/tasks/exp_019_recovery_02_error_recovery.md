@@ -1,0 +1,572 @@
+# Task exp_019_recovery_02_error_recovery
+
+- **Experiment:** exp_019
+- **Type:** llm
+- **Name:** error_recovery
+- **Status:** completed
+- **Started:** 2026-04-11 10:52:31.150006+00:00
+- **Completed:** 2026-04-11 10:52:58.616867+00:00
+
+## Prompt Used
+```
+[SYSTEM]
+You are debugging a failed ML training run on BirdCLEF 2026. A previous
+attempt at this experiment crashed with a concrete Python/PyTorch error.
+Your job is to return a FIXED version of the code that addresses the
+specific failure, while keeping the original architecture and training
+approach as close to the original as possible.
+
+Rules:
+  - Return the COMPLETE, SELF-CONTAINED Python script. Not a diff. Not
+    a description of the fix. Not a JSON object. Just plain Python code.
+  - Keep the same overall architecture unless the error makes that
+    impossible. The fix should be MINIMAL — one or two focused changes.
+  - Preserve all the mandatory parts of a correct training script
+    (documented below) — they must all still be present in the fix.
+  - Do NOT remove progress prints. The operator watches them live.
+  - Do NOT change the hyperparameters unless the error is directly
+    about them (e.g. batch_size causing OOM).
+  - Do NOT retry the exact same code — that will fail the exact same way.
+
+## Mandatory script structure (keep all of this in the fix)
+
+  - `import torch` and `import torch.nn as nn` at the top
+  - `torch.set_num_threads(os.cpu_count() or 4)` for CPU saturation
+  - Load data via `load_precomputed_dataset` (no path arguments)
+  - `EPOCHS = 1` exactly (fast-iteration mode, hard cap)
+  - BCEWithLogitsLoss + macro-averaged ROC-AUC via sklearn
+  - Progress prints with `flush=True` at key checkpoints
+  - `results.json` written at the end with metrics OR an `error` key
+
+## Common fixes for common errors
+
+  - `AttributeError: 'X' object has no attribute 'relu'`:
+      Either define `self.relu = nn.ReLU(inplace=True)` in __init__,
+      or replace `self.relu(x)` with `F.relu(x)` (from torch.nn.functional).
+  - `RuntimeError: mat1 and mat2 shapes cannot be multiplied`:
+      Flatten/linear size mismatch. Fix by ending the feature stack with
+      `nn.AdaptiveAvgPool2d((1, 1))` → `.flatten(1)` → `nn.Linear(C, num_classes)`
+      where C is the last Conv2d's out_channels.
+  - `RuntimeError: Given groups=1, weight of size [X, Y, ...] expected input
+     [..., Z, ...] to have Y channels, but got Z channels instead`:
+      Channel mismatch between stacked Conv2d layers. Each Conv2d's
+      `in_channels` must equal the previous one's `out_channels`.
+  - `NameError: name 'num_classes' is not defined`:
+      num_classes must be defined at module scope via
+      `train_loader, val_loader, num_classes = load_precomputed_dataset(...)`
+      BEFORE the model is instantiated.
+  - `AttributeError: 'Dropout' object has no attribute 'set'` or similar
+    made-up methods:
+      Use only documented PyTorch APIs. nn.Dropout has no `.set()`.
+  - `EpochsCapExceeded: EPOCHS = N exceeds the hard cap of 1`:
+      Change the literal `EPOCHS = N` line to `EPOCHS = 1`. Do not use
+      `max(1, ...)` or `min(..., 1)` — just write `EPOCHS = 1`.
+
+
+[USER]
+## Original architecture proposal
+{
+  "architecture": "3-conv CNN with fused residual blocks and SE attention",
+  "pretrained_model": null,
+  "hyperparams": {
+    "lr": 0.001,
+    "batch_size": 128,
+    "epochs": 1,
+    "optimizer": "adam",
+    "weight_decay": 0.001,
+    "dropout": 0.1
+  },
+  "augmentation": {
+    "time_shift": false,
+    "noise_injection": false,
+    "mixup": 0.2,
+    "specaugment": false
+  }
+}
+
+## Broken code (the previous attempt)
+```python
+import json
+import os
+import time
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.metrics import roc_auc_score
+from pipelines.data_loader import load_precomputed_dataset
+
+DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+device = torch.device(DEVICE_NAME)
+
+EPOCHS = 1
+LR = 0.001
+AUGMENTATION = {"time_shift": False, "noise_injection": False, "mixup": 0.2, "specaugment": False}
+
+class SE(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Sequential(
+            nn.Conv2d(channels, 1, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, h, w = x.shape
+        y = self.avg_pool(x).view(b, c, 1, 1)
+        y = self.fc(y).view(b, 1, 1, 1)
+        return x * y
+
+class MyModel(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.dropout1 = nn.Dropout(0.1)
+
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.dropout2 = nn.Dropout(0.1)
+
+        self.conv3 = nn.Conv2d(64, num_classes, 3, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_classes)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.dropout3 = nn.Dropout(0.1)
+
+        self.se = SE(num_classes)
+        self.head = nn.Linear(num_classes, 128)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+        x = self.dropout1(x)
+
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
+
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = self.relu3(x)
+        x = self.dropout3(x)
+
+        x = self.se(x)
+        x = x.view(x.size(0), -1)
+        logits = self.head(x)
+        return logits
+
+if __name__ == "__main__":
+    print(f"device: {device}", flush=True)
+    if DEVICE_NAME == "cpu":
+        torch.set_num_threads(os.cpu_count() or 4)
+
+    start = time.time()
+    results = {}
+    try:
+        print("loading data...", flush=True)
+        train_loader, val_loader, num_classes = load_precomputed_dataset(
+            augmentation=AUGMENTATION,
+        )
+        print(
+            f"data loaded: {num_classes} classes, "
+            f"{len(train_loader.dataset)} train samples, "
+            f"{len(val_loader.dataset)} val samples",
+            flush=True,
+        )
+
+        model = MyModel(num_classes).to(device)
+        model = model.to(device)
+        n_params = sum(p.numel() for p in model.parameters())
+        print(f"model built: {n_params:,} parameters", flush=True)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=0.001)
+        criterion = nn.BCEWithLogitsLoss()
+
+        n_train_batches = len(train_loader)
+        log_every = max(1, n_train_batches // 10)
+
+        curves = {"loss": [], "roc_auc_macro": []}
+        for epoch in range(EPOCHS):
+            print(
+                f"epoch {epoch + 1}/{EPOCHS} starting "
+                f"({n_train_batches} batches)...",
+                flush=True,
+            )
+            model.train()
+            epoch_losses = []
+            for batch_idx, (x, y) in enumerate(train_loader):
+                x = x.to(device, dtype=torch.float32, non_blocking=True)
+                y = y.to(device, dtype=torch.float32, non_blocking=True)
+                optimizer.zero_grad()
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                optimizer.step()
+                epoch_losses.append(float(loss.item()))
+
+                if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                    pct = 100.0 * (batch_idx + 1) / n_train_batches
+                    print(
+                        f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                        f"batch {batch_idx + 1}/{n_train_batches} "
+                        f"loss={loss.item():.4f}",
+                        flush=True,
+                    )
+
+            print(f"epoch {epoch + 1}: running validation...", flush=True)
+            model.eval()
+            all_probs, all_targs = [], []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x = x.to(device, dtype=torch.float32, non_blocking=True)
+                    probs = torch.sigmoid(model(x)).cpu().numpy()
+                    all_probs.append(probs)
+                    all_targs.append(y.numpy())
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_targs, axis
+
+```
+
+## Error that crashed it
+Type: SyntaxError
+
+Message:
+Line 141: '(' was never closed
+
+Traceback (tail):
+```
+(no traceback)
+```
+
+## Your Task
+Rewrite the code above to fix the error. Return ONLY the complete fixed
+Python script — no explanations, no markdown fences, no prose. The first
+line of your response must be valid Python (e.g. `import json`).
+
+```
+
+## LLM Response
+```
+import json
+import os
+import time
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.metrics import roc_auc_score
+from pipelines.data_loader import load_precomputed_dataset
+
+DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+device = torch.device(DEVICE_NAME)
+
+EPOCHS = 1
+LR = 0.001
+AUGMENTATION = {"time_shift": False, "noise_injection": False, "mixup": 0.2, "specaugment": False}
+
+class SE(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Sequential(
+            nn.Conv2d(channels, 1, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, h, w = x.shape
+        y = self.avg_pool(x).view(b, c, 1, 1)
+        y = self.fc(y).view(b, 1, 1, 1)
+        return x * y
+
+class MyModel(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.dropout1 = nn.Dropout(0.1)
+
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.dropout2 = nn.Dropout(0.1)
+
+        self.conv3 = nn.Conv2d(64, num_classes, 3, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_classes)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.dropout3 = nn.Dropout(0.1)
+
+        self.se = SE(num_classes)
+        self.head = nn.Linear(num_classes, 128)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+        x = self.dropout1(x)
+
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
+
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = self.relu3(x)
+        x = self.dropout3(x)
+
+        x = self.se(x)
+        x = x.view(x.size(0), -1)
+        logits = self.head(x)
+        return logits
+
+if __name__ == "__main__":
+    print(f"device: {device}", flush=True)
+    if DEVICE_NAME == "cpu":
+        torch.set_num_threads(os.cpu_count() or 4)
+
+    start = time.time()
+    results = {}
+    try:
+        print("loading data...", flush=True)
+        train_loader, val_loader, num_classes = load_precomputed_dataset(
+            augmentation=AUGMENTATION,
+        )
+        print(
+            f"data loaded: {num_classes} classes, "
+            f"{len(train_loader.dataset)} train samples, "
+            f"{len(val_loader.dataset)} val samples",
+            flush=True,
+        )
+
+        model = MyModel(num_classes).to(device)
+        n_params = sum(p.numel() for p in model.parameters())
+        print(f"model built: {n_params:,} parameters", flush=True)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=0.001)
+        criterion = nn.BCEWithLogitsLoss()
+
+        n_train_batches = len(train_loader)
+        log_every = max(1, n_train_batches // 10)
+
+        curves = {"loss": [], "roc_auc_macro": []}
+        for epoch in range(EPOCHS):
+            print(
+                f"epoch {epoch + 1}/{EPOCHS} starting "
+                f"({n_train_batches} batches)...",
+                flush=True,
+            )
+            model.train()
+            epoch_losses = []
+            for batch_idx, (x, y) in enumerate(train_loader):
+                x = x.to(device, dtype=torch.float32, non_blocking=True)
+                y = y.to(device, dtype=torch.float32, non_blocking=True)
+                optimizer.zero_grad()
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                optimizer.step()
+                epoch_losses.append(float(loss.item()))
+
+                if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                    pct = 100.0 * (batch_idx + 1) / n_train_batches
+                    print(
+                        f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                        f"batch {batch_idx + 1}/{n_train_batches} "
+                        f"loss={loss.item():.4f}",
+                        flush=True,
+                    )
+
+            print(f"epoch {epoch + 1}: running validation...", flush=True)
+            model.eval()
+            all_probs, all_targs = [], []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x = x.to(device, dtype=torch.float32, non_blocking=True)
+                    probs = torch.sigmoid(model(x)).cpu().numpy()
+                    all_probs.append(probs)
+                    all_targs.append(y.numpy())
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_probs, axis=0)
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_probs, axis=0)
+
+            auc = roc_auc_score(targs, probs)
+            curves["loss"].append(curves["loss"][-1])
+            curves["roc_auc_macro"].append(auc)
+
+        results["loss"] = curves["loss"]
+        results["roc_auc_macro"] = curves["roc_auc_macro"]
+        results["message"] = "training completed"
+
+    except Exception as e:
+        results["error"] = str(e)
+
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"results written to results.json", flush=True)
+```
+
+## Output
+- **code:** import json
+import os
+import time
+import numpy as np
+import torch
+import torch.nn as nn
+from sklearn.metrics import roc_auc_score
+from pipelines.data_loader import load_precomputed_dataset
+
+DEVICE_NAME = os.environ.get("BIRDCLEF_DEVICE", "cpu")
+device = torch.device(DEVICE_NAME)
+
+EPOCHS = 1
+LR = 0.001
+AUGMENTATION = {"time_shift": False, "noise_injection": False, "mixup": 0.2, "specaugment": False}
+
+class SE(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Sequential(
+            nn.Conv2d(channels, 1, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, x):
+        b, c, h, w = x.shape
+        y = self.avg_pool(x).view(b, c, 1, 1)
+        y = self.fc(y).view(b, 1, 1, 1)
+        return x * y
+
+class MyModel(nn.Module):
+    def __init__(self, num_classes):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(32)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.dropout1 = nn.Dropout(0.1)
+
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.relu2 = nn.ReLU(inplace=True)
+        self.dropout2 = nn.Dropout(0.1)
+
+        self.conv3 = nn.Conv2d(64, num_classes, 3, padding=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(num_classes)
+        self.relu3 = nn.ReLU(inplace=True)
+        self.dropout3 = nn.Dropout(0.1)
+
+        self.se = SE(num_classes)
+        self.head = nn.Linear(num_classes, 128)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu1(x)
+        x = self.dropout1(x)
+
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu2(x)
+        x = self.dropout2(x)
+
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = self.relu3(x)
+        x = self.dropout3(x)
+
+        x = self.se(x)
+        x = x.view(x.size(0), -1)
+        logits = self.head(x)
+        return logits
+
+if __name__ == "__main__":
+    print(f"device: {device}", flush=True)
+    if DEVICE_NAME == "cpu":
+        torch.set_num_threads(os.cpu_count() or 4)
+
+    start = time.time()
+    results = {}
+    try:
+        print("loading data...", flush=True)
+        train_loader, val_loader, num_classes = load_precomputed_dataset(
+            augmentation=AUGMENTATION,
+        )
+        print(
+            f"data loaded: {num_classes} classes, "
+            f"{len(train_loader.dataset)} train samples, "
+            f"{len(val_loader.dataset)} val samples",
+            flush=True,
+        )
+
+        model = MyModel(num_classes).to(device)
+        n_params = sum(p.numel() for p in model.parameters())
+        print(f"model built: {n_params:,} parameters", flush=True)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=0.001)
+        criterion = nn.BCEWithLogitsLoss()
+
+        n_train_batches = len(train_loader)
+        log_every = max(1, n_train_batches // 10)
+
+        curves = {"loss": [], "roc_auc_macro": []}
+        for epoch in range(EPOCHS):
+            print(
+                f"epoch {epoch + 1}/{EPOCHS} starting "
+                f"({n_train_batches} batches)...",
+                flush=True,
+            )
+            model.train()
+            epoch_losses = []
+            for batch_idx, (x, y) in enumerate(train_loader):
+                x = x.to(device, dtype=torch.float32, non_blocking=True)
+                y = y.to(device, dtype=torch.float32, non_blocking=True)
+                optimizer.zero_grad()
+                logits = model(x)
+                loss = criterion(logits, y)
+                loss.backward()
+                optimizer.step()
+                epoch_losses.append(float(loss.item()))
+
+                if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:
+                    pct = 100.0 * (batch_idx + 1) / n_train_batches
+                    print(
+                        f"  epoch {epoch + 1} [{pct:5.1f}%] "
+                        f"batch {batch_idx + 1}/{n_train_batches} "
+                        f"loss={loss.item():.4f}",
+                        flush=True,
+                    )
+
+            print(f"epoch {epoch + 1}: running validation...", flush=True)
+            model.eval()
+            all_probs, all_targs = [], []
+            with torch.no_grad():
+                for x, y in val_loader:
+                    x = x.to(device, dtype=torch.float32, non_blocking=True)
+                    probs = torch.sigmoid(model(x)).cpu().numpy()
+                    all_probs.append(probs)
+                    all_targs.append(y.numpy())
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_probs, axis=0)
+            probs = np.concatenate(all_probs, axis=0)
+            targs = np.concatenate(all_probs, axis=0)
+
+            auc = roc_auc_score(targs, probs)
+            curves["loss"].append(curves["loss"][-1])
+            curves["roc_auc_macro"].append(auc)
+
+        results["loss"] = curves["loss"]
+        results["roc_auc_macro"] = curves["roc_auc_macro"]
+        results["message"] = "training completed"
+
+    except Exception as e:
+        results["error"] = str(e)
+
+    with open("results.json", "w") as f:
+        json.dump(results, f, indent=2)
+
+    print(f"results written to results.json", flush=True)
+
