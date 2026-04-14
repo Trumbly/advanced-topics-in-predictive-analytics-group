@@ -105,7 +105,7 @@ class ComputeBudget(AgentBaseModel):
     max_experiments: int = 20
     max_wallclock_minutes: int = 240
     max_experiment_seconds: int = 7200      # 2 hours — real BirdCLEF training is slow
-    max_epochs_per_run: int = 7             # early stopping (patience=3) handles convergence
+    max_epochs_per_run: int = 4             # early stopping (patience=2) handles convergence
     max_recovery_attempts: int = 5          # retries for a failed experiment's code (Layer 2, expensive)
     max_codegen_retries: int = 5            # re-generate code on validation failure (Layer 1, cheap)
     recovery_empty_response_retries: int = 5  # inner LLM retries on empty recovery response

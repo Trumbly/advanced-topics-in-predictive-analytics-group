@@ -53,3 +53,24 @@ epoch 4/7 starting (1457 batches)...
   epoch 4 [ 59.7%] batch 870/1457 loss=0.1354
   epoch 4 [ 69.7%] batch 1015/1457 loss=0.1217
   epoch 4 [ 79.6%] batch 1160/1457 loss=0.1024
+  epoch 4 [ 89.6%] batch 1305/1457 loss=0.1230
+  epoch 4 [ 99.5%] batch 1450/1457 loss=0.0935
+  epoch 4 [100.0%] batch 1457/1457 loss=0.1017
+epoch 4: running validation...
+epoch 4/7 done: loss=0.1081 roc_auc=0.9857 cmap@5=0.6913 f1=0.3627
+epoch 5/7 starting (1457 batches)...
+  epoch 5 [ 10.0%] batch 145/1457 loss=0.0628
+  epoch 5 [ 19.9%] batch 290/1457 loss=0.0827
+  epoch 5 [ 29.9%] batch 435/1457 loss=0.0734
+  epoch 5 [ 39.8%] batch 580/1457 loss=0.0815
+  epoch 5 [ 49.8%] batch 725/1457 loss=0.0815
+  epoch 5 [ 59.7%] batch 870/1457 loss=0.0845
+  epoch 5 [ 69.7%] batch 1015/1457 loss=0.0744
+  epoch 5 [ 79.6%] batch 1160/1457 loss=0.0946
+  epoch 5 [ 89.6%] batch 1305/1457 loss=0.0744
+  epoch 5 [ 99.5%] batch 1450/1457 loss=0.0903
+  epoch 5 [100.0%] batch 1457/1457 loss=0.1073
+epoch 5: running validation...
+epoch 5/7 done: loss=0.0805 roc_auc=0.9882 cmap@5=0.7544 f1=0.4266
+epoch 6/7 starting (1457 batches)...
+  epoch 6 [ 10.0%] batch 145/1457 loss=0.0568

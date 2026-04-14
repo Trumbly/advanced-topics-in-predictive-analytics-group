@@ -1,0 +1,48 @@
+# Smoke-test config — 1 experiment, 2 epochs, just to verify .pt saving.
+# Delete this file after the test.
+
+project: birdclef-2026-agent
+version: "0.1.0"
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  dataset_profile: data/processed/dataset_profile.json
+  experiments: experiments/studies
+  models: models
+  sandbox: sandbox
+  model_registry: registry/models.yaml
+
+llm:
+  provider: ollama
+  base_url: http://localhost:11434/v1
+  default_model: gemma4:e4b
+  temperature: 0.7
+  max_tokens: 8192
+  timeout_seconds: 300
+  retry_attempts: 3
+  retry_backoff_seconds: 5
+
+compute_budget:
+  max_experiments: 1
+  max_wallclock_minutes: 15
+  max_experiment_seconds: 900
+  max_epochs_per_run: 1
+  max_recovery_attempts: 2
+
+context:
+  max_prompt_tokens: 8000
+  memory_top_k: 5
+  memory_format: markdown
+
+logging:
+  level: DEBUG
+  console: true
+  file: experiments/agent.log
+
+training:
+  device: mps
+  batch_size: 512
+  num_workers: 8
+  persistent_workers: true
+  prefetch_factor: 4

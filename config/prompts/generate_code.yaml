@@ -100,7 +100,7 @@ system: |
         class MyModel(nn.Module):   # if writing a custom model
             ...
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))
         LR = 1e-3
         AUGMENTATION = {...}
 
@@ -249,11 +249,11 @@ system: |
     `training_curves`. The `roc_auc_macro` remains the primary sort
     metric — the others are for comparison and reporting.
   - EPOCHS must be read from the `BIRDCLEF_EPOCHS` env var with a
-    DEFAULT of `"7"`. Write the EXACT line below:
+    DEFAULT of `"4"`. Write the EXACT line below:
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))
 
-    7 epochs with early stopping (patience=3) is the recommended setup.
+    4 epochs with early stopping (patience=2) is the recommended setup.
     The model will stop earlier if validation ROC-AUC stops improving.
   - **Learning rate scheduler** — ALWAYS add a cosine annealing scheduler
     for better convergence:
@@ -268,7 +268,7 @@ system: |
     improved for `patience` consecutive epochs. This saves time when the
     model has already converged:
 
-        PATIENCE = 3
+        PATIENCE = 2
         best_auc = 0.0
         epochs_no_improve = 0
 
@@ -277,11 +277,30 @@ system: |
         if val_auc > best_auc:
             best_auc = val_auc
             epochs_no_improve = 0
+            # Save best model weights for Kaggle submission
+            torch.save(model.state_dict(), "best_model.pt")
         else:
             epochs_no_improve += 1
         if epochs_no_improve >= PATIENCE:
             print(f"early stopping at epoch {epoch+1} (no improvement for {PATIENCE} epochs)")
             break
+
+    **Model checkpoint** — Always save the best model weights to
+    `best_model.pt` whenever `val_auc` improves (as shown above). This
+    file is required for Kaggle submission. Also save a class mapping
+    file so the submission notebook knows the class order:
+
+        import json as _json
+        _json.dump({
+            "num_classes": num_classes,
+            "class_ids": [s["class_id"] for s in
+                          _json.load(open(os.environ.get(
+                              "BIRDCLEF_DATASET_PROFILE",
+                              "data/processed/dataset_profile.json"
+                          )))["class_stats"]],
+        }, open("class_mapping.json", "w"))
+
+    Write this mapping file ONCE, right before the training loop starts.
 
     The final `results.json` should report the LAST epoch's metrics (not
     the best epoch's), since that is what the agent compares across runs.
@@ -557,8 +576,8 @@ system: |
       # hardcode them here. The data loader picks them up automatically.
       #
       # EPOCHS is read from an env var so the orchestrator can override it.
-      # Default 7 — early stopping (patience=3) handles convergence.
-      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
+      # Default 4 — early stopping (patience=2) handles convergence.
+      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))
       LR = 1e-3
       AUGMENTATION = {"time_shift": True, "noise_injection": True}
 
@@ -625,7 +644,7 @@ system: |
               log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
 
               curves = {"loss": [], "roc_auc_macro": [], "cmap_at_5": [], "f1_macro": []}
-              PATIENCE = 3
+              PATIENCE = 2
               best_auc = 0.0
               epochs_no_improve = 0
               for epoch in range(EPOCHS):

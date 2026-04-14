@@ -70,8 +70,8 @@ system: |
       on the spectrograms directly; do not propose audio-waveform models.
     - No internet downloads, no custom CUDA kernels, no device-specific
       operators that don't work on CPU.
-    - `hyperparams.epochs` should be 7. The agent trains each experiment
-      for up to 7 epochs with early stopping (patience=3). Set epochs=7
+    - `hyperparams.epochs` should be 4. The agent trains each experiment
+      for up to 4 epochs with early stopping (patience=2). Set epochs=4
       in the proposal and let early stopping handle convergence.
     - `hyperparams.batch_size` is IGNORED by the code generator. The batch
       size is configured once for the whole project in `config/config.yaml`
@@ -169,7 +169,7 @@ slots:
 fallback_when_no_memory: |
   No previous experiments yet. Your first job is to establish a strong
   baseline with a pretrained EfficientNet-B0 backbone via TorchvisionAdapter,
-  7 epochs, Adam lr=1e-3, light augmentation. Pretrained backbones
+  4 epochs, Adam lr=1e-3, light augmentation. Pretrained backbones
   consistently reach 0.90+ ROC-AUC — always start with one.
 
   You MUST return ONLY valid JSON, nothing else. No prose, no markdown
@@ -182,7 +182,7 @@ fallback_when_no_memory: |
     "hyperparams": {
       "lr": 0.001,
       "batch_size": 128,
-      "epochs": 7,
+      "epochs": 4,
       "optimizer": "adam",
       "weight_decay": 0.0,
       "dropout": 0.1

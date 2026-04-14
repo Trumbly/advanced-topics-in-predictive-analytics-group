@@ -3,7 +3,7 @@
 # Use this during the exam: python -m agent.main start --pipeline config/pipelines/exam_pipeline.yaml
 #
 # Key differences from default_pipeline.yaml:
-#   - max_epochs: 3 (vs 7) — faster convergence check
+#   - max_epochs: 3 (vs 4) — faster convergence check
 #   - timeout: 3600s (1 hour vs 2 hours) — tighter time budget
 #   - Designed for CPU training with smaller batch sizes
 #
