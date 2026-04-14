@@ -44,6 +44,36 @@ def test_env_vars_are_prefixed():
         assert k.startswith("AGENT_"), k
 
 
+def test_track_b_specdataset_is_picklable_for_multiprocessing():
+    """DataLoader workers under macOS spawn / Python 3.14+ forkserver
+    pickle the dataset to ship it across processes. Local classes
+    can't be pickled — the dataset must live at module scope."""
+    import pickle
+    from pathlib import Path
+    from lab.tasks.track_b_birdclef import _SpecDataset
+
+    ds = _SpecDataset(
+        rows=[("a.npy", ["c1"])],
+        class_list=["c1"],
+        class_to_idx={"c1": 0},
+        spectrograms_dir=Path("/nope"),
+    )
+    blob = pickle.dumps(ds)
+    restored = pickle.loads(blob)
+    assert len(restored) == 1
+    assert restored.class_list == ["c1"]
+
+
+def test_track_a_textdataset_is_picklable_for_multiprocessing():
+    import pickle
+    from lab.tasks.track_a_disaster_tweets import _TextDataset
+
+    ds = _TextDataset(ids=[[1, 2, 3]], targets=[1])
+    restored = pickle.loads(pickle.dumps(ds))
+    assert len(restored) == 1
+    assert restored[0] == ([1, 2, 3], 1)
+
+
 def test_track_b_first_present_picks_known_column():
     from lab.tasks.track_b_birdclef import _first_present
     assert _first_present(["sample_id", "class_id"], ("filename", "sample_id")) == "sample_id"

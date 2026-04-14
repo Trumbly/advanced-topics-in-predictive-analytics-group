@@ -121,6 +121,25 @@ def _build_vocab(train_path: Path, vocab_size: int) -> _Vocab:
     return _Vocab(token_to_id=tok_to_id, size=len(tok_to_id))
 
 
+class _TextDataset:
+    """Map-style dataset over pre-tokenised tweet ids + binary targets.
+
+    Module-level (not nested inside ``load_text_dataset``) so the
+    multiprocessing DataLoader workers can pickle it under macOS spawn
+    / Python 3.14+ forkserver.
+    """
+
+    def __init__(self, ids, targets):
+        self.ids = ids
+        self.targets = targets
+
+    def __len__(self):
+        return len(self.targets)
+
+    def __getitem__(self, i):
+        return self.ids[i], self.targets[i]
+
+
 def _read_rows(path: Path) -> list[tuple[str, int]]:
     out: list[tuple[str, int]] = []
     with path.open() as fh:
@@ -177,14 +196,7 @@ def load_text_dataset(
     ids = torch.tensor([vocab.encode(_tokenize(t), max_length) for t, _ in rows], dtype=torch.long)
     targets = torch.tensor([y for _, y in rows], dtype=torch.long)
 
-    class _TextDataset(Dataset):
-        def __len__(self):
-            return len(targets)
-
-        def __getitem__(self, i):
-            return ids[i], targets[i]
-
-    ds = _TextDataset()
+    ds = _TextDataset(ids, targets)
     val_len = max(1, int(len(ds) * val_fraction))
     train_len = len(ds) - val_len
     gen = torch.Generator().manual_seed(seed)

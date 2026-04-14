@@ -178,25 +178,7 @@ def load_audio_dataset(
     class_to_idx = {c: i for i, c in enumerate(class_list)}
     rows: list[tuple[str, list[str]]] = list(rows_by_sample.items())
 
-    class _SpecDataset(Dataset):
-        def __init__(self, rows):
-            self.rows = rows
-
-        def __len__(self):
-            return len(self.rows)
-
-        def __getitem__(self, i):
-            fname, labels = self.rows[i]
-            arr = np.load(spectrograms_dir / fname)
-            x = torch.from_numpy(arr).float()
-            if x.ndim == 2:
-                x = x.unsqueeze(0)
-            y = torch.zeros(len(class_list), dtype=torch.float)
-            for c in labels:
-                y[class_to_idx[c]] = 1.0
-            return x, y
-
-    ds = _SpecDataset(rows)
+    ds = _SpecDataset(rows, class_list, class_to_idx, spectrograms_dir)
     val_len = max(1, int(len(ds) * val_fraction))
     train_len = len(ds) - val_len
     gen = torch.Generator().manual_seed(seed)
@@ -211,6 +193,40 @@ def load_audio_dataset(
         num_workers=num_workers, persistent_workers=bool(num_workers),
     )
     return train_loader, val_loader, len(class_list)
+
+
+class _SpecDataset:
+    """Map-style dataset for precomputed mel-spectrograms.
+
+    Module-level (not nested inside ``load_audio_dataset``) so the
+    multiprocessing DataLoader workers can pickle it under macOS spawn
+    / Python 3.14+ forkserver. We deliberately don't inherit from
+    ``torch.utils.data.Dataset`` here so that importing this module
+    doesn't require torch — torch is only touched inside ``__getitem__``
+    where it's already a runtime requirement.
+    """
+
+    def __init__(self, rows, class_list, class_to_idx, spectrograms_dir):
+        self.rows = rows
+        self.class_list = class_list
+        self.class_to_idx = class_to_idx
+        self.spectrograms_dir = spectrograms_dir
+
+    def __len__(self):
+        return len(self.rows)
+
+    def __getitem__(self, i):
+        import numpy as np
+        import torch
+        fname, labels = self.rows[i]
+        arr = np.load(self.spectrograms_dir / fname)
+        x = torch.from_numpy(arr).float()
+        if x.ndim == 2:
+            x = x.unsqueeze(0)
+        y = torch.zeros(len(self.class_list), dtype=torch.float)
+        for c in labels:
+            y[self.class_to_idx[c]] = 1.0
+        return x, y
 
 
 def _first_present(fields: list[str], candidates: tuple[str, ...]) -> str | None:
