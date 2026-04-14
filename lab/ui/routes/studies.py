@@ -141,9 +141,21 @@ async def study_detail(study_id: str, request: Request):
     if not study:
         raise HTTPException(404, f"No study {study_id}")
     running_launch = launches.launch_for_study(study_id, settings.repo_root)
+    # If the launch is alive, seed the log panel with the last few hundred
+    # lines so the page is useful even before SSE kicks in.
+    launch_log_tail = ""
+    if running_launch:
+        log_path = settings.repo_root / running_launch.log_path
+        if log_path.exists():
+            text = log_path.read_text(errors="replace")
+            launch_log_tail = "\n".join(text.splitlines()[-400:])
     return request.app.state.templates.TemplateResponse(
         request, "study.html",
-        {"study": study, "running_launch": running_launch},
+        {
+            "study": study,
+            "running_launch": running_launch,
+            "launch_log_tail": launch_log_tail,
+        },
     )
 
 

@@ -109,7 +109,7 @@ class KaggleExecutor:
         # Write kernel source + metadata
         full_env = {**self.training_env, **(extra_env or {})}
         (kernel_dir / "code.py").write_text(
-            _KAGGLE_BOOTSTRAP.format(env_json=json.dumps(full_env)) + "\n" + code
+            _wrap_with_bootstrap(code, full_env)
         )
         (kernel_dir / "kernel-metadata.json").write_text(json.dumps({
             "id": slug,
@@ -216,7 +216,13 @@ class KaggleExecutor:
     def _kernel_slug(self, experiment_id: str) -> str:
         # Kaggle slugs: [a-z0-9-] only, lowercased. Prefix with username/.
         safe_exp = experiment_id.lower().replace("_", "-")
-        name = f"{self.kernel_prefix}-{safe_exp}".strip("-")
+        # Avoid ``lab-exp-exp-…`` if the prefix already contains the
+        # token ``exp`` and the id starts with it too. Just strip the
+        # leading 'exp-' from the id in that case.
+        prefix = self.kernel_prefix.rstrip("-")
+        if prefix.endswith("exp") and safe_exp.startswith("exp-"):
+            safe_exp = safe_exp[len("exp-"):]
+        name = f"{prefix}-{safe_exp}".strip("-")
         return f"{self.username}/{name}" if self.username else name
 
     def _run_kaggle(self, cli: str, argv: list[str], *, timeout: int) -> subprocess.CompletedProcess:
@@ -273,6 +279,9 @@ class KaggleExecutor:
 # Prepended to the generated code inside the kernel. Sets up AGENT_* env
 # vars from a serialised dict + remaps Kaggle input paths if the task
 # adapter configured dataset_sources.
+#
+# Must be injected *after* any leading ``from __future__ import …`` and
+# the module docstring — Python requires future imports at the very top.
 _KAGGLE_BOOTSTRAP = '''\
 # --- lab Kaggle bootstrap (auto-generated, do not edit) ---------------
 import json as _json
@@ -289,6 +298,77 @@ if _os.path.isdir(_input) and "AGENT_PROCESSED_DIR" not in _os.environ:
         _os.environ["AGENT_PROCESSED_DIR"] = _os.path.join(_input, _subdirs[0])
 # --- end bootstrap ---------------------------------------------------
 '''
+
+
+def _split_header(code: str) -> tuple[str, str]:
+    """Split `code` into (header, rest).
+
+    `header` contains everything that Python requires at the very top of
+    a module — shebang, encoding declaration, module docstring, blank
+    lines, comments, and any `from __future__ import …` statements.
+    Everything after the first "real" statement goes into `rest`.
+
+    This lets us inject our bootstrap between the header and the rest
+    without tripping Python's "__future__ imports must occur at the
+    beginning of the file" rule.
+    """
+    lines = code.splitlines(keepends=True)
+    prefix: list[str] = []
+    i = 0
+    in_docstring = False
+    docstring_delim: str | None = None
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if in_docstring:
+            prefix.append(line)
+            if docstring_delim and docstring_delim in stripped:
+                in_docstring = False
+            i += 1
+            continue
+
+        if stripped == "" or stripped.startswith("#"):
+            prefix.append(line)
+            i += 1
+            continue
+
+        # Start of a module-level docstring
+        if stripped.startswith(('"""', "'''")):
+            docstring_delim = stripped[:3]
+            prefix.append(line)
+            # Single-line docstring closes on the same line.
+            if stripped.count(docstring_delim) >= 2 and stripped != docstring_delim:
+                in_docstring = False
+            else:
+                in_docstring = True
+            i += 1
+            continue
+
+        if stripped.startswith("from __future__ import"):
+            prefix.append(line)
+            i += 1
+            continue
+
+        break
+
+    return "".join(prefix), "".join(lines[i:])
+
+
+def _wrap_with_bootstrap(code: str, env: dict[str, str]) -> str:
+    header, rest = _split_header(code)
+    bootstrap = _KAGGLE_BOOTSTRAP.format(env_json=json.dumps(env))
+    # Ensure a blank line between pieces so line numbers stay readable
+    # in Kaggle's traceback output.
+    out = header
+    if header and not header.endswith("\n"):
+        out += "\n"
+    out += bootstrap
+    if not out.endswith("\n"):
+        out += "\n"
+    out += rest
+    return out
 
 
 __all__ = ["KaggleExecutor", "KaggleCLIUnavailable"]

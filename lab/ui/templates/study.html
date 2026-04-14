@@ -59,6 +59,20 @@
   </form>
 </section>
 
+{% if running_launch %}
+<section class="card">
+  <h2>
+    Agent log
+    <span class="muted small">· launch <code>{{ running_launch.id }}</code> · PID {{ running_launch.pid }}</span>
+  </h2>
+  <p class="muted small">
+    Streaming stdout+stderr from the orchestrator subprocess. Useful when
+    {% if study.experiments|length == 0 %}the first experiment is still being proposed/generated{% else %}you want to watch the next experiment start{% endif %}.
+  </p>
+  <pre id="launch-log" class="scroll code">{{ launch_log_tail or "(waiting for output…)" }}</pre>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Experiments</h2>
   <table>
@@ -133,3 +147,25 @@
 </section>
 
 {% endblock %}
+
+{% block scripts %}
+{% if running_launch %}
+<script>
+(function () {
+  const log = document.getElementById("launch-log");
+  if (!log) return;
+  // Drop the placeholder when real lines arrive.
+  if (log.textContent.trim().startsWith("(")) {
+    log.textContent = "";
+  }
+  const es = new EventSource("/live/launches/{{ running_launch.id }}");
+  es.onmessage = (ev) => {
+    log.textContent += (log.textContent && !log.textContent.endsWith("\n") ? "\n" : "") + ev.data;
+    log.scrollTop = log.scrollHeight;
+  };
+  es.onerror = () => { es.close(); };
+})();
+</script>
+{% endif %}
+{% endblock %}
+

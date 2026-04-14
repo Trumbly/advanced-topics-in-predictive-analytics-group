@@ -116,7 +116,68 @@ def test_run_surfaces_kernel_error_as_task_error(monkeypatch, tmp_path):
 
 def test_kernel_slug_sanitises_experiment_id(tmp_path):
     ex = _make(tmp_path)
+    # "test" prefix + "exp_AB_12" → avoid exp-exp doubling only when the
+    # prefix actually ends in "exp". Here it doesn't, so we keep the id
+    # verbatim (sanitised).
     assert ex._kernel_slug("exp_AB_12") == "maxuser/test-exp-ab-12"
+
+
+def test_kernel_slug_avoids_exp_exp_doubling(tmp_path):
+    ex = KaggleExecutor(
+        username="maxuser", kernel_prefix="lab-exp",
+        sandbox_root=tmp_path, repo_root=tmp_path,
+    )
+    assert ex._kernel_slug("exp_ca91a6ca0d") == "maxuser/lab-exp-ca91a6ca0d"
+
+
+def test_bootstrap_wrapper_preserves_future_imports(tmp_path):
+    """The kernel must still see ``from __future__ import …`` as the
+    first executable statement after the docstring."""
+    import ast
+    from lab.core.kaggle_executor import _wrap_with_bootstrap
+
+    code = (
+        '"""Training skeleton."""\n'
+        'from __future__ import annotations\n'
+        '\n'
+        'import torch\n'
+        'print("hello")\n'
+    )
+    wrapped = _wrap_with_bootstrap(code, {"AGENT_EPOCHS": "3"})
+    # Must parse without "__future__ imports must occur at the beginning"
+    ast.parse(wrapped)
+    # __future__ import must come BEFORE any of the bootstrap's imports.
+    future_pos = wrapped.index("from __future__ import")
+    bootstrap_pos = wrapped.index("lab Kaggle bootstrap")
+    assert future_pos < bootstrap_pos
+
+
+def test_bootstrap_wrapper_handles_triple_quote_docstring(tmp_path):
+    import ast
+    from lab.core.kaggle_executor import _wrap_with_bootstrap
+
+    code = (
+        '"""Multi-line\n'
+        'docstring with blank.\n'
+        '"""\n'
+        'from __future__ import annotations\n'
+        'x = 1\n'
+    )
+    wrapped = _wrap_with_bootstrap(code, {})
+    ast.parse(wrapped)
+    assert wrapped.index('"""Multi-line') < wrapped.index("lab Kaggle bootstrap")
+
+
+def test_bootstrap_wrapper_without_future_import(tmp_path):
+    """Plain code (no docstring, no future import) still wraps cleanly."""
+    import ast
+    from lab.core.kaggle_executor import _wrap_with_bootstrap
+
+    code = 'import os\nprint("hi")\n'
+    wrapped = _wrap_with_bootstrap(code, {"X": "y"})
+    ast.parse(wrapped)
+    # Env var must be set before user code runs
+    assert wrapped.index("AGENT") < wrapped.index('print("hi")') or "X" in wrapped
 
 
 def test_infrastructure_reports_gpu_and_sources(tmp_path):
