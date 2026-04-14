@@ -85,3 +85,63 @@ def test_final_status_failed_when_all_experiments_failed():
 def test_final_status_failed_when_no_experiments_ran():
     derive = Orchestrator._derive_final_status
     assert derive([], aborted=False) == StudyStatus.FAILED
+
+
+# ---------------------------------------------------------------------------
+# Hard-failure short-circuit
+# ---------------------------------------------------------------------------
+
+
+def test_hard_failure_set_includes_environmental_errors():
+    """Recovery should NOT be attempted on errors the LLM can't fix
+    from inside the script: missing data, OOM, timeouts."""
+    from lab.core.orchestrator import _HARD_FAILURE_ERROR_TYPES
+    assert "Timeout" in _HARD_FAILURE_ERROR_TYPES
+    assert "OOM" in _HARD_FAILURE_ERROR_TYPES
+    assert "FileNotFound" in _HARD_FAILURE_ERROR_TYPES
+    # Code-level errors stay recoverable.
+    assert "SyntaxError" not in _HARD_FAILURE_ERROR_TYPES
+    assert "ShapeMismatch" not in _HARD_FAILURE_ERROR_TYPES
+    assert "RuntimeError" not in _HARD_FAILURE_ERROR_TYPES
+
+
+# ---------------------------------------------------------------------------
+# In-band error field in results.json must be honoured
+# ---------------------------------------------------------------------------
+
+
+def test_capture_metrics_returns_error_field_in_raw(tmp_path):
+    """_capture_metrics surfaces the raw results dict so the caller can
+    inspect an in-band error field even when the script exited 0."""
+    import json
+    from lab.core.executor import ExecutionResult
+    from lab.core.orchestrator import Orchestrator
+
+    results = tmp_path / "results.json"
+    results.write_text(json.dumps({
+        "primary_metric": "f1_macro",
+        "primary_score": 0.0,
+        "history": [],
+        "final": {"f1_macro": 0.0},
+        "best": {"f1_macro": 0.0},
+        "error": "FileNotFoundError: missing labels.csv",
+    }))
+    exec_result = ExecutionResult(
+        exit_code=0,
+        stdout="",
+        stderr="",
+        duration_seconds=1.0,
+        workdir=tmp_path,
+        results_json_path=results,
+        error=None,
+        timed_out=False,
+    )
+    # Build a stub orchestrator just to call _capture_metrics — we don't
+    # need the full LLM/executor wiring for this, only the adapter shim.
+    class _StubAdapter:
+        primary_metric = "f1_macro"
+
+    orch = Orchestrator.__new__(Orchestrator)
+    orch.adapter = _StubAdapter()
+    out = orch._capture_metrics(exec_result)
+    assert out["raw"]["error"].startswith("FileNotFoundError")

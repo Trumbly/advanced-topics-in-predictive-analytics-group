@@ -28,14 +28,12 @@ system: |
       requests, socket, shutil).
     - Only use REAL `torch.nn` layer names — the validator reflects
       against `dir(torch.nn)` and rejects unknowns.
-    - If the error is `FileNotFoundError` from a data loader, the data
-      simply isn't preprocessed yet. You CANNOT fix that from inside
-      the training script — preprocessing is an external responsibility.
-      In that case write code that catches the FileNotFoundError, writes
-      a `results.json` with `primary_metric`, `primary_score: 0.0`, and
-      a clear `error` field, then exits cleanly with status 0. Do NOT
-      try to call preprocessing scripts via subprocess (forbidden) or
-      from inline Python (won't work either).
+    - Do NOT swallow exceptions and write a fake `results.json` to make
+      the run look "successful". If the failure is environmental
+      (missing data, missing module, etc.) just let it propagate; the
+      orchestrator marks the experiment failed and surfaces the real
+      cause. Trying to fake a result with `primary_score: 0.0` is worse
+      than failing honestly.
 
 template: |
   ## Task

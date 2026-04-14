@@ -52,6 +52,17 @@ from lab.tasks.base import TaskAdapter
 logger = logging.getLogger("lab.orchestrator")
 
 
+# Failure categories that recovery cannot fix from inside the training
+# script. The LLM has no way to summon missing data, allocate more RAM,
+# or extend a wallclock budget — we mark the experiment failed and move
+# on instead of burning N retries on a guaranteed lost cause.
+_HARD_FAILURE_ERROR_TYPES = frozenset({
+    "Timeout",
+    "OOM",
+    "FileNotFound",
+})
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -340,8 +351,26 @@ class Orchestrator:
             exp.metrics = metrics.get("metrics", {})
             exp.history = metrics.get("history", [])
             exp.primary_score = metrics.get("primary_score")
-            extra_errors = self.adapter.validate_training_output(metrics.get("raw", {}))
-            if extra_errors:
+            raw = metrics.get("raw", {}) or {}
+            # Honour an in-band error report from the training script.
+            # Some recovery patterns write a results.json with score=0
+            # plus an `error` field on environmental failures (missing
+            # data, denied resources, …). Treat that as a failure even
+            # though the subprocess exited 0.
+            in_band_error = raw.get("error")
+            extra_errors = self.adapter.validate_training_output(raw)
+            if in_band_error:
+                metrics_task.status = TaskStatus.FAILED
+                metrics_task.error = TaskError(
+                    error_type="ScriptReportedError",
+                    message=str(in_band_error)[:300],
+                )
+                exp.status = ExperimentStatus.FAILED
+                exp.error = metrics_task.error
+                # Drop the fake 0-score so the study's best_score
+                # reflects only genuine results.
+                exp.primary_score = None
+            elif extra_errors:
                 metrics_task.status = TaskStatus.FAILED
                 metrics_task.error = TaskError(
                     error_type="TaskValidationFailed",
@@ -367,8 +396,9 @@ class Orchestrator:
             result = self.executor.run(code, experiment_id=exp.id)
             if result.succeeded:
                 return result
-            if result.error is None or result.error.error_type in {"Timeout", "OOM"}:
-                # Hard failures — stop retrying.
+            if result.error is None or result.error.error_type in _HARD_FAILURE_ERROR_TYPES:
+                # Hard failures the LLM can't fix from inside the script —
+                # stop retrying and surface the failure cleanly.
                 return result
             if attempt >= max_attempts:
                 return result

@@ -15,7 +15,11 @@ data:
     train_audio: data/raw/track_b/train_audio
     test_audio:  data/raw/track_b/test_soundscapes
     metadata_csv: data/raw/track_b/train_metadata.csv
-  processed_dir: data/processed/track_b
+  # Where labels.csv + spectrograms/ live locally. The data loader reads
+  # this via the AGENT_PROCESSED_DIR env var. Default matches our team's
+  # actual processed-data layout (labels.csv at the top level alongside
+  # spectrograms/); change here if your local tree differs.
+  processed_dir: data/processed
   features:
     type: spectrogram
     sample_rate: 32000
