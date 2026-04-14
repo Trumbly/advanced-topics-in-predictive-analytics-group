@@ -192,3 +192,26 @@ def test_infrastructure_reports_gpu_and_sources(tmp_path):
     assert infra["backend"] == "kaggle"
     assert infra["enable_gpu"] is True
     assert infra["competition_sources"] == ["birdclef-2026"]
+
+
+def test_kill_running_breaks_poll_loop(monkeypatch, tmp_path):
+    """kill_running() sets an abort flag the poll loop checks each tick,
+    so the orchestrator can stop waiting on a Kaggle kernel without
+    blocking for the full poll_timeout_seconds."""
+    ex = KaggleExecutor(
+        username="u", kernel_prefix="test", poll_interval_seconds=1,
+        poll_timeout_seconds=60, sandbox_root=tmp_path, repo_root=tmp_path,
+    )
+    # Status always reports "running" → normally the loop polls forever.
+    def fake_run(self, cli, argv, *, timeout):
+        return _completed(stdout='status: running\n')
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+
+    # Abort half a second in; the poll should return "aborted" promptly.
+    import threading, time
+    threading.Timer(0.3, ex.kill_running).start()
+    t0 = time.monotonic()
+    status, _ = ex._poll_until_done("/usr/bin/kaggle", "u/test-slug")
+    duration = time.monotonic() - t0
+    assert status == "aborted", status
+    assert duration < 3.0, f"poll kept running for {duration:.1f}s after abort"

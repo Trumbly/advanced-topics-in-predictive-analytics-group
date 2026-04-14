@@ -161,6 +161,10 @@ class LocalExecutor:
     training_env: dict[str, str] = field(default_factory=dict)
 
     backend: str = field(default="local", init=False)
+    # Set while ``run()`` is blocked in ``process.wait()`` so
+    # ``kill_running()`` can terminate the current training subprocess
+    # from another thread (SIGINT handler in the orchestrator).
+    _current_process: subprocess.Popen | None = field(default=None, init=False, repr=False)
 
     def run(
         self,
@@ -199,6 +203,7 @@ class LocalExecutor:
                 [self.python_executable, "-u", "code.py"],
                 **popen_kwargs,  # type: ignore[arg-type]
             )
+            self._current_process = process
         except Exception as exc:  # noqa: BLE001
             duration = time.monotonic() - start
             return ExecutionResult(
@@ -242,6 +247,11 @@ class LocalExecutor:
             except subprocess.TimeoutExpired:
                 pass
             exit_code = -1
+
+        # Clear the current-process reference once wait() returned so a
+        # late kill_running() call is a no-op instead of targeting a
+        # now-reused PID.
+        self._current_process = None
 
         stop_event.set()
         stdout_reader.join(timeout=5)
@@ -362,6 +372,27 @@ class LocalExecutor:
                 os.killpg(pgid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+    def kill_running(self) -> bool:
+        """Terminate the currently-running training subprocess, if any.
+
+        Called by the orchestrator's SIGINT handler so a UI "Stop" click
+        actually reaches the training process — which lives in its own
+        process group (``preexec_fn=os.setsid``) and is therefore NOT
+        reached by the SIGINT delivered to the agent's pgid.
+
+        Safe to call when ``run()`` is idle — returns ``False`` and does
+        nothing.
+        """
+        proc = self._current_process
+        if proc is None:
+            return False
+        try:
+            self._kill_process_tree(proc)
+        except Exception:  # noqa: BLE001
+            logger.exception("kill_running: failed to kill subprocess tree")
+            return False
+        return True
 
     def infrastructure(self) -> dict[str, Any]:
         """Describe the local box the generated code will run on."""

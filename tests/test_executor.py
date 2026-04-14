@@ -44,3 +44,26 @@ def test_executor_respects_timeout(tmp_path):
     assert r.timed_out
     assert r.error is not None
     assert r.error.error_type == "Timeout"
+
+
+def test_kill_running_terminates_subprocess_from_another_thread(tmp_path):
+    """kill_running() is how the orchestrator's SIGINT handler reaches
+    the training subprocess, which lives in its own process group."""
+    import threading, time
+    ex = CodeExecutor(sandbox_root=tmp_path, timeout_seconds=30, stream_output=False)
+    # Script sleeps for way longer than we're willing to wait — the
+    # test passes only when the kill actually cuts it short.
+    script = "import time\ntime.sleep(20)\n"
+    killer = threading.Timer(0.5, ex.kill_running)
+    killer.start()
+    t0 = time.monotonic()
+    r = ex.run(script, experiment_id="exp_killed")
+    duration = time.monotonic() - t0
+    killer.join()
+    assert duration < 5.0, f"kill took {duration:.1f}s — should be near-instant"
+    assert not r.succeeded
+
+
+def test_kill_running_is_noop_when_idle(tmp_path):
+    ex = CodeExecutor(sandbox_root=tmp_path, timeout_seconds=5, stream_output=False)
+    assert ex.kill_running() is False

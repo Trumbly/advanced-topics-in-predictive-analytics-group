@@ -60,6 +60,7 @@ _HARD_FAILURE_ERROR_TYPES = frozenset({
     "Timeout",
     "OOM",
     "FileNotFound",
+    "Aborted",
 })
 
 
@@ -240,8 +241,32 @@ class Orchestrator:
         return study
 
     def _request_abort(self) -> None:
-        logger.warning("SIGINT received — finishing current experiment then stopping.")
+        """SIGINT handler — must be async-signal-safe and never block.
+
+        We do two things:
+          1. Set the abort flag so the main loop breaks at its next
+             check and `_execute_with_recovery` stops retrying.
+          2. Immediately kill the currently-running training subprocess
+             if any. That subprocess lives in its own process group
+             (``preexec_fn=os.setsid``), so the SIGINT delivered to the
+             agent's pgid does NOT reach it on its own. Without this
+             call the agent would keep blocking in `process.wait()`
+             until the training finished naturally — defeating the
+             whole point of a Stop button.
+        """
+        already = self._abort_requested
         self._abort_requested = True
+        logger.warning(
+            "%s received — stopping.%s",
+            "Second abort" if already else "Abort",
+            " Killing training subprocess." if already else "",
+        )
+        killer = getattr(self.executor, "kill_running", None)
+        if callable(killer):
+            try:
+                killer()
+            except Exception:  # noqa: BLE001
+                logger.exception("executor.kill_running failed")
 
     # ------------------------------------------------------------------
     # Experiment lifecycle
@@ -332,7 +357,11 @@ class Orchestrator:
         )
 
         if not exec_result.succeeded:
-            exp.status = ExperimentStatus.FAILED
+            exp.status = (
+                ExperimentStatus.ABORTED
+                if exec_result.error and exec_result.error.error_type == "Aborted"
+                else ExperimentStatus.FAILED
+            )
             exp.error = exec_result.error
             exp.completed_at = _now()
             self._persist()
@@ -381,9 +410,17 @@ class Orchestrator:
     def _execute_with_recovery(self, code: str, exp: Experiment) -> ExecutionResult:
         max_attempts = self.settings.compute_budget.max_recovery_attempts
         for attempt in range(1, max_attempts + 1):
+            if self._abort_requested:
+                # User hit Stop — don't spawn another training subprocess.
+                return self._aborted_result(exp)
             result = self.executor.run(code, experiment_id=exp.id)
             if result.succeeded:
                 return result
+            if self._abort_requested:
+                # The last execute was killed by our own abort. Surface
+                # it as an Aborted failure so the recovery loop doesn't
+                # keep burning LLM calls trying to "fix" the crash.
+                return self._aborted_result(exp, base=result)
             if result.error is None or result.error.error_type in _HARD_FAILURE_ERROR_TYPES:
                 # Hard failures the LLM can't fix from inside the script —
                 # stop retrying and surface the failure cleanly.
@@ -413,6 +450,22 @@ class Orchestrator:
                 logger.error("recover_from_error LLM call failed: %s", exc)
                 return result
         return result  # type: ignore[return-value]
+
+    @staticmethod
+    def _aborted_result(exp: Experiment, *, base: ExecutionResult | None = None) -> ExecutionResult:
+        """Uniform ExecutionResult for abort paths — so the caller
+        can treat "user pressed Stop" identically to any other failure."""
+        from pathlib import Path
+        return ExecutionResult(
+            exit_code=-1,
+            stdout=base.stdout if base else "",
+            stderr=base.stderr if base else "",
+            duration_seconds=base.duration_seconds if base else 0.0,
+            workdir=Path(base.workdir) if base else Path("."),
+            results_json_path=None,
+            error=TaskError(error_type="Aborted", message="User requested abort"),
+            timed_out=False,
+        )
 
     def _revalidate_with_retries(self, code: str, exp: Experiment) -> str:
         """Run the validator on `code`; on failure, re-prompt the LLM

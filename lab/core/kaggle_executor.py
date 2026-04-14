@@ -80,6 +80,9 @@ class KaggleExecutor:
     training_env: dict[str, str] = field(default_factory=dict)
 
     backend: str = field(default="kaggle", init=False)
+    # Flipped to True by kill_running() so the poll loop returns early
+    # instead of waiting out a full poll_timeout_seconds.
+    _aborted: bool = field(default=False, init=False, repr=False)
 
     # ------------------------------------------------------------------
     # Executor protocol
@@ -185,11 +188,14 @@ class KaggleExecutor:
 
         # Error path — let the shared classifier read the kernel log.
         timed_out = status == "timeout"
-        error = classify_error(logs, timed_out=timed_out) or TaskError(
-            error_type="UnknownError",
-            message=f"kernel status={status} and no results.json",
-            traceback=(logs or "")[-600:],
-        )
+        if status == "aborted":
+            error = TaskError(error_type="Aborted", message="User requested abort")
+        else:
+            error = classify_error(logs, timed_out=timed_out) or TaskError(
+                error_type="UnknownError",
+                message=f"kernel status={status} and no results.json",
+                traceback=(logs or "")[-600:],
+            )
         return ExecutionResult(
             exit_code=-1,
             stdout=logs,
@@ -200,6 +206,18 @@ class KaggleExecutor:
             error=error,
             timed_out=timed_out,
         )
+
+    def kill_running(self) -> bool:
+        """Cooperative abort: the poll loop checks this flag each tick.
+
+        We don't cancel the Kaggle kernel server-side — the CLI doesn't
+        expose a cancel verb that's universally available, and the
+        kernel will time out or complete on its own regardless. The
+        important thing is that the orchestrator stops *waiting* on it
+        so the agent can shut down.
+        """
+        self._aborted = True
+        return True
 
     def infrastructure(self) -> dict[str, Any]:
         return {
@@ -235,10 +253,13 @@ class KaggleExecutor:
 
     def _poll_until_done(self, cli: str, slug: str) -> tuple[str, str]:
         """Return (final_status, log_text). ``final_status`` is one of
-        'complete', 'error', 'cancelled', 'timeout'."""
+        'complete', 'error', 'cancelled', 'timeout', 'aborted'."""
         deadline = time.monotonic() + self.poll_timeout_seconds
         last_status = "unknown"
         while time.monotonic() < deadline:
+            if self._aborted:
+                last_status = "aborted"
+                break
             status_proc = self._run_kaggle(
                 cli, ["kernels", "status", slug], timeout=60,
             )
@@ -255,7 +276,12 @@ class KaggleExecutor:
             last_status = "running"
             logger.info("Kaggle kernel %s status=running (sleeping %ds)",
                         slug, self.poll_interval_seconds)
-            time.sleep(self.poll_interval_seconds)
+            # Sleep in small slices so kill_running() cuts in fast.
+            end_sleep = time.monotonic() + self.poll_interval_seconds
+            while time.monotonic() < end_sleep:
+                if self._aborted:
+                    break
+                time.sleep(min(0.5, end_sleep - time.monotonic()))
         else:
             last_status = "timeout"
 

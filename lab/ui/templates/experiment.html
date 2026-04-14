@@ -101,7 +101,10 @@
     <thead><tr><th>Name</th><th>Value</th></tr></thead>
     <tbody>
       {% for k, v in experiment.metrics.items() %}
-      <tr><td><code>{{ k }}</code></td><td class="num">{{ "%.4f"|format(v) }}</td></tr>
+      <tr>
+        <td><code>{{ k }}</code></td>
+        <td class="num">{% if v is number %}{{ "%.4f"|format(v) }}{% elif v is none %}—{% else %}{{ v }}{% endif %}</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
