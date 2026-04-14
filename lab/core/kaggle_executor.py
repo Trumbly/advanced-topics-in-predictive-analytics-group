@@ -434,24 +434,43 @@ def _lab_bootstrap_find_lab_root():
       /kaggle/input/<dataset-name>/lab/…              (older flat)
       /kaggle/input/datasets/<owner>/<dataset>/lab/…  (newer nested)
 
-    AND: ``kaggle datasets create --dir-mode zip`` uploads subdirectories
-    as *zip files* (because the CLI's default `skip` mode silently drops
-    subdirs). So the dataset may contain ``lab.zip`` instead of a ``lab/``
-    tree — we auto-extract into /tmp and point sys.path there.
+    AND: `kaggle datasets create --dir-mode zip` uploads subdirectories
+    as zip files; Kaggle often auto-extracts them and in the process
+    flattens the wrapper directory. A dataset made from ``tmp/lab/*``
+    can end up on the kernel as ``<mount>/__init__.py`` +
+    ``<mount>/core/…`` — the ``lab/`` wrapper gone. We detect that
+    "lab signature" (dataset root has __init__.py + core/ + tasks/)
+    and stage the tree into ``/tmp/.../lab/`` on the fly.
+
+    AND: if ``lab.zip`` is present uncompressed, we extract it.
     """
-    import zipfile as _zipfile
+    import shutil as _shutil
     import tempfile as _tempfile
+    import zipfile as _zipfile
 
     def _has_lab_pkg(d):
         return _os.path.isfile(_os.path.join(d, "lab", "__init__.py"))
 
+    def _looks_like_lab(d):
+        """Heuristic: this dir IS the lab package, just not named 'lab'."""
+        if not _os.path.isfile(_os.path.join(d, "__init__.py")):
+            return False
+        # Our lab package always ships core/ and tasks/ subpackages.
+        for sub in ("core", "tasks"):
+            if not _os.path.isdir(_os.path.join(d, sub)):
+                return False
+        return True
+
+    def _stage_as_lab(src):
+        dest = _tempfile.mkdtemp(prefix="lab-staged-")
+        _shutil.copytree(src, _os.path.join(dest, "lab"))
+        return dest
+
     def _maybe_extract_zip(candidate):
-        """If ``candidate`` contains lab.zip, extract into a temp dir
-        and return that dir. Else None."""
         zp = _os.path.join(candidate, "lab.zip")
         if not _os.path.isfile(zp):
             return None
-        dest = _tempfile.mkdtemp(prefix="lab-src-")
+        dest = _tempfile.mkdtemp(prefix="lab-extracted-")
         try:
             with _zipfile.ZipFile(zp) as z:
                 z.extractall(dest)
@@ -459,12 +478,13 @@ def _lab_bootstrap_find_lab_root():
             return None
         if _has_lab_pkg(dest):
             return dest
-        # ``--dir-mode zip`` sometimes writes the zip with the subdir
-        # name as the top-level entry — try one level deeper.
+        # Zip written with the subdir as top-level entry
         for entry in _os.listdir(dest):
             inner = _os.path.join(dest, entry)
             if _os.path.isdir(inner) and _has_lab_pkg(inner):
                 return inner
+        if _looks_like_lab(dest):
+            return _stage_as_lab(dest)
         return None
 
     hints = []
@@ -476,6 +496,10 @@ def _lab_bootstrap_find_lab_root():
     for hint in hints:
         if _has_lab_pkg(hint):
             return hint
+        if _looks_like_lab(hint):
+            staged = _stage_as_lab(hint)
+            print("[lab bootstrap] staged flattened lab package from " + hint)
+            return staged
         extracted = _maybe_extract_zip(hint)
         if extracted:
             print("[lab bootstrap] extracted lab.zip from " + hint)
@@ -491,6 +515,10 @@ def _lab_bootstrap_find_lab_root():
             continue
         if _has_lab_pkg(root):
             return root
+        if _looks_like_lab(root):
+            staged = _stage_as_lab(root)
+            print("[lab bootstrap] staged flattened lab package from " + root)
+            return staged
         if "lab.zip" in files:
             extracted = _maybe_extract_zip(root)
             if extracted:
@@ -532,9 +560,11 @@ else:
 
 
 def _lab_bootstrap_find_processed_dir():
-    """Pick a non-lab /kaggle/input subtree that looks like training data
-    (contains labels.csv or similar). Walks both the flat layout and the
-    nested datasets/<owner>/<name> layout."""
+    """Pick a non-lab /kaggle/input subtree that looks like training data.
+
+    We look for labels.csv up to depth 3 under each candidate — the
+    team's preprocessed dataset has it under ``<dataset>/processed/``,
+    not at the dataset root."""
     if not _os.path.isdir(_input):
         return None
     skip = {{_lab_dir_name}} if _lab_dir_name else set()
@@ -561,10 +591,22 @@ def _lab_bootstrap_find_processed_dir():
                 d = _os.path.join(owner_dir, name)
                 if _os.path.isdir(d):
                     candidates.append(d)
-    # Prefer one that has labels.csv at its root or under spectrograms/
+
+    # Bounded search for labels.csv within each candidate.
+    def _find_labels_csv(root, max_depth=3):
+        base = root.count(_os.sep)
+        for r, _dirs, _files in _os.walk(root):
+            if r.count(_os.sep) - base > max_depth:
+                _dirs[:] = []
+                continue
+            if "labels.csv" in _files:
+                return r
+        return None
+
     for c in candidates:
-        if _os.path.isfile(_os.path.join(c, "labels.csv")):
-            return c
+        hit = _find_labels_csv(c)
+        if hit:
+            return hit
     # Fallback: first non-lab directory we found
     return candidates[0] if candidates else None
 
