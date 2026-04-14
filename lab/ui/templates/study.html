@@ -90,12 +90,24 @@
     </thead>
     <tbody>
       {% for e in study.experiments %}
+      {% set estat = e.status.value %}
+      {% set ns = namespace(current=None) %}
+      {% if estat == "running" %}
+        {% for t in e.tasks %}
+          {% if t.status.value == "running" %}{% set ns.current = t %}{% endif %}
+        {% endfor %}
+      {% endif %}
       <tr>
         <td>{{ loop.index }}</td>
         <td><a href="/studies/{{ study.id }}/experiments/{{ e.id }}"><code>{{ e.id }}</code></a></td>
         <td>{{ e.architecture_name or "—" }}</td>
         <td>{% if e.architecture_family %}<span class="pill">{{ e.architecture_family }}</span>{% endif %}</td>
-        <td><span class="status status-{{ e.status }}">{{ e.status }}</span></td>
+        <td>
+          <span class="status status-{{ estat }}">{{ estat }}</span>
+          {% if ns.current %}
+            <span class="muted small">[{{ ns.current.name }}]</span>
+          {% endif %}
+        </td>
         <td class="num">{% if e.primary_score is not none %}{{ "%.4f"|format(e.primary_score) }}{% else %}—{% endif %}</td>
         <td class="num">{% if e.duration_seconds %}{{ "%.1f"|format(e.duration_seconds) }} s{% endif %}</td>
         <td class="muted">{% if e.error %}{{ e.error.error_type }}{% endif %}</td>

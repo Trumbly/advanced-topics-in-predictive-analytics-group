@@ -1,0 +1,75 @@
+{
+  "id": "study_20260414_124125_d640",
+  "name": "ui-test-3",
+  "task_name": "track_b",
+  "status": "pending",
+  "created_at": "2026-04-14T12:41:25.663511Z",
+  "started_at": null,
+  "completed_at": null,
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_77aefeaa80",
+      "study_id": "study_20260414_124125_d640",
+      "index": 0,
+      "status": "running",
+      "architecture_name": "cnn",
+      "architecture_family": "custom_cnn",
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": null,
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "running",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "sandbox_path": "/home/user/advanced-topics-in-predictive-analytics-group/sandbox/fake_dir"
+    }
+  ],
+  "prompt_template_paths": {},
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [],
+  "executor_backend": "local",
+  "executor_infrastructure": {},
+  "notes": ""
+}

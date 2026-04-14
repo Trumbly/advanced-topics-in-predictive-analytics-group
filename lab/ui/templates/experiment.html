@@ -16,7 +16,7 @@
     </h1>
   </div>
   <div class="right">
-    <span class="status status-{{ experiment.status }}">{{ experiment.status }}</span>
+    <span class="status status-{{ experiment.status.value }}">{{ experiment.status.value }}</span>
   </div>
 </section>
 
@@ -37,6 +37,32 @@
   </div>
 </div>
 
+{# Convenience: experiment status as a plain value string (handles both
+   pydantic enum loads and string loads). #}
+{% set estat = experiment.status.value %}
+
+{# ---- Pipeline (current step) ---- #}
+<section class="card">
+  <h2>Pipeline</h2>
+  {% if experiment.tasks %}
+  <ol class="pipeline">
+    {% for t in experiment.tasks %}
+    {% set tstat = t.status.value %}
+    <li class="pipe-step pipe-{{ tstat }}">
+      <span class="pipe-marker"></span>
+      <span class="pipe-name">{{ t.name }}</span>
+      <span class="pipe-meta">
+        <span class="status status-{{ tstat }}">{{ tstat }}</span>
+        {% if t.error %}<span class="muted small">— {{ t.error.error_type }}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">No tasks yet — the agent is just starting up.</p>
+  {% endif %}
+</section>
+
 {% if experiment.error %}
 <section class="card">
   <h2>Error</h2>
@@ -46,6 +72,27 @@
   {% endif %}
 </section>
 {% endif %}
+
+{# ---- Agent log (orchestrator-level: which step, what the LLM said) ---- #}
+{% if running_launch %}
+<section class="card">
+  <h2>Agent log <span class="muted small">· orchestrator subprocess · launch <code>{{ running_launch.id }}</code></span></h2>
+  <pre id="agent-log" class="scroll code">{{ launch_log_tail or "(connecting…)" }}</pre>
+</section>
+{% endif %}
+
+{# ---- Live stdout from the training subprocess ---- #}
+<section class="card">
+  <h2>
+    Training stdout
+    <span id="sse-status" class="muted small">· tailing…</span>
+  </h2>
+  <p class="muted small">
+    Source: <code>{{ stdout_path_display }}</code>
+    {% if not stdout_exists %}<span class="status status-pending">file not yet written</span>{% endif %}
+  </p>
+  <pre id="live-stdout" class="scroll code">{{ live_stdout or "(no output yet — the script may not have started printing)" }}</pre>
+</section>
 
 <section class="card">
   <h2>Metrics</h2>
@@ -73,24 +120,47 @@
   {% else %}<p class="muted">No code stored.</p>{% endif %}
 </section>
 
-<section class="card">
-  <h2>Live stdout</h2>
-  <pre id="live-stdout" class="scroll code">{{ live_stdout or "(no output yet)" }}</pre>
-</section>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-(function() {
-  const el = document.getElementById("live-stdout");
-  if (!el) return;
-  const es = new EventSource("/live/{{ experiment.id }}");
-  es.onmessage = (ev) => {
-    el.textContent += ev.data + "\n";
-    el.scrollTop = el.scrollHeight;
-  };
-  es.onerror = () => { es.close(); };
+(function () {
+  // -- Training-script stdout: SSE tail with visible status ------------
+  const log = document.getElementById("live-stdout");
+  const status = document.getElementById("sse-status");
+  if (log) {
+    if (log.textContent.trim().startsWith("(")) log.textContent = "";
+    const url = "/live/study/{{ study.id }}/exp/{{ experiment.id }}";
+    const es = new EventSource(url);
+    es.onopen = () => { if (status) status.textContent = "· live"; };
+    es.onmessage = (ev) => {
+      log.textContent += (log.textContent && !log.textContent.endsWith("\n") ? "\n" : "") + ev.data;
+      log.scrollTop = log.scrollHeight;
+    };
+    es.onerror = () => {
+      if (status) status.textContent = "· stream closed";
+      es.close();
+    };
+  }
+  // -- Agent log (orchestrator) ----------------------------------------
+  {% if running_launch %}
+  const agent = document.getElementById("agent-log");
+  if (agent) {
+    if (agent.textContent.trim().startsWith("(")) agent.textContent = "";
+    const aes = new EventSource("/live/launches/{{ running_launch.id }}");
+    aes.onmessage = (ev) => {
+      agent.textContent += (agent.textContent && !agent.textContent.endsWith("\n") ? "\n" : "") + ev.data;
+      agent.scrollTop = agent.scrollHeight;
+    };
+    aes.onerror = () => { aes.close(); };
+  }
+  {% endif %}
+  // Auto-refresh the page every 8 s while the experiment is still
+  // running, so server-side panels (Pipeline, metrics) stay current
+  // without manual reloads.
+  {% if estat == "running" %}
+  setTimeout(() => window.location.reload(), 8000);
+  {% endif %}
 })();
 </script>
 {% endblock %}

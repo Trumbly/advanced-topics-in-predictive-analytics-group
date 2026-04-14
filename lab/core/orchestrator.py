@@ -249,46 +249,43 @@ class Orchestrator:
 
     def _run_experiment(self, exp: Experiment) -> None:
         exp.status = ExperimentStatus.RUNNING
-        self._persist()
         exp.started_at = _now()
+        self._persist()
 
         # 1) Propose architecture
-        propose_task = Task(name="propose_architecture")
+        propose_task = self._begin_task(exp, "propose_architecture")
         try:
             proposal_text = self._propose_architecture()
             proposal_data = self._parse_proposal(proposal_text)
             exp.architecture_name = proposal_data.get("architecture_name", "unknown")
             exp.architecture_family = proposal_data.get("architecture_family")
             exp.architecture_proposal = json.dumps(proposal_data, indent=2)
-            propose_task.output = proposal_data
-            propose_task.status = TaskStatus.COMPLETED
+            self._finish_task(propose_task, status=TaskStatus.COMPLETED, output=proposal_data)
         except Exception as exc:  # noqa: BLE001
             logger.exception("propose_architecture failed")
-            propose_task.status = TaskStatus.FAILED
-            propose_task.error = TaskError(error_type="LLMError", message=str(exc))
-            exp.tasks.append(propose_task)
+            err = TaskError(error_type="LLMError", message=str(exc))
+            self._finish_task(propose_task, status=TaskStatus.FAILED, error=err)
             exp.status = ExperimentStatus.FAILED
-            exp.error = propose_task.error
+            exp.error = err
             exp.completed_at = _now()
             self._persist()
             return
-        exp.tasks.append(propose_task)
 
         # 2) Generate code with Layer-1 retry (codegen + validator)
-        gen_task = Task(name="generate_code")
+        gen_task = self._begin_task(exp, "generate_code")
         try:
             code = self._generate_code(exp.architecture_proposal or "")
         except LLMError as exc:
-            gen_task.status = TaskStatus.FAILED
-            gen_task.error = TaskError(error_type="LLMError", message=str(exc))
-            exp.tasks.append(gen_task)
+            err = TaskError(error_type="LLMError", message=str(exc))
+            self._finish_task(gen_task, status=TaskStatus.FAILED, error=err)
             exp.status = ExperimentStatus.FAILED
-            exp.error = gen_task.error
+            exp.error = err
             exp.completed_at = _now()
             self._persist()
             return
 
         val_ok = False
+        gen_err: TaskError | None = None
         for attempt in range(1, self.settings.compute_budget.max_codegen_retries + 1):
             result = validator_mod.validate(
                 code,
@@ -298,44 +295,41 @@ class Orchestrator:
                 val_ok = True
                 break
             logger.warning("Validator rejected code (attempt %d): %s", attempt, result.message)
-            # Regenerate via recover_from_error prompt
             try:
                 code = self._recover_code(code, result.error_type, result.message, traceback="")
             except LLMError as exc:
-                gen_task.status = TaskStatus.FAILED
-                gen_task.error = TaskError(error_type="LLMError", message=str(exc))
+                gen_err = TaskError(error_type="LLMError", message=str(exc))
                 break
 
-        gen_task.code_used = code
         exp.code = code
         if not val_ok:
-            gen_task.status = TaskStatus.FAILED
-            if gen_task.error is None:
-                gen_task.error = TaskError(error_type="ValidationFailed", message="Codegen retries exhausted")
-            exp.tasks.append(gen_task)
+            if gen_err is None:
+                gen_err = TaskError(
+                    error_type="ValidationFailed",
+                    message="Codegen retries exhausted",
+                )
+            self._finish_task(gen_task, status=TaskStatus.FAILED, error=gen_err, code=code)
             exp.status = ExperimentStatus.FAILED
-            exp.error = gen_task.error
+            exp.error = gen_err
             exp.completed_at = _now()
             self._persist()
             return
-        gen_task.status = TaskStatus.COMPLETED
-        exp.tasks.append(gen_task)
+        self._finish_task(gen_task, status=TaskStatus.COMPLETED, code=code)
 
         # 3) Execute with Layer-2 retry (runtime error recovery)
+        run_task = self._begin_task(exp, "execute_training")
         exec_result = self._execute_with_recovery(code, exp)
-        run_task = Task(
-            name="execute_training",
-            status=TaskStatus.COMPLETED if exec_result.succeeded else TaskStatus.FAILED,
-            error=exec_result.error,
+        exp.sandbox_path = str(exec_result.workdir)
+        exp.duration_seconds = exec_result.duration_seconds
+        run_status = TaskStatus.COMPLETED if exec_result.succeeded else TaskStatus.FAILED
+        self._finish_task(
+            run_task, status=run_status, error=exec_result.error,
             output={
                 "duration_seconds": exec_result.duration_seconds,
                 "exit_code": exec_result.exit_code,
                 "timed_out": exec_result.timed_out,
             },
         )
-        exp.tasks.append(run_task)
-        exp.sandbox_path = str(exec_result.workdir)
-        exp.duration_seconds = exec_result.duration_seconds
 
         if not exec_result.succeeded:
             exp.status = ExperimentStatus.FAILED
@@ -345,48 +339,42 @@ class Orchestrator:
             return
 
         # 4) Capture metrics
-        metrics_task = Task(name="capture_metrics")
+        metrics_task = self._begin_task(exp, "capture_metrics")
         try:
             metrics = self._capture_metrics(exec_result)
             exp.metrics = metrics.get("metrics", {})
             exp.history = metrics.get("history", [])
             exp.primary_score = metrics.get("primary_score")
             raw = metrics.get("raw", {}) or {}
-            # Honour an in-band error report from the training script.
-            # Some recovery patterns write a results.json with score=0
-            # plus an `error` field on environmental failures (missing
-            # data, denied resources, …). Treat that as a failure even
-            # though the subprocess exited 0.
             in_band_error = raw.get("error")
             extra_errors = self.adapter.validate_training_output(raw)
             if in_band_error:
-                metrics_task.status = TaskStatus.FAILED
-                metrics_task.error = TaskError(
+                err = TaskError(
                     error_type="ScriptReportedError",
                     message=str(in_band_error)[:300],
                 )
+                self._finish_task(metrics_task, status=TaskStatus.FAILED, error=err)
                 exp.status = ExperimentStatus.FAILED
-                exp.error = metrics_task.error
-                # Drop the fake 0-score so the study's best_score
-                # reflects only genuine results.
+                exp.error = err
+                # Drop the fake 0-score so study.best_score reflects only
+                # genuine results.
                 exp.primary_score = None
             elif extra_errors:
-                metrics_task.status = TaskStatus.FAILED
-                metrics_task.error = TaskError(
+                err = TaskError(
                     error_type="TaskValidationFailed",
                     message="; ".join(extra_errors),
                 )
+                self._finish_task(metrics_task, status=TaskStatus.FAILED, error=err)
                 exp.status = ExperimentStatus.FAILED
-                exp.error = metrics_task.error
+                exp.error = err
             else:
-                metrics_task.status = TaskStatus.COMPLETED
+                self._finish_task(metrics_task, status=TaskStatus.COMPLETED)
                 exp.status = ExperimentStatus.COMPLETED
         except Exception as exc:  # noqa: BLE001
-            metrics_task.status = TaskStatus.FAILED
-            metrics_task.error = TaskError(error_type="MetricsError", message=str(exc))
+            err = TaskError(error_type="MetricsError", message=str(exc))
+            self._finish_task(metrics_task, status=TaskStatus.FAILED, error=err)
             exp.status = ExperimentStatus.FAILED
-            exp.error = metrics_task.error
-        exp.tasks.append(metrics_task)
+            exp.error = err
         exp.completed_at = _now()
         self._persist()
 
@@ -572,6 +560,34 @@ class Orchestrator:
         if any(e.status == ExperimentStatus.COMPLETED for e in experiments):
             return StudyStatus.COMPLETED
         return StudyStatus.FAILED
+
+    def _begin_task(self, exp: Experiment, name: str) -> Task:
+        """Append a Task in RUNNING state and persist immediately so the
+        UI can show "currently: <name>" without waiting for the work
+        to finish."""
+        t = Task(name=name, status=TaskStatus.RUNNING, started_at=_now())
+        exp.tasks.append(t)
+        self._persist()
+        return t
+
+    def _finish_task(
+        self,
+        task: Task,
+        *,
+        status: TaskStatus,
+        error: TaskError | None = None,
+        output: dict | None = None,
+        code: str | None = None,
+    ) -> None:
+        task.status = status
+        if error is not None:
+            task.error = error
+        if output:
+            task.output.update(output)
+        if code is not None:
+            task.code_used = code
+        task.completed_at = _now()
+        self._persist()
 
     def _persist(self) -> None:
         """Re-save the study mid-experiment so the UI sees live status.
