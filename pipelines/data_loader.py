@@ -425,9 +425,16 @@ def load_precomputed_dataset(
 
     # persistent_workers + prefetch_factor require num_workers > 0.
     # Build the kwargs conditionally so num_workers=0 still works.
+    #
+    # pin_memory: True for GPU (MPS/CUDA) — pre-stages tensors in page-locked
+    # RAM for faster device transfer. False for CPU (no benefit, wasted copy).
+    device_name = os.environ.get("BIRDCLEF_DEVICE", "cpu").lower()
+    use_pin_memory = device_name in ("mps", "cuda")
+
     loader_kwargs: dict[str, Any] = {
         "batch_size": batch_size,
         "num_workers": num_workers,
+        "pin_memory": use_pin_memory,
     }
     if num_workers > 0:
         loader_kwargs["persistent_workers"] = persistent_workers
@@ -436,6 +443,7 @@ def load_precomputed_dataset(
     train_loader = DataLoader(
         _TorchAdapter(train_ds),
         shuffle=shuffle_train,
+        drop_last=True,         # avoid slow partial final batch
         **loader_kwargs,
     )
     val_loader = DataLoader(

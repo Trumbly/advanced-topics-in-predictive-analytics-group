@@ -116,6 +116,18 @@ system: |
             try:
                 train_loader, val_loader, num_classes = load_precomputed_dataset(...)
                 model = MyModel(num_classes=num_classes).to(device)
+
+                # --- CPU/GPU performance optimizations (free speedups) ---
+                # channels_last: MKL-DNN is optimized for NHWC layout;
+                # gives 10-30% speedup on CPU conv-heavy models, also
+                # benefits MPS/CUDA. Apply to model AND input tensors.
+                model = model.to(memory_format=torch.channels_last)
+
+                # torch.compile: graph-mode optimization (PyTorch 2.0+).
+                # Fuses ops, removes Python overhead. ~10-20% speedup.
+                # Skip if torch version < 2.0.
+                if hasattr(torch, "compile"):
+                    model = torch.compile(model)
                 # ... training loop ...
             except Exception as exc:
                 results = {"error": f"{type(exc).__name__}: {exc}"}
@@ -177,6 +189,33 @@ system: |
 
     The executor also sets OMP_NUM_THREADS via the subprocess env, but
     calling torch.set_num_threads is the belt-and-suspenders guarantee.
+
+  - **Performance optimizations** — these are FREE speedups with no accuracy
+    loss. Apply them ALWAYS, for both CPU and GPU:
+
+    1. **channels_last memory format** — convert the model and input tensors
+       to NHWC layout. MKL-DNN (CPU) and cuDNN (GPU) are optimized for this:
+
+           model = model.to(memory_format=torch.channels_last)
+           # In the training loop, after moving to device:
+           x = x.to(device, memory_format=torch.channels_last)
+
+    2. **torch.compile** — PyTorch 2.0+ graph compilation. Fuses ops and
+       eliminates Python overhead:
+
+           if hasattr(torch, "compile"):
+               model = torch.compile(model)
+
+    3. **torch.inference_mode for validation** — faster than torch.no_grad
+       because it also disables autograd view tracking:
+
+           with torch.inference_mode():
+               for x, y in val_loader:
+                   x = x.to(device, memory_format=torch.channels_last)
+                   ...
+
+       Use `torch.inference_mode()` (not `torch.no_grad()`) in the
+       validation loop.
 
   - Multi-label loss: `nn.BCEWithLogitsLoss(pos_weight=pos_weight)` where
     `pos_weight` is a 1-D tensor of per-class rebalancing weights. Import
