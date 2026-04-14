@@ -108,7 +108,21 @@ class TaskAdapter(ABC):
         cache = processed / "dataset_profile.json"
         if cache.exists():
             import json
-            return DatasetProfile.model_validate_json(cache.read_text())
+            try:
+                data = json.loads(cache.read_text())
+            except json.JSONDecodeError:
+                data = {}
+            # Backward-compat: profiles from earlier builds didn't carry
+            # task_name / kind. Fill them in from the adapter so old
+            # caches still load instead of forcing a re-preprocess of
+            # multi-GB datasets just to populate two strings.
+            if isinstance(data, dict):
+                data.setdefault("task_name", self.name)
+                data.setdefault("kind", self.kind)
+                try:
+                    return DatasetProfile.model_validate(data)
+                except Exception:  # noqa: BLE001
+                    pass  # fall through to a fresh rebuild
         profile = self.build_profile()
         processed.mkdir(parents=True, exist_ok=True)
         cache.write_text(profile.model_dump_json(indent=2))
