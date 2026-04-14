@@ -30,11 +30,13 @@ the recovery prompt can react uniformly.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -106,11 +108,22 @@ class KaggleExecutor:
         kernel_dir = workdir / "kernel"
         kernel_dir.mkdir(parents=True, exist_ok=True)
 
+        # Ship the lab/ source tree as a Kaggle dataset the first time
+        # we push from this machine, then attach it to every kernel so
+        # the generated code's `from lab.tasks.* import …` resolves.
+        # Failures here are non-fatal — the kernel will surface a clear
+        # ImportError which the recovery prompt can react to.
+        lab_slug = self._ensure_lab_dataset(cli)
+
         # Write kernel source + metadata
         full_env = {**self.training_env, **(extra_env or {})}
         (kernel_dir / "code.py").write_text(
-            _wrap_with_bootstrap(code, full_env)
+            _wrap_with_bootstrap(code, full_env, lab_dataset_slug=lab_slug)
         )
+        dataset_sources = list(self.dataset_sources)
+        if lab_slug:
+            dataset_sources.append(lab_slug)
+
         (kernel_dir / "kernel-metadata.json").write_text(json.dumps({
             "id": slug,
             "title": slug.split("/", 1)[-1],
@@ -120,20 +133,10 @@ class KaggleExecutor:
             "is_private": "true",
             "enable_gpu": "true" if self.enable_gpu else "false",
             "enable_internet": "true" if self.enable_internet else "false",
-            "dataset_sources": list(self.dataset_sources),
+            "dataset_sources": dataset_sources,
             "competition_sources": list(self.competition_sources),
             "kernel_sources": [],
         }, indent=2))
-
-        # Bundle the lab package so `from lab.tasks.* import ...` resolves
-        # inside the kernel. We copy the source tree verbatim — lab is
-        # small enough that this stays well under the kernel-source limit.
-        lab_src = self.repo_root / "lab"
-        if lab_src.exists():
-            dst = kernel_dir / "lab"
-            if dst.exists():
-                shutil.rmtree(dst)
-            shutil.copytree(lab_src, dst, ignore=shutil.ignore_patterns("__pycache__", "ui"))
 
         # Push
         logger.info("Pushing kernel %s from %s", slug, kernel_dir)
@@ -263,6 +266,78 @@ class KaggleExecutor:
         log_text = log_proc.stdout or ""
         return last_status, log_text
 
+    def _ensure_lab_dataset(self, cli: str) -> str | None:
+        """Ensure a ``<username>/lab-agent-src`` dataset exists with the
+        current ``lab/`` source, and return its slug.
+
+        The first call on a fresh machine creates the dataset; subsequent
+        calls skip via a content-hash cache unless ``lab/`` changed. When
+        the content has changed we push a new dataset version so running
+        kernels always see the matching source.
+
+        Returns None when: no username is configured, no local ``lab/``
+        dir is present, or the upload failed. Callers treat None as
+        "don't attach, let the kernel ImportError surface itself".
+        """
+        if not self.username:
+            logger.info("No kaggle username configured; skipping lab-src upload.")
+            return None
+        lab_src = self.repo_root / "lab"
+        if not lab_src.exists():
+            return None
+        slug = f"{self.username}/lab-agent-src"
+
+        digest = _hash_directory(lab_src)
+        cache_file = self.sandbox_root / ".lab_dataset_cache"
+        if cache_file.exists():
+            try:
+                cached = json.loads(cache_file.read_text())
+                if cached.get("slug") == slug and cached.get("hash") == digest:
+                    return slug
+            except json.JSONDecodeError:
+                pass
+
+        logger.info("Uploading lab/ as Kaggle dataset %s (hash %s)", slug, digest[:8])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            shutil.copytree(
+                lab_src, tmp_path / "lab",
+                ignore=shutil.ignore_patterns("__pycache__", "ui", "*.pyc"),
+            )
+            # Create is used the first time; version bumps existing datasets.
+            (tmp_path / "dataset-metadata.json").write_text(json.dumps({
+                "title": "lab-agent-src",
+                "id": slug,
+                "licenses": [{"name": "CC0-1.0"}],
+            }, indent=2))
+
+            create = self._run_kaggle(
+                cli, ["datasets", "create", "-p", str(tmp_path)], timeout=600,
+            )
+            if create.returncode != 0:
+                # Likely already exists — push a new version.
+                msg = f"lab src {digest[:8]}"
+                version = self._run_kaggle(
+                    cli,
+                    ["datasets", "version", "-p", str(tmp_path), "-m", msg],
+                    timeout=600,
+                )
+                if version.returncode != 0:
+                    logger.warning(
+                        "lab-src dataset upload failed (create: %s; version: %s).",
+                        (create.stderr or "")[:200].strip(),
+                        (version.stderr or "")[:200].strip(),
+                    )
+                    return None
+
+        try:
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            cache_file.write_text(json.dumps({"slug": slug, "hash": digest}))
+        except OSError:
+            pass
+        return slug
+
     def _failed(self, workdir: Path, start: float, err: TaskError) -> ExecutionResult:
         return ExecutionResult(
             exit_code=-1,
@@ -276,9 +351,12 @@ class KaggleExecutor:
         )
 
 
-# Prepended to the generated code inside the kernel. Sets up AGENT_* env
-# vars from a serialised dict + remaps Kaggle input paths if the task
-# adapter configured dataset_sources.
+# Prepended to the generated code inside the kernel. Sets up:
+#   - AGENT_* env vars from a serialised dict
+#   - /kaggle/input/<lab-agent-src>/  on sys.path so `from lab.tasks.*` works
+#   - AGENT_PROCESSED_DIR pointing at the first non-lab /kaggle/input subdir,
+#     so generic scripts find competition/user datasets without task-specific
+#     knowledge
 #
 # Must be injected *after* any leading ``from __future__ import …`` and
 # the module docstring — Python requires future imports at the very top.
@@ -286,18 +364,41 @@ _KAGGLE_BOOTSTRAP = '''\
 # --- lab Kaggle bootstrap (auto-generated, do not edit) ---------------
 import json as _json
 import os as _os
+import sys as _sys
 _env = _json.loads(r"""{env_json}""")
 for _k, _v in _env.items():
     _os.environ.setdefault(_k, str(_v))
-# Map the first /kaggle/input/* subdir onto AGENT_PROCESSED_DIR when the
-# env var is not already set — lets vanilla scripts find Kaggle data.
 _input = "/kaggle/input"
+_lab_dir_name = {lab_dir_name!r}
+# Put the lab-agent-src dataset on sys.path so `import lab.*` resolves
+# inside the kernel.
+if _lab_dir_name and _os.path.isdir(_os.path.join(_input, _lab_dir_name)):
+    _sys.path.insert(0, _os.path.join(_input, _lab_dir_name))
+# Map the first non-lab /kaggle/input subdir onto AGENT_PROCESSED_DIR.
 if _os.path.isdir(_input) and "AGENT_PROCESSED_DIR" not in _os.environ:
-    _subdirs = [p for p in _os.listdir(_input) if _os.path.isdir(_os.path.join(_input, p))]
+    _subdirs = sorted(
+        p for p in _os.listdir(_input)
+        if _os.path.isdir(_os.path.join(_input, p)) and p != _lab_dir_name
+    )
     if _subdirs:
         _os.environ["AGENT_PROCESSED_DIR"] = _os.path.join(_input, _subdirs[0])
 # --- end bootstrap ---------------------------------------------------
 '''
+
+
+def _hash_directory(path: Path) -> str:
+    """Stable hex hash of a directory's .py file contents. Used to decide
+    whether to push a new version of the lab-agent-src dataset."""
+    h = hashlib.sha256()
+    for py in sorted(path.rglob("*.py")):
+        if "__pycache__" in py.parts or "/ui/" in str(py) or "\\ui\\" in str(py):
+            continue
+        rel = py.relative_to(path).as_posix().encode()
+        h.update(rel)
+        h.update(b"\0")
+        h.update(py.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
 
 
 def _split_header(code: str) -> tuple[str, str]:
@@ -356,9 +457,22 @@ def _split_header(code: str) -> tuple[str, str]:
     return "".join(prefix), "".join(lines[i:])
 
 
-def _wrap_with_bootstrap(code: str, env: dict[str, str]) -> str:
+def _wrap_with_bootstrap(
+    code: str,
+    env: dict[str, str],
+    *,
+    lab_dataset_slug: str | None = None,
+) -> str:
     header, rest = _split_header(code)
-    bootstrap = _KAGGLE_BOOTSTRAP.format(env_json=json.dumps(env))
+    # The Kaggle mount path is the dataset name without the username/
+    # prefix. For "max/lab-agent-src" the mount is /kaggle/input/lab-agent-src.
+    lab_dir_name = ""
+    if lab_dataset_slug:
+        lab_dir_name = lab_dataset_slug.split("/", 1)[-1]
+    bootstrap = _KAGGLE_BOOTSTRAP.format(
+        env_json=json.dumps(env),
+        lab_dir_name=lab_dir_name,
+    )
     # Ensure a blank line between pieces so line numbers stay readable
     # in Kaggle's traceback output.
     out = header

@@ -153,6 +153,7 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .status-failed, .status-FAILED { background: color-mix(in srgb, var(--err) 18%, transparent); color: var(--err); }
 .status-aborted, .status-ABORTED { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
 .status-skipped, .status-SKIPPED { background: color-mix(in srgb, var(--ink-dim) 10%, transparent); color: var(--ink-dim); }
+.status-crashed { background: color-mix(in srgb, var(--err) 18%, transparent); color: var(--err); }
 
 /* Buttons + forms */
 .btn {

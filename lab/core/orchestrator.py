@@ -139,6 +139,10 @@ class Orchestrator:
 
         # Graceful SIGINT handling — set by run()
         self._abort_requested = False
+        # Live-save hook — set while an experiment is in flight so
+        # `_run_experiment` can re-persist the study on every status
+        # change (so the UI sees "running" / "failed" live).
+        self._live_save: Callable[[], None] | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -193,11 +197,20 @@ class Orchestrator:
                 )
                 logger.info("── experiment %d/%d: %s", i + 1, budget.max_experiments, exp.id)
                 self._fire(self.hooks.on_experiment_start, exp)
-                self._run_experiment(exp)
+                # Append immediately so the UI can show the experiment
+                # as "running" during long LLM / Kaggle steps. The live
+                # save hook re-persists the study every time the current
+                # experiment updates.
+                study.experiments.append(exp)
+                self._live_save = lambda: study.save(experiments_dir)
+                self._live_save()
+                try:
+                    self._run_experiment(exp)
+                finally:
+                    self._live_save = None
                 self.memory.add(exp)
                 self.memory.save(experiments_dir / study.id / "memory.json")
 
-                study.experiments.append(exp)
                 self._update_best(study)
                 study.save(experiments_dir)
                 self._fire(self.hooks.on_experiment_end, exp)
@@ -223,6 +236,7 @@ class Orchestrator:
 
     def _run_experiment(self, exp: Experiment) -> None:
         exp.status = ExperimentStatus.RUNNING
+        self._persist()
         exp.started_at = _now()
 
         # 1) Propose architecture
@@ -243,6 +257,7 @@ class Orchestrator:
             exp.status = ExperimentStatus.FAILED
             exp.error = propose_task.error
             exp.completed_at = _now()
+            self._persist()
             return
         exp.tasks.append(propose_task)
 
@@ -257,6 +272,7 @@ class Orchestrator:
             exp.status = ExperimentStatus.FAILED
             exp.error = gen_task.error
             exp.completed_at = _now()
+            self._persist()
             return
 
         val_ok = False
@@ -287,6 +303,7 @@ class Orchestrator:
             exp.status = ExperimentStatus.FAILED
             exp.error = gen_task.error
             exp.completed_at = _now()
+            self._persist()
             return
         gen_task.status = TaskStatus.COMPLETED
         exp.tasks.append(gen_task)
@@ -311,6 +328,7 @@ class Orchestrator:
             exp.status = ExperimentStatus.FAILED
             exp.error = exec_result.error
             exp.completed_at = _now()
+            self._persist()
             return
 
         # 4) Capture metrics
@@ -339,6 +357,7 @@ class Orchestrator:
             exp.error = metrics_task.error
         exp.tasks.append(metrics_task)
         exp.completed_at = _now()
+        self._persist()
 
     def _execute_with_recovery(self, code: str, exp: Experiment) -> ExecutionResult:
         max_attempts = self.settings.compute_budget.max_recovery_attempts
@@ -469,6 +488,21 @@ class Orchestrator:
         }
         env.update(self.adapter.env_vars(self.settings))
         return env
+
+    def _persist(self) -> None:
+        """Re-save the study mid-experiment so the UI sees live status.
+
+        No-op unless ``_live_save`` is set (it's set only while an
+        experiment is in flight). Any IO error here is swallowed —
+        we'd rather press on with the run than crash.
+        """
+        save = self._live_save
+        if save is None:
+            return
+        try:
+            save()
+        except Exception:  # noqa: BLE001
+            logger.exception("live save failed")
 
     def _fire(self, hook, *args) -> None:
         if hook is None:

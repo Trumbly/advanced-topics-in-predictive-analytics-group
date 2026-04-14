@@ -93,7 +93,7 @@ async def index(
 ):
     settings = request.app.state.settings
     experiments_dir = settings.abspath(settings.paths.experiments)
-    all_studies = loaders.iter_studies(experiments_dir)
+    all_studies = loaders.iter_studies(experiments_dir, reconcile_with=settings.repo_root)
 
     def _maybe_float(raw: str):
         try:

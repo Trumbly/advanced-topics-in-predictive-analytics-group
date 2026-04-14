@@ -72,9 +72,25 @@ def _summarise(data: dict[str, Any], fallback_id: str) -> StudySummary:
     )
 
 
-def iter_studies(experiments_dir: Path) -> list[StudySummary]:
+def iter_studies(experiments_dir: Path, *, reconcile_with: Path | None = None) -> list[StudySummary]:
+    """Walk the studies directory and return a summary per study.
+
+    ``reconcile_with`` is the repo root: when set, studies recorded as
+    ``running`` but with no matching live launch get relabeled to
+    ``crashed`` in the returned summaries (not on disk — this is
+    purely a display fix). That happens when the agent subprocess
+    SIGKILL'd / the machine rebooted mid-study.
+    """
     if not experiments_dir.exists():
         return []
+
+    live_study_ids: set[str] = set()
+    if reconcile_with is not None:
+        from lab.ui import launches  # local import avoids cycle
+        for l in launches.active_launches(reconcile_with):
+            if l.study_id:
+                live_study_ids.add(l.study_id)
+
     out: list[StudySummary] = []
     for d in sorted(experiments_dir.iterdir(), reverse=True):
         sj = d / "study.json"
@@ -84,7 +100,12 @@ def iter_studies(experiments_dir: Path) -> list[StudySummary]:
             data = json.loads(sj.read_text())
         except json.JSONDecodeError:
             continue
-        out.append(_summarise(data, d.name))
+        summary = _summarise(data, d.name)
+        if (reconcile_with is not None
+                and summary.status == "running"
+                and summary.id not in live_study_ids):
+            summary.status = "crashed"
+        out.append(summary)
     return out
 
 
