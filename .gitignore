@@ -1,64 +1,20 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg-info/
-dist/
-build/
-*.egg
-
-# Virtual environments
-venv/
+*.pyc
+.pytest_cache/
+.coverage
 .venv/
-env/
+venv/
+*.egg-info/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Data (too large for git)
-data/raw/
-data/processed/
-*.ogg
-*.wav
-*.mp3
-*.flac
-
-# Model artifacts
-models/
-*.h5
-*.keras
-*.pt
-*.pth
-*.onnx
-*.pkl
-
-# Experiment logs — commit study results for team sharing,
-# but ignore machine-specific process artifacts and large files
-experiments/*/outputs/
-experiments/studies/**/.orchestrator.pid
-experiments/studies/**/orchestrator.log
-
-# Sandbox workdir (all per-study subdirs are ignored)
-sandbox/*
+# Sandbox artifacts are disposable
+sandbox/
 !sandbox/.gitkeep
 
-# Pytest cache
-.pytest_cache/
+# Raw data never goes into git (Kaggle terms)
+data/raw/
 
-# Environment
-.env
+# Processed caches are local-only
+data/processed/
 
-# Claude Code — machine-specific launch configs (absolute python paths)
-.claude/
+# Reports / bundles
+reports/bundles/

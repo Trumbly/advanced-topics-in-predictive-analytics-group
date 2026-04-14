@@ -1,26 +1,39 @@
 #!/usr/bin/env bash
-# Commit all results for a single study + the prompt config that produced them.
+# Commit a single study + the prompt versions that produced it.
+#
 # Usage: ./scripts/commit_study.sh <study_id>
-set -e
 
-STUDY_ID="${1:?Usage: commit_study.sh <study_id>}"
+set -euo pipefail
 
-if [ ! -d "experiments/studies/$STUDY_ID" ]; then
-    echo "Error: experiments/studies/$STUDY_ID does not exist"
-    exit 1
+STUDY_ID="${1:-}"
+if [[ -z "${STUDY_ID}" ]]; then
+  echo "usage: $0 <study_id>" >&2
+  exit 1
 fi
 
-git add "experiments/studies/$STUDY_ID/"
-git add "config/prompts/"
-git commit -m "study: $STUDY_ID results
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 
-$(cat experiments/studies/$STUDY_ID/study.json 2>/dev/null | python3 -c "
-import json, sys
-d = json.load(sys.stdin)
-print(f'Name: {d.get(\"name\",\"?\")}'  )
-print(f'Status: {d.get(\"status\",\"?\")}'  )
-print(f'Experiments: {len(d.get(\"experiment_ids\",[]))}'  )
-print(f'Best score: {d.get(\"best_score\",\"n/a\")}'  )
-" 2>/dev/null || echo "(study metadata unavailable)")"
+STUDY_DIR="max_development_2/experiments/studies/${STUDY_ID}"
+if [[ ! -d "${STUDY_DIR}" ]]; then
+  echo "no such study: ${STUDY_DIR}" >&2
+  exit 1
+fi
 
-echo "Committed study $STUDY_ID"
+git add "${STUDY_DIR}" "max_development_2/config/prompts/_registry.yaml"
+
+# Extract a one-line metadata summary from study.json for the commit msg.
+META=$(python3 -c "
+import json, sys, pathlib
+p = pathlib.Path('${STUDY_DIR}/study.json')
+d = json.loads(p.read_text())
+name = d.get('name', '${STUDY_ID}')
+task = d.get('task_name', '?')
+n = len(d.get('experiments', []))
+best = d.get('best_score')
+best_s = f'{best:.4f}' if best is not None else '—'
+print(f'{name} | task={task} | n={n} | best={best_s}')
+")
+
+git commit -m "study: ${META}" -m "ID: ${STUDY_ID}"
+echo "committed study ${STUDY_ID}"

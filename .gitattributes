@@ -1,5 +1,5 @@
-# Prevent merge conflicts when parallel studies are committed.
-# Each study has a unique ID so directory collisions don't happen,
-# but these files could conflict if the same study is resumed by two people.
-experiments/studies/**/study.json merge=ours
+# Each study is self-contained; never try to auto-merge two teammates'
+# concurrent study runs.
+experiments/studies/**/study.json  merge=ours
 experiments/studies/**/memory.json merge=ours
+experiments/studies/**/*.log       merge=ours

@@ -1,9 +1,0 @@
-{#
-  HTMX partial for live stdout tailing on the experiment-detail page.
-  Swapped in every 2 seconds. When the log file is missing or empty,
-  shows a friendly placeholder.
-#}
-<pre id="stdout-tail" class="code m-0 rounded-none max-h-96 overflow-y-auto"
-     hx-get="{{ request.url.path }}"
-     hx-trigger="every 2s"
-     hx-swap="outerHTML">{% if stdout_tail %}{{ stdout_tail }}{% else %}(no stdout output yet){% endif %}</pre>
