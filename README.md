@@ -29,14 +29,20 @@ An AI-powered autonomous research agent that designs, trains, evaluates, and ite
 │   ├── executor.py             # Sandbox subprocess runner
 │   ├── metrics.py              # Parses results.json
 │   ├── logger.py               # JSON + Markdown study/experiment/task logs
+│   ├── report.py               # Auto-generated study report
 │   ├── submission.py           # Kaggle notebook exporter
-│   ├── cli.py                  # Click CLI (start / resume / list / status / submit)
+│   ├── cli.py                  # Click CLI (start / resume / list / status / submit / ui)
 │   ├── main.py                 # python -m agent.main entry point
-│   └── handlers/               # Predefined task handlers
-│       ├── validate_code.py
-│       ├── execute_training.py
-│       ├── capture_metrics.py
-│       └── generate_submission.py
+│   ├── handlers/               # Predefined task handlers
+│   │   ├── validate_code.py
+│   │   ├── execute_training.py
+│   │   ├── capture_metrics.py
+│   │   └── generate_submission.py
+│   └── ui/                     # Web dashboard (FastAPI + Jinja2/HTMX)
+│       ├── app.py                  # Routes, API endpoints
+│       ├── loaders.py              # Read-only disk access for studies/experiments
+│       ├── process_manager.py      # Background process start/stop
+│       └── templates/              # HTML templates (study, experiment, files, prompts)
 ├── pipelines/              # Fixed audio preprocessing (NOT modified by the agent)
 │   ├── audio_pipeline.py       # Mel-spectrogram, windowing, augmentation
 │   ├── dataset_profile.py      # DatasetProfile builder
@@ -87,7 +93,7 @@ The agent is composed of several decoupled modules that work together in an auto
 | **Model Registry** | `registry/` | Catalog of verified building blocks (CnnSmallV1 baseline, torchvision backbones) with metadata (input shape, output dim, size, suitability) and ready-to-use import snippets. The agent uses the registry as a starting point, but is **not limited to it** — it is free to design custom `nn.Module` architectures inline and combine them with any public `torch` / `torchvision` / `torchaudio` APIs. |
 | **Metrics Collector** | `agent/` | Collects ROC-AUC (macro-averaged), loss, learning curves, run duration, and resource usage. Enables comparison across runs. |
 | **Submission Exporter** | `agent/` | Exports the best model + inference pipeline as a standalone Kaggle notebook that meets the CPU-only, 90-minute runtime constraint. |
-| **Dashboard** *(optional)* | `dashboard/` | Web-based UI (FastAPI + React/HTMX) for live monitoring, experiment browsing, prompt management, and one-click Kaggle export. |
+| **Dashboard** | `agent/ui/` | Web-based UI (FastAPI + Jinja2/HTMX) for live monitoring with a real-time terminal, experiment browsing, file browser, prompt editor, and one-click Kaggle export. Launch with `python -m agent.main ui`. |
 
 ### Agent Loop
 
@@ -191,6 +197,8 @@ the agent reads at runtime:
 python scripts/build_profile.py --sample 100
 
 # Full dataset (slow, but only has to run once)
+python scripts/build_profile.py
+# or
 bash scripts/preprocess.sh
 ```
 
@@ -251,6 +259,7 @@ pytest tests/test_orchestrator.py # just the end-to-end smoke tests
 | `status [<study_id>]` | Show one Study's metadata (defaults to most recent) |
 | `show-best [<study_id>]` | Pretty-print the best experiment's JSON |
 | `submit [<study_id>]` | Export the best experiment as a Kaggle notebook |
+| `ui [--port 8000]` | Launch the web dashboard (live terminal, file browser, prompts) |
 
 Global options:
 - `--config <path>` — override `config/config.yaml`
@@ -275,11 +284,16 @@ and pass `--pipeline path/to/your.yaml` to `start`.
 
 ### Two-phase strategy
 
-`exploration_pipeline.yaml` runs with tiny models, 3 epochs, and 10% of the
-data — ideal for the first ~10 experiments to quickly probe architecture
-families. Once you identify a promising family, switch to
-`exploitation_pipeline.yaml`, which scales the same flow to full data and
-longer training.
+The agent uses a two-phase strategy with pipeline-specific epoch budgets:
+
+| Pipeline | Max Epochs | Purpose |
+|----------|------------|--------|
+| `exploration_pipeline.yaml` | 3 | Fast probing of architecture families on the full dataset |
+| `exploitation_pipeline.yaml` | 5 | Scale and tune the most promising candidates |
+| `default_pipeline.yaml` | 7 | Standard runs with full training budget |
+
+All pipelines use **early stopping** (patience=3 on validation ROC-AUC),
+so experiments stop sooner if the model has already converged.
 
 ### Memory and prompt construction
 
@@ -289,6 +303,20 @@ successes and recent failures from memory, combines them with the
 `DatasetProfile` + `ModelRegistry`, and fills the prompt template.
 If the assembled prompt exceeds the token budget, memory is progressively
 trimmed until it fits.
+
+### Training configuration
+
+Key training settings (configured in `config/config.yaml`):
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| `max_epochs_per_run` | 7 | Default cap; pipelines can override (exploration=3, exploitation=5) |
+| `batch_size` | 128 | Safe for 24 GB Apple Silicon; configurable |
+| `max_experiment_seconds` | 14400 | 4-hour timeout per experiment |
+| Early stopping patience | 3 | Stops if validation ROC-AUC does not improve for 3 epochs |
+| LR scheduler | Cosine annealing | `CosineAnnealingLR(optimizer, T_max=EPOCHS)` |
+| First experiment | Pretrained EfficientNet-B0 | Always starts with transfer learning for a strong baseline |
+| Device | MPS (Apple Silicon) | Auto-detected; also supports CUDA and CPU |
 
 ### Validation before execution
 

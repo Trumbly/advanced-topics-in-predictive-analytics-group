@@ -268,6 +268,10 @@ async function pollTerminal() {
         ? `<span class="text-green-400">● live</span>`
         : `<span class="text-slate-500">● stopped</span>`;
     }
+    // Auto-switch to Training tab if orchestrator log is empty but training output exists
+    if (!_termData.orchestrator_log && _termData.live_stdout && _termTab === "orch") {
+      toggleTermTab("train");
+    }
     renderTerminal();
   } catch (e) { /* ignore fetch errors */ }
 }
