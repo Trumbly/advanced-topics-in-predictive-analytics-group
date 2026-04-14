@@ -6,6 +6,6 @@ handler: agent.handlers.capture_metrics
 
 config:
   required_metrics:
-    - roc_auc_macro
+    - f1_macro
     - loss
   compute_deltas_vs_best: true

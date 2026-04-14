@@ -62,6 +62,7 @@ class StudySummary:
     failed_count: int
     best_experiment_id: str | None
     best_score: float | None
+    best_roc_auc: float | None
     created_at: str
     updated_at: str
     has_report: bool
@@ -163,7 +164,7 @@ class ExperimentDetail:
 # ---------------------------------------------------------------------------
 
 
-_SCORE_METRIC = "roc_auc_macro"
+_SCORE_METRIC = "f1_macro"
 _LOG_TAIL_LINES = 200
 # How fresh the stdout.log mtime has to be for us to consider a
 # sandboxed experiment "currently running". Must be comfortably
@@ -232,6 +233,8 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
 
         completed = 0
         failed = 0
+        best_f1: float | None = None
+        best_roc_auc: float | None = None
         experiments_dir = study_dir / "experiments"
         if experiments_dir.exists():
             for exp_dir in experiments_dir.iterdir():
@@ -243,6 +246,15 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
                 status = exp_data.get("status", "")
                 if status == "completed":
                     completed += 1
+                    # Extract actual metrics from the best experiment
+                    if exp_data.get("experiment_id") == study.best_experiment_id:
+                        metrics = (exp_data.get("results") or {}).get("metrics", {})
+                        f1_val = metrics.get("f1_macro")
+                        if f1_val is not None:
+                            best_f1 = float(f1_val)
+                        roc_val = metrics.get("roc_auc_macro")
+                        if roc_val is not None:
+                            best_roc_auc = float(roc_val)
                 elif status == "failed" or status == "timeout":
                     failed += 1
 
@@ -268,7 +280,8 @@ def list_studies(studies_root: Path) -> list[StudySummary]:
                 completed_count=completed,
                 failed_count=failed,
                 best_experiment_id=study.best_experiment_id,
-                best_score=study.best_score,
+                best_score=best_f1 if best_f1 is not None else study.best_score,
+                best_roc_auc=best_roc_auc,
                 created_at=_fmt_dt(study.created_at),
                 updated_at=_fmt_dt(study.updated_at),
                 has_report=(study_dir / "report" / "report.md").exists(),

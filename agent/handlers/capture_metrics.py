@@ -48,7 +48,7 @@ def run(
 
     cfg = config or {}
     required: tuple[str, ...] = tuple(
-        cfg.get("required_metrics") or ("roc_auc_macro", "loss")
+        cfg.get("required_metrics") or ("f1_macro", "loss")
     )
     collector = collector or MetricsCollector(required_metrics=required)
 

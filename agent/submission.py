@@ -224,6 +224,14 @@ class SubmissionExporter:
                 "The notebook will need manual weight attachment."
             )
 
+        # Copy optimized thresholds if they exist
+        thresholds_src = sandbox_exp / "best_thresholds.npy"
+        thresholds_dst = output_path.parent / "best_thresholds.npy"
+        has_thresholds = thresholds_src.exists()
+        if has_thresholds:
+            shutil.copy2(thresholds_src, thresholds_dst)
+            print(f"Copied optimized thresholds to {thresholds_dst}")
+
         # Build notebook
         cells = self._build_inference_cells(
             study=study,
@@ -233,6 +241,7 @@ class SubmissionExporter:
             class_ids=class_ids,
             all_species=all_species,
             has_weights=has_weights,
+            has_thresholds=has_thresholds,
         )
         notebook = _nbformat_notebook(cells)
         output_path.write_text(json.dumps(notebook, indent=1))
@@ -250,12 +259,13 @@ class SubmissionExporter:
         class_ids: list[str],
         all_species: list[str],
         has_weights: bool,
+        has_thresholds: bool = False,
     ) -> list[dict[str, Any]]:
         """Build a self-contained inference-only notebook."""
 
         best_score = ""
         if study.best_score is not None:
-            best_score = f"\n**Best ROC-AUC:** {study.best_score:.4f}"
+            best_score = f"\n**Best F1:** {study.best_score:.4f}"
 
         header = _markdown_cell(textwrap.dedent(f"""\
             # BirdCLEF 2026 — Submission Notebook
@@ -294,6 +304,7 @@ class SubmissionExporter:
             # === Paths — update WEIGHTS_PATH for your Kaggle dataset ===
             # On Kaggle, attached datasets are at /kaggle/input/<dataset-name>/
             WEIGHTS_PATH = "/kaggle/input/birdclef-model/best_model.pt"
+            THRESHOLDS_PATH = "/kaggle/input/birdclef-model/best_thresholds.npy"
             TEST_SOUNDSCAPES = "/kaggle/input/birdclef-2026/test_soundscapes"
             SAMPLE_SUBMISSION = "/kaggle/input/birdclef-2026/sample_submission.csv"
 
@@ -448,8 +459,9 @@ class SubmissionExporter:
         # Build the class-id to submission-column mapping
         inference_header = _markdown_cell(
             "## Inference on test soundscapes\n\n"
-            "Process each test soundscape, predict species probabilities, "
-            "and build the submission DataFrame."
+            "Process each test soundscape, predict species probabilities "
+            "using optimized per-class thresholds, and build the submission "
+            "DataFrame."
         )
 
         all_species_json = json.dumps(all_species)
@@ -460,9 +472,18 @@ class SubmissionExporter:
             # Full species list for submission (234 species)
             ALL_SPECIES = {all_species_json}
 
+            # Load per-class optimized thresholds (trained on validation set)
+            if os.path.exists(THRESHOLDS_PATH):
+                best_thresholds = np.load(THRESHOLDS_PATH)
+                print(f"Loaded optimized thresholds: mean={{best_thresholds.mean():.3f}}, "
+                      f"min={{best_thresholds.min():.3f}}, max={{best_thresholds.max():.3f}}")
+            else:
+                best_thresholds = np.full(NUM_CLASSES, 0.5)
+                print("WARNING: No optimized thresholds found, using default 0.5")
+
             # Map our model's class indices to submission column positions
             # Our model outputs NUM_CLASSES probabilities in CLASS_IDS order
-            # Submission needs 234 columns in ALL_SPECIES order
+            # Submission needs {len(all_species)} columns in ALL_SPECIES order
             model_idx_to_sub_col = {{}}
             for model_idx, cid in enumerate(CLASS_IDS):
                 if cid in ALL_SPECIES:
@@ -507,10 +528,15 @@ class SubmissionExporter:
                         logits = model(spec_tensor)
                         probs = torch.sigmoid(logits).cpu().numpy()[0]
 
+                    # Apply per-class optimized thresholds to convert
+                    # probabilities to binary predictions for F1
+                    preds_binary = (probs >= best_thresholds).astype(np.float32)
+
                     # Map model predictions to submission columns
-                    row = np.full(len(ALL_SPECIES), 1.0 / len(ALL_SPECIES), dtype=np.float32)
+                    # Species our model was not trained on get 0.0
+                    row = np.zeros(len(ALL_SPECIES), dtype=np.float32)
                     for model_idx, sub_col in model_idx_to_sub_col.items():
-                        row[sub_col] = float(probs[model_idx])
+                        row[sub_col] = float(preds_binary[model_idx])
 
                     rows.append({{"row_id": row_id, **dict(zip(ALL_SPECIES, row))}})
 

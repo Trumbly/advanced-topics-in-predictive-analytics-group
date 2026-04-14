@@ -23,12 +23,17 @@
     </div>
   </div>
   <div class="rounded-lg border border-slate-200 bg-white p-4">
-    <div class="text-xs text-slate-500 uppercase tracking-wide">ROC-AUC (macro)</div>
+    <div class="text-xs text-slate-500 uppercase tracking-wide">F1 (macro)</div>
     <div class="text-2xl font-bold text-emerald-600 mt-1">
       {% if exp.results and exp.results.metrics %}
-        {{ format_score(exp.results.metrics.get('roc_auc_macro')) }}
+        {{ format_score(exp.results.metrics.get('f1_macro')) }}
       {% else %}—{% endif %}
     </div>
+    {% if exp.results and exp.results.metrics and exp.results.metrics.get('roc_auc_macro') %}
+      <div class="text-xs text-slate-500 mt-1">
+        ROC-AUC: <span class="font-mono">{{ format_score(exp.results.metrics.get('roc_auc_macro')) }}</span>
+      </div>
+    {% endif %}
   </div>
   <div class="rounded-lg border border-slate-200 bg-white p-4">
     <div class="text-xs text-slate-500 uppercase tracking-wide">Duration</div>

@@ -64,7 +64,7 @@ def experiment() -> Experiment:
             hyperparams={"lr": 1e-3, "epochs": 5},
         ),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.72, "loss": 0.38},
+            metrics={"f1_macro": 0.72, "roc_auc_macro": 0.7, "loss": 0.38},
             duration_seconds=120.0,
         ),
         created_at=NOW,

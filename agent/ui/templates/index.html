@@ -129,7 +129,11 @@ document.getElementById("new-study-form").addEventListener("submit", async funct
       <div class="text-right ml-4 shrink-0">
         {% if s.best_score is not none %}
           <div class="text-3xl font-bold text-emerald-600">{{ format_score(s.best_score) }}</div>
-          <div class="text-xs text-slate-500">best ROC-AUC</div>
+          <div class="text-xs text-slate-500">best F1</div>
+          {% if s.best_roc_auc is not none %}
+            <div class="text-base font-semibold text-slate-500 mt-1">{{ format_score(s.best_roc_auc) }}</div>
+            <div class="text-xs text-slate-400">ROC-AUC</div>
+          {% endif %}
         {% else %}
           <div class="text-3xl font-bold text-slate-300">—</div>
           <div class="text-xs text-slate-400">no results yet</div>

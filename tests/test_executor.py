@@ -73,7 +73,7 @@ class TestCodeExecutor:
     ) -> None:
         code = """
 import json, pathlib
-pathlib.Path('results.json').write_text(json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))
+pathlib.Path('results.json').write_text(json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))
 print('done')
 """
         result = executor.run(code, experiment_id="exp_001")
@@ -175,7 +175,7 @@ print('done')
             "    'labels': os.environ.get('BIRDCLEF_LABELS_CSV'),\n"
             "}\n"
             "pathlib.Path('results.json').write_text(json.dumps({\n"
-            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0},\n"
             "    'env': paths,\n"
             "}))\n"
         )
@@ -221,7 +221,7 @@ print('done')
             "    )\n"
             "}\n"
             "pathlib.Path('results.json').write_text(json.dumps({\n"
-            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0},\n"
             "    'training_env': vals,\n"
             "}))\n"
         )
@@ -255,7 +255,7 @@ print('done')
             "    )\n"
             "}\n"
             "pathlib.Path('results.json').write_text(json.dumps({\n"
-            "    'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0},\n"
+            "    'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0},\n"
             "    'thread_vars': vals,\n"
             "}))\n"
         )
@@ -296,7 +296,7 @@ print('done')
         code = (
             "import json, pathlib\n"
             "pathlib.Path('results.json').write_text("
-            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
             "print('ok')\n"
         )
         result = executor.run(code, experiment_id="exp_rel")
@@ -334,7 +334,7 @@ print('done')
             "print('epoch 2: loss=0.5')\n"
             "sys.stdout.flush()\n"
             "pathlib.Path('results.json').write_text("
-            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
         )
         with caplog.at_level("INFO", logger="agent.executor"):
             result = executor.run(code, experiment_id="exp_stream")
@@ -360,7 +360,7 @@ print('done')
             "print('WARN: class 42 has no positives', file=sys.stderr)\n"
             "sys.stderr.flush()\n"
             "pathlib.Path('results.json').write_text("
-            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
         )
         with caplog.at_level("INFO", logger="agent.executor"):
             result = executor.run(code, experiment_id="exp_stderr_stream")
@@ -387,7 +387,7 @@ print('done')
             "import json, pathlib\n"
             "print('silent output')\n"
             "pathlib.Path('results.json').write_text("
-            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
         )
         with caplog.at_level("INFO", logger="agent.executor"):
             result = executor.run(code, experiment_id="exp_silent_stream")

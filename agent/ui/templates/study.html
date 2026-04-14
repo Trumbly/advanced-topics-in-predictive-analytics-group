@@ -100,9 +100,9 @@
         <th class="text-left px-5 py-2">ID</th>
         <th class="text-left px-5 py-2">Status</th>
         <th class="text-left px-5 py-2">Architecture</th>
+        <th class="text-right px-5 py-2">F1</th>
         <th class="text-right px-5 py-2">ROC-AUC</th>
         <th class="text-right px-5 py-2">cmap@5</th>
-        <th class="text-right px-5 py-2">F1</th>
         <th class="text-right px-5 py-2">Duration</th>
       </tr>
     </thead>
@@ -123,7 +123,14 @@
         <td class="px-5 py-2 text-slate-600">
           {% if exp.config %}{{ truncate(exp.config.architecture, 60) }}{% else %}—{% endif %}
         </td>
-        <td class="px-5 py-2 text-right font-mono">
+        <td class="px-5 py-2 text-right font-mono font-semibold">
+          {% if exp.results and exp.results.metrics %}
+            {{ format_score(exp.results.metrics.get('f1_macro')) }}
+          {% else %}
+            <span class="text-slate-300">—</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-2 text-right font-mono text-slate-600 text-xs">
           {% if exp.results and exp.results.metrics %}
             {{ format_score(exp.results.metrics.get('roc_auc_macro')) }}
           {% else %}
@@ -133,13 +140,6 @@
         <td class="px-5 py-2 text-right font-mono text-slate-600 text-xs">
           {% if exp.results and exp.results.metrics %}
             {{ format_score(exp.results.metrics.get('cmap_at_5')) }}
-          {% else %}
-            <span class="text-slate-300">—</span>
-          {% endif %}
-        </td>
-        <td class="px-5 py-2 text-right font-mono text-slate-600 text-xs">
-          {% if exp.results and exp.results.metrics %}
-            {{ format_score(exp.results.metrics.get('f1_macro')) }}
           {% else %}
             <span class="text-slate-300">—</span>
           {% endif %}
@@ -225,7 +225,7 @@ function colorize(text) {
       return `<span class="text-slate-500">${e}</span>`;
     if (/epoch \d+/i.test(line))
       return `<span class="text-cyan-300">${e}</span>`;
-    if (/roc_auc|ROC.AUC/i.test(line))
+    if (/f1_macro|f1=|roc_auc|ROC.AUC/i.test(line))
       return `<span class="text-emerald-300 font-semibold">${e}</span>`;
     return `<span class="text-slate-300">${e}</span>`;
   }).join("\n");

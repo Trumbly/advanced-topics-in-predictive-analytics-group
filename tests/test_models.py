@@ -179,12 +179,12 @@ class TestExperiment:
             augmentation={"time_shift": True, "mixup": 0.2},
         )
         minimal_experiment.results = TrainingResults(
-            metrics={"roc_auc_macro": 0.72, "loss": 0.35},
+            metrics={"f1_macro": 0.72, "roc_auc_macro": 0.7, "loss": 0.35},
             training_curves={"loss": [0.9, 0.6, 0.35]},
             duration_seconds=125.4,
         )
         assert minimal_experiment.config.architecture == "cnn_small_v1"
-        assert minimal_experiment.results.metrics["roc_auc_macro"] == 0.72
+        assert minimal_experiment.results.metrics["f1_macro"] == 0.72
 
     def test_json_roundtrip(
         self, minimal_experiment: Experiment, tmp_path: Path

@@ -7,11 +7,13 @@ The LLM is instructed (in `config/prompts/generate_code.yaml`) to write a
 
     {
       "metrics": {
-        "roc_auc_macro": 0.72,
+        "f1_macro": 0.72,
+        "roc_auc_macro": 0.65,
         "loss": 0.38
       },
       "training_curves": {
         "loss": [...],
+        "f1_macro": [...],
         "roc_auc_macro": [...]
       },
       "duration_seconds": 145.3
@@ -55,7 +57,7 @@ class ScriptReportedError(MetricsParseError):
 class MetricsCollector:
     """Parses results.json and optionally computes deltas vs. a baseline."""
 
-    required_metrics: tuple[str, ...] = ("roc_auc_macro",)
+    required_metrics: tuple[str, ...] = ("f1_macro",)
 
     # -- parsing ------------------------------------------------------------
 
@@ -64,7 +66,7 @@ class MetricsCollector:
 
         Missing optional fields (`training_curves`, `peak_ram_mb`,
         `val_predictions_path`) default to empty/None. Missing REQUIRED
-        metrics (`roc_auc_macro` by default) raise MetricsParseError.
+        metrics (`f1_macro` by default) raise MetricsParseError.
         """
         path = Path(results_json_path)
         if not path.exists():

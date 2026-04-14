@@ -72,7 +72,7 @@ def _round_trip_responses(score: float = 0.5) -> list[str]:
     code = f"""
 import json, pathlib
 pathlib.Path('results.json').write_text(json.dumps({{
-    'metrics': {{'roc_auc_macro': {score}, 'loss': {1.0 - score}}},
+    'metrics': {{'f1_macro': {score}, 'roc_auc_macro': {score}, 'loss': {1.0 - score}}},
     'training_curves': {{'loss': [1.0, 0.6, {1.0 - score}]}},
     'duration_seconds': 1.2
 }}))
@@ -428,8 +428,8 @@ import json, os, pathlib
 EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "1"))
 score = {base_score} + 0.1 * (EPOCHS - 1)
 pathlib.Path('results.json').write_text(json.dumps({{
-    'metrics': {{'roc_auc_macro': score, 'loss': 0.5}},
-    'training_curves': {{'loss': [0.5]*EPOCHS, 'roc_auc_macro': [score]*EPOCHS}},
+    'metrics': {{'f1_macro': score, 'roc_auc_macro': score, 'loss': 0.5}},
+    'training_curves': {{'loss': [0.5]*EPOCHS, 'f1_macro': [score]*EPOCHS, 'roc_auc_macro': [score]*EPOCHS}},
     'duration_seconds': 0.1 * EPOCHS,
 }}))
 print(f'epochs={{EPOCHS}} score={{score}}')
@@ -501,7 +501,7 @@ class TestOrchestratorPromotion:
         assert promoted is not None
         assert promoted.status == ExperimentStatus.COMPLETED.value
         assert promoted.results is not None
-        promoted_score = promoted.results.metrics["roc_auc_macro"]
+        promoted_score = promoted.results.metrics["f1_macro"]
         assert promoted_score == pytest.approx(1.1, abs=1e-6), (
             f"expected 0.7 + 0.4 = 1.1, got {promoted_score}"
         )
@@ -686,7 +686,7 @@ class TestOrchestratorWithValidateCode:
             f"Most likely execute_training was handed the wrong code."
         )
         assert exp.results is not None
-        assert exp.results.metrics["roc_auc_macro"] == pytest.approx(0.42)
+        assert exp.results.metrics["f1_macro"] == pytest.approx(0.42)
 
         # Sanity: the execute_training task must have run the actual generated
         # code, not a short fallback like "cnn_small_v1".
@@ -737,7 +737,7 @@ def _recovery_round_trip_responses(final_score: float) -> list[str]:
     fixed = f"""
 import json, pathlib
 pathlib.Path('results.json').write_text(json.dumps({{
-    'metrics': {{'roc_auc_macro': {final_score}, 'loss': {1.0 - final_score}}},
+    'metrics': {{'f1_macro': {final_score}, 'roc_auc_macro': {final_score}, 'loss': {1.0 - final_score}}},
     'training_curves': {{'loss': [0.9, {1.0 - final_score}]}},
     'duration_seconds': 1.1
 }}))
@@ -791,7 +791,7 @@ class TestOrchestratorRecovery:
             f"expected COMPLETED via recovery, got {exp.status}"
         )
         assert exp.results is not None
-        assert exp.results.metrics["roc_auc_macro"] == pytest.approx(0.71)
+        assert exp.results.metrics["f1_macro"] == pytest.approx(0.71)
 
         # The experiment must now have a recovery task in its task_ids
         task_ids = exp.task_ids

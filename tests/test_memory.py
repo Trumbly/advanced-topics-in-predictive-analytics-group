@@ -34,7 +34,7 @@ def _make_experiment(
     results = None
     if score is not None:
         results = TrainingResults(
-            metrics={"roc_auc_macro": score, "loss": 1.0 - score},
+            metrics={"f1_macro": score, "roc_auc_macro": score, "loss": 1.0 - score},
             duration_seconds=60.0,
         )
     return Experiment(
@@ -185,7 +185,7 @@ class TestMarkdown:
         assert "Top-K Successful Experiments" in md
         assert "exp_001" in md
         assert "exp_002" in md
-        assert "roc_auc_macro" in md
+        assert "f1_macro" in md
 
     def test_includes_failures_section(self, memory: ExperimentMemory) -> None:
         memory.append(_make_experiment("exp_good", score=0.5))

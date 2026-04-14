@@ -78,7 +78,7 @@ def _summarize_experiment(index: int, experiment: Experiment) -> ExperimentSumma
     duration: float | None = None
     curves: dict[str, list[float]] = {}
     if experiment.results:
-        score = experiment.results.metrics.get("roc_auc_macro")
+        score = experiment.results.metrics.get("f1_macro")
         loss = experiment.results.metrics.get("loss")
         duration = experiment.results.duration_seconds
         curves = dict(experiment.results.training_curves or {})
@@ -363,11 +363,11 @@ class ReportGenerator:
 
         curves = best.training_curves
         loss_curve = curves.get("loss", [])
-        auc_curve = curves.get("roc_auc_macro", [])
-        if len(loss_curve) < 2 and len(auc_curve) < 2:
+        f1_curve = curves.get("f1_macro", [])
+        if len(loss_curve) < 2 and len(f1_curve) < 2:
             return False
 
-        epochs = list(range(1, max(len(loss_curve), len(auc_curve)) + 1))
+        epochs = list(range(1, max(len(loss_curve), len(f1_curve)) + 1))
         fig, ax1 = plt.subplots(figsize=(9, 5))
 
         if loss_curve:
@@ -383,16 +383,16 @@ class ReportGenerator:
             ax1.tick_params(axis="y", labelcolor="#e67e22")
             ax1.grid(True, alpha=0.3)
 
-        if auc_curve:
+        if f1_curve:
             ax2 = ax1.twinx()
             ax2.plot(
-                epochs[: len(auc_curve)],
-                auc_curve,
+                epochs[: len(f1_curve)],
+                f1_curve,
                 color="#2ecc71",
                 marker="s",
-                label="roc_auc_macro",
+                label="f1_macro",
             )
-            ax2.set_ylabel("ROC-AUC macro", color="#2ecc71")
+            ax2.set_ylabel("F1 macro", color="#2ecc71")
             ax2.tick_params(axis="y", labelcolor="#2ecc71")
             ax2.set_ylim(0, 1.05)
 
@@ -607,7 +607,7 @@ class ReportGenerator:
         lines = [
             f"- id: {best.experiment_id}",
             f"- architecture: {best.architecture}",
-            f"- roc_auc_macro: {best.score:.4f}" if best.score is not None else "- roc_auc_macro: —",
+            f"- f1_macro: {best.score:.4f}" if best.score is not None else "- f1_macro: —",
             f"- loss: {best.loss:.4f}" if best.loss is not None else "- loss: —",
             f"- duration: {best.duration_seconds:.0f}s" if best.duration_seconds else "- duration: —",
         ]

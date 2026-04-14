@@ -398,7 +398,7 @@ class TestExecuteTrainingHandler:
         task.code_used = (
             "import json, pathlib\n"
             "pathlib.Path('results.json').write_text("
-            "json.dumps({'metrics': {'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
+            "json.dumps({'metrics': {'f1_macro': 0.5, 'roc_auc_macro': 0.5, 'loss': 1.0}}))\n"
         )
         execute_training.run(task, executor=executor)
         assert task.status == TaskStatus.COMPLETED.value
@@ -433,7 +433,7 @@ class TestCaptureMetricsHandler:
         results_path.write_text(
             json.dumps(
                 {
-                    "metrics": {"roc_auc_macro": 0.8, "loss": 0.2},
+                    "metrics": {"f1_macro": 0.8, "roc_auc_macro": 0.75, "loss": 0.2},
                     "duration_seconds": 120.0,
                 }
             )
@@ -446,7 +446,7 @@ class TestCaptureMetricsHandler:
             previous_task_output=previous_output,
         )
         assert task.status == TaskStatus.COMPLETED.value
-        assert task.output["training_results"]["metrics"]["roc_auc_macro"] == 0.8
+        assert task.output["training_results"]["metrics"]["f1_macro"] == 0.8
 
     def test_missing_results_path_fails(self) -> None:
         task = _task()
@@ -504,7 +504,7 @@ class TestCaptureMetricsHandler:
         so the experiment log captures everything the script wrote."""
         results_path = tmp_path / "results.json"
         payload = {
-            "metrics": {"roc_auc_macro": 0.7, "loss": 0.3},
+            "metrics": {"f1_macro": 0.7, "roc_auc_macro": 0.65, "loss": 0.3},
             "training_curves": {"loss": [1.0, 0.5, 0.3]},
             "duration_seconds": 42.0,
         }
@@ -518,5 +518,5 @@ class TestCaptureMetricsHandler:
         assert task.output["raw_results"] == payload
         # Parsed training_results is also there
         assert (
-            task.output["training_results"]["metrics"]["roc_auc_macro"] == 0.7
+            task.output["training_results"]["metrics"]["f1_macro"] == 0.7
         )

@@ -195,7 +195,7 @@ class TrainingResults(AgentBaseModel):
 
     metrics: dict[str, float] = Field(
         default_factory=dict,
-        description="e.g. roc_auc_macro, loss, per_class scores",
+        description="e.g. f1_macro, roc_auc_macro, loss, per_class scores",
     )
     training_curves: dict[str, list[float]] = Field(
         default_factory=dict,

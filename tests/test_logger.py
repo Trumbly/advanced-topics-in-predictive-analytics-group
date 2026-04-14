@@ -61,7 +61,7 @@ def experiment() -> Experiment:
             augmentation={"time_shift": True},
         ),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.72, "loss": 0.38},
+            metrics={"f1_macro": 0.72, "roc_auc_macro": 0.7, "loss": 0.38},
             training_curves={"loss": [0.9, 0.5, 0.38]},
             duration_seconds=123.4,
         ),
@@ -95,7 +95,7 @@ class TestWriteExperiment:
 
         md = (exp_dir / "experiment.md").read_text()
         assert "cnn_small_v1" in md
-        assert "roc_auc_macro: 0.7200" in md
+        assert "f1_macro: 0.7200" in md
         assert "loss (len=3)" in md  # curve summary
         assert "duration: 123.4s" in md
 

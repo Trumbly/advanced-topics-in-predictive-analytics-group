@@ -21,38 +21,40 @@ class TestParseResults:
         path = _write_results(
             tmp_path / "results.json",
             {
-                "metrics": {"roc_auc_macro": 0.72, "loss": 0.38},
+                "metrics": {"f1_macro": 0.72, "roc_auc_macro": 0.65, "loss": 0.38},
                 "duration_seconds": 145.3,
             },
         )
         collector = MetricsCollector()
         results = collector.parse_results(path)
         assert isinstance(results, TrainingResults)
-        assert results.metrics["roc_auc_macro"] == 0.72
+        assert results.metrics["f1_macro"] == 0.72
         assert results.duration_seconds == 145.3
 
     def test_with_training_curves(self, tmp_path: Path) -> None:
         path = _write_results(
             tmp_path / "results.json",
             {
-                "metrics": {"roc_auc_macro": 0.8, "loss": 0.2},
+                "metrics": {"f1_macro": 0.8, "roc_auc_macro": 0.75, "loss": 0.2},
                 "training_curves": {
                     "loss": [1.0, 0.5, 0.2],
-                    "roc_auc_macro": [0.4, 0.6, 0.8],
+                    "f1_macro": [0.4, 0.6, 0.8],
+                    "roc_auc_macro": [0.4, 0.6, 0.75],
                 },
                 "duration_seconds": 100.0,
             },
         )
         results = MetricsCollector().parse_results(path)
         assert results.training_curves["loss"] == [1.0, 0.5, 0.2]
-        assert results.training_curves["roc_auc_macro"] == [0.4, 0.6, 0.8]
+        assert results.training_curves["f1_macro"] == [0.4, 0.6, 0.8]
 
     def test_extra_metrics_preserved(self, tmp_path: Path) -> None:
         path = _write_results(
             tmp_path / "results.json",
             {
                 "metrics": {
-                    "roc_auc_macro": 0.7,
+                    "f1_macro": 0.7,
+                    "roc_auc_macro": 0.65,
                     "loss": 0.3,
                     "precision": 0.65,
                     "recall": 0.72,
@@ -89,7 +91,8 @@ class TestParseResults:
             tmp_path / "results.json",
             {
                 "metrics": {
-                    "roc_auc_macro": 0.7,
+                    "f1_macro": 0.7,
+                    "roc_auc_macro": 0.65,
                     "loss": 0.3,
                     "bogus": "not_a_number",
                 }

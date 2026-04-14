@@ -280,7 +280,7 @@ class TestLastResultSlot:
                 hyperparams={"lr": 1e-3, "epochs": 5},
             ),
             results=TrainingResults(
-                metrics={"roc_auc_macro": 0.68, "loss": 0.42},
+                metrics={"f1_macro": 0.68, "roc_auc_macro": 0.65, "loss": 0.42},
                 duration_seconds=145.3,
             ),
             created_at=datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc),
@@ -298,4 +298,4 @@ class TestLastResultSlot:
         _, user = handler.build(template)
         assert "exp_007" in user
         assert "cnn_small_v1" in user
-        assert "roc_auc_macro=0.6800" in user
+        assert "f1_macro=0.6800" in user

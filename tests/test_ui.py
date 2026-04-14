@@ -96,8 +96,8 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
         ],
         config=ModelConfig(architecture="[custom_cnn] cnn_small_v1 baseline"),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.73, "loss": 0.42},
-            training_curves={"loss": [0.9, 0.6, 0.42], "roc_auc_macro": [0.5, 0.68, 0.73]},
+            metrics={"f1_macro": 0.73, "roc_auc_macro": 0.7, "loss": 0.42},
+            training_curves={"loss": [0.9, 0.6, 0.42], "f1_macro": [0.5, 0.68, 0.73], "roc_auc_macro": [0.5, 0.65, 0.7]},
             duration_seconds=120.5,
         ),
         status=ExperimentStatus.COMPLETED,
@@ -163,7 +163,7 @@ def _write_study_tree(tmp_path: Path) -> tuple[Path, Path]:
             architecture="[efficientnet_b0] TorchvisionAdapter(efficientnet_b0)"
         ),
         results=TrainingResults(
-            metrics={"roc_auc_macro": 0.68, "loss": 0.5},
+            metrics={"f1_macro": 0.68, "roc_auc_macro": 0.65, "loss": 0.5},
             training_curves={"loss": [0.8, 0.5]},
             duration_seconds=210.0,
         ),
@@ -387,7 +387,7 @@ class TestRoutes:
         r = client.get("/api/studies/study_a/score_progression")
         assert r.status_code == 200
         body = r.json()
-        assert body["metric"] == "roc_auc_macro"
+        assert body["metric"] == "f1_macro"
         assert len(body["points"]) == 3
         assert body["points"][0]["score"] == 0.73
         assert body["points"][1]["score"] is None  # failed exp
@@ -405,7 +405,7 @@ class TestRoutes:
         assert r.status_code == 200
         body = r.json()
         assert body["loss"] == [0.9, 0.6, 0.42]
-        assert body["roc_auc_macro"] == [0.5, 0.68, 0.73]
+        assert body["f1_macro"] == [0.5, 0.68, 0.73]
 
     def test_healthz(self, client: TestClient) -> None:
         r = client.get("/api/healthz")
@@ -703,7 +703,7 @@ class TestParseAgentStatus:
         from agent.ui.loaders import parse_agent_status
 
         (tmp_path / "orchestrator.log").write_text(
-            "──── Promoting exp_007 (smoke roc_auc_macro=0.56) ────\n"
+            "──── Promoting exp_007 (smoke f1_macro=0.56) ────\n"
         )
         result = parse_agent_status(tmp_path)
         assert "Promoting" in result

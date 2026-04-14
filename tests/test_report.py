@@ -108,12 +108,12 @@ def _make_study_dir(
         loss = 1.0 - score
         curves: dict[str, list[float]] = {
             "loss": [loss],
-            "roc_auc_macro": [score],
+            "f1_macro": [score],
         }
         if multi_epoch_best and i == n_success - 1:
             curves = {
                 "loss": [0.9, 0.6, loss],
-                "roc_auc_macro": [0.55, 0.7, score],
+                "f1_macro": [0.55, 0.7, score],
             }
         exp = Experiment(
             experiment_id=exp_id,
@@ -126,7 +126,7 @@ def _make_study_dir(
                 augmentation={"time_shift": True},
             ),
             results=TrainingResults(
-                metrics={"roc_auc_macro": score, "loss": loss},
+                metrics={"f1_macro": score, "roc_auc_macro": score, "loss": loss},
                 training_curves=curves,
                 duration_seconds=120.0 + 10 * i,
             ),

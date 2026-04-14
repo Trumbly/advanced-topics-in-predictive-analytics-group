@@ -44,7 +44,7 @@ class ExperimentMemory:
     """In-memory + on-disk store of experiments belonging to one Study."""
 
     study_dir: Path
-    score_metric: str = "roc_auc_macro"
+    score_metric: str = "f1_macro"
     _experiments: list[Experiment] = field(default_factory=list)
 
     # -- lifecycle ----------------------------------------------------------
