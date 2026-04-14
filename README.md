@@ -51,8 +51,9 @@ An AI-powered autonomous research agent that designs, trains, evaluates, and ite
 │   ├── models.yaml             # LLM picks from this catalog
 │   └── registry.py             # Loader + markdown export for prompt injection
 ├── config/
-│   ├── config.yaml             # Global runtime config
-│   ├── pipelines/              # default / exploration / exploitation
+│   ├── config.yaml             # Global runtime config (MPS/GPU development)
+│   ├── config_exam.yaml        # CPU-only exam config (batch=32, 3 epochs, 1hr timeout)
+│   ├── pipelines/              # default / exploration / exploitation / exam
 │   ├── prompts/                # propose_architecture / generate_code / analyze_results / error_recovery
 │   └── tasks/                  # Predefined handler documentation
 ├── scripts/
@@ -233,7 +234,33 @@ python -m agent.main show-best
 
 # Export the best experiment as a Kaggle submission notebook
 python -m agent.main submit
+
+# Launch the web dashboard (live terminal, file browser, prompts)
+python -m agent.main ui
 ```
+
+#### Exam / CPU-only mode
+
+During the exam (CPU only, limited time), use the exam config:
+
+```bash
+python -m agent.main start \
+    --config config/config_exam.yaml \
+    --pipeline config/pipelines/exam_pipeline.yaml \
+    --study exam_run \
+    --hypothesis "CPU-optimized run for exam" \
+    --max-experiments 5
+```
+
+| Setting | Default (MPS/GPU) | Exam (CPU) |
+|---------|-------------------|------------|
+| `device` | mps | cpu |
+| `batch_size` | 128 | 32 |
+| `max_epochs` | 7 | 3 |
+| `timeout/experiment` | 4 hours | 1 hour |
+| `num_workers` | 8 | 4 |
+
+The exam config is only used when you explicitly pass `--config config/config_exam.yaml`. Without it, the default MPS config is used.
 
 Artifacts are written under `experiments/studies/<study_id>/`:
 - `study.json` / `study.md`           — study metadata
@@ -291,6 +318,7 @@ The agent uses a two-phase strategy with pipeline-specific epoch budgets:
 | `exploration_pipeline.yaml` | 3 | Fast probing of architecture families on the full dataset |
 | `exploitation_pipeline.yaml` | 5 | Scale and tune the most promising candidates |
 | `default_pipeline.yaml` | 7 | Standard runs with full training budget |
+| `exam_pipeline.yaml` | 3 | CPU-only exam mode with 1-hour timeout |
 
 All pipelines use **early stopping** (patience=3 on validation ROC-AUC),
 so experiments stop sooner if the model has already converged.
