@@ -6,9 +6,9 @@
   "created_at": "2026-04-12T08:56:08.541673Z",
   "started_at": "2026-04-12T08:56:08.541673Z",
   "completed_at": "2026-04-12T10:27:42.289740Z",
-  "primary_metric": "roc_auc_macro",
-  "best_experiment_id": "exp_003",
-  "best_score": 0.9385042446152857,
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
   "experiments": [
     {
       "id": "exp_001",
@@ -19,8 +19,8 @@
       "architecture_family": "custom_cnn",
       "architecture_proposal": "{\n  \"architecture\": \"[custom_cnn] cnn_small_v1 baseline\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
-      "primary_score": 0.795687836315295,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
       "metrics": {
         "roc_auc_macro": 0.795687836315295,
         "loss": 0.4794828857461067
@@ -246,8 +246,8 @@
       "architecture_family": "cnn_attention",
       "architecture_proposal": "{\n  \"architecture\": \"[cnn_attention] 4-conv CNN with self-attention and SE blocks, followed by adaptive pooling and sigmoid output\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.3\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": true\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
-      "primary_score": 0.9065748385847108,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
       "metrics": {
         "roc_auc_macro": 0.9065748385847108,
         "loss": 0.4038996833644501
@@ -473,8 +473,8 @@
       "architecture_family": "deep_cnn",
       "architecture_proposal": "{\n  \"architecture\": \"[deep_cnn] 5-conv deep CNN with residual connections, BatchNorm, and SE attention blocks, followed by adaptive pooling and sigmoid output\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.3\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.5,\n    \"specaugment\": true\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
-      "primary_score": 0.9385042446152857,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
       "metrics": {
         "roc_auc_macro": 0.9385042446152857,
         "loss": 0.34763025784329193
@@ -700,7 +700,7 @@
       "architecture_family": "cnn_gru_hybrid",
       "architecture_proposal": "{\n  \"architecture\": \"[cnn_gru_hybrid] 3-conv CNN front-end feeding a 2-layer GRU(128) with dropout, followed by a linear head with sigmoid output\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.3\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
+      "primary_metric": "f1_macro",
       "primary_score": null,
       "metrics": {},
       "history": [],
@@ -1144,8 +1144,8 @@
       "architecture_family": "custom_cnn",
       "architecture_proposal": "{\n  \"architecture\": \"[custom_cnn] 4-conv from-scratch with BatchNorm, SE attention, and adaptive pooling\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.3\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": true\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
-      "primary_score": 0.9110479446517492,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
       "metrics": {
         "roc_auc_macro": 0.9110479446517492,
         "loss": 0.37762683442194167
@@ -1371,8 +1371,8 @@
       "architecture_family": "cnn_attention",
       "architecture_proposal": "{\n  \"architecture\": \"[cnn_attention] 4-conv CNN with self-attention and SE blocks, followed by adaptive pooling and sigmoid output\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.3\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": true\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
-      "primary_score": 0.9072720984681177,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
       "metrics": {
         "roc_auc_macro": 0.9072720984681177,
         "loss": 0.4080649110552383
