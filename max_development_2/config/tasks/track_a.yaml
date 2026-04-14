@@ -1,0 +1,68 @@
+# Track A — Kaggle "Natural Language Processing with Disaster Tweets"
+# Binary text classification. ~10k train tweets, ~3k test.
+
+name: track_a
+kind: text_classification_binary
+description: >
+  Predict whether a tweet describes a real disaster (target=1) or not (target=0).
+
+adapter: lab.tasks.track_a_disaster_tweets:DisasterTweetsAdapter
+
+data:
+  raw:
+    train_csv: data/raw/track_a/train.csv
+    test_csv:  data/raw/track_a/test.csv
+  processed_dir: data/processed/track_a
+  features:
+    type: tokens
+    max_length: 64
+    # Light-weight tokenizer by default; the adapter can swap in HF
+    # transformers tokenizers if configured.
+    tokenizer: whitespace_lowercase
+    vocab_size: 20000
+  labels:
+    type: binary
+    target_column: target
+
+metrics:
+  primary: f1_binary
+  others: [accuracy, roc_auc_binary]
+
+model:
+  input_shape: [64]                    # (seq_len,)
+  output_head: sigmoid_1
+  registry: registry/track_a_models.yaml
+
+loss:
+  type: bce_with_logits
+  pos_weight: auto
+
+compute_budget:
+  # Overrides root config.yaml for this task.
+  max_experiment_seconds: 600
+  max_epochs_per_run: 5
+
+submission:
+  format: csv                          # csv | kaggle_notebook_cpu
+  columns: [id, target]
+  dtype: int
+  post_process: "(probs > 0.5).astype(int)"
+  test_source: data/raw/track_a/test.csv
+
+# Slots injected into the prompt templates. The prompts themselves live
+# under config/prompts/*/vN.yaml; we inject these values at render time
+# so prompts stay task-agnostic and A/B-testable.
+prompt_slots:
+  task_description: |
+    Binary text classification. Input is a short tweet string (<=280 chars).
+    Output is a single probability that the tweet describes a real disaster.
+    Classes are roughly balanced (~57% negative, 43% positive).
+  input_tensor_shape: "(batch, seq_len)"
+  output_description: "a single scalar logit per sample; apply sigmoid for probability"
+  valid_architecture_families:
+    - "[bow_mlp]"              # bag-of-words + Dense layers
+    - "[cnn_1d]"               # Conv1d on token embeddings
+    - "[lstm]"                 # single-direction LSTM
+    - "[gru_bidirectional]"    # bidir GRU
+    - "[transformer_scratch]"  # tiny transformer from scratch
+  code_skeleton: config/skeletons/text_binary.py.j2

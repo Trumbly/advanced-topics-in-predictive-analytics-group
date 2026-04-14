@@ -1,0 +1,32 @@
+# Track B — candidate architectures for BirdCLEF+ audio multi-label.
+
+- name: cnn_small_v1
+  family: custom_cnn
+  input_shape: [1, 128, 313]
+  description: >
+    3 Conv2d blocks with BatchNorm + AdaptiveAvgPool2d + Dense head.
+    CPU-friendly baseline (~800k params).
+  params_approx: 800_000
+
+- name: resnet18_adapter
+  family: resnet18
+  input_shape: [1, 128, 313]
+  description: >
+    torchvision resnet18 (ImageNet-pretrained). 1-channel input is expanded
+    to 3 channels and resized to 224x224 inside the adapter.
+  params_approx: 11_000_000
+
+- name: efficientnet_b0_adapter
+  family: efficientnet_b0
+  input_shape: [1, 128, 313]
+  description: >
+    torchvision efficientnet_b0 adapter. Slightly slower than resnet18 but
+    typically higher-quality on audio spectrograms.
+  params_approx: 5_300_000
+
+- name: mobilenet_v3_small_adapter
+  family: mobilenet_v3_small
+  input_shape: [1, 128, 313]
+  description: >
+    Small backbone; good Kaggle-runtime candidate.
+  params_approx: 2_500_000

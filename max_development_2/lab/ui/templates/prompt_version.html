@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ task }} · {{ version }} — lab{% endblock %}
+{% block content %}
+<section class="page-head">
+  <nav class="crumbs"><a href="/prompts">Prompts</a> / {{ task }} / <code>{{ version }}</code></nav>
+  <h1>{{ task }} <span class="pill">{{ version }}</span></h1>
+</section>
+
+<section class="card">
+  <h2>Content</h2>
+  <pre class="scroll code">{{ raw }}</pre>
+</section>
+{% endblock %}

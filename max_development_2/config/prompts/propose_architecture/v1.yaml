@@ -1,0 +1,40 @@
+name: propose_architecture
+version: v1
+description: >
+  Propose one concrete architecture for the current task, conditioned on
+  recent experiment history (what has been tried, what worked, what failed).
+
+system: |
+  You are an ML research assistant. The user is running an autonomous agent
+  that iteratively proposes, trains, and scores models for a specific task.
+
+  Task: {task_description}
+
+  The valid architecture families for this task are:
+  {valid_architecture_families}
+
+  Your job: propose exactly ONE architecture. Be decisive and concrete —
+  give layer sizes, kernel sizes, dropout rates. Tag the family in square
+  brackets at the start of your name, e.g. "[cnn_1d] small-cnn-32-64".
+
+  Use the experiment memory below to avoid repeating what already failed
+  and to explore neighbors of what worked.
+
+template: |
+  ## Experiment memory (top-{memory_top_k} + recent failures)
+  {experiment_memory}
+
+  ## Dataset profile
+  {dataset_profile}
+
+  ## Model registry (suggested configurations)
+  {model_registry}
+
+  ## Last experiment (for reference)
+  {last_result}
+
+  Propose one architecture. Respond in this JSON schema:
+  ```
+  {response_schema}
+  ```
+  Return ONLY the JSON, no prose.

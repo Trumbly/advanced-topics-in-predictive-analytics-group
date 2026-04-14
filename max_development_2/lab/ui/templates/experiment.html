@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{{ experiment.id }} — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div>
+    <nav class="crumbs">
+      <a href="/">Studies</a> / <a href="/studies/{{ study.id }}"><code>{{ study.id }}</code></a> /
+      <code>{{ experiment.id }}</code>
+    </nav>
+    <h1>
+      {{ experiment.architecture_name or "—" }}
+      {% if experiment.architecture_family %}
+        <span class="pill">{{ experiment.architecture_family }}</span>
+      {% endif %}
+    </h1>
+  </div>
+  <div class="right">
+    <span class="status status-{{ experiment.status }}">{{ experiment.status }}</span>
+  </div>
+</section>
+
+<div class="grid-3">
+  <div class="card">
+    <h4>{{ study.primary_metric }}</h4>
+    <p class="big">
+      {% if experiment.primary_score is not none %}{{ "%.4f"|format(experiment.primary_score) }}{% else %}—{% endif %}
+    </p>
+  </div>
+  <div class="card">
+    <h4>Duration</h4>
+    <p class="big">{% if experiment.duration_seconds %}{{ "%.1f"|format(experiment.duration_seconds) }} s{% else %}—{% endif %}</p>
+  </div>
+  <div class="card">
+    <h4>Error</h4>
+    <p class="big">{% if experiment.error %}<span class="status status-failed">{{ experiment.error.error_type }}</span>{% else %}—{% endif %}</p>
+  </div>
+</div>
+
+{% if experiment.error %}
+<section class="card">
+  <h2>Error</h2>
+  <p>{{ experiment.error.message }}</p>
+  {% if experiment.error.traceback %}
+  <pre class="scroll">{{ experiment.error.traceback }}</pre>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Metrics</h2>
+  {% if experiment.metrics %}
+  <table>
+    <thead><tr><th>Name</th><th>Value</th></tr></thead>
+    <tbody>
+      {% for k, v in experiment.metrics.items() %}
+      <tr><td><code>{{ k }}</code></td><td class="num">{{ "%.4f"|format(v) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No metrics captured.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Architecture proposal</h2>
+  <pre class="scroll">{{ experiment.architecture_proposal or "—" }}</pre>
+</section>
+
+<section class="card">
+  <h2>Generated code</h2>
+  {% if experiment.code %}
+  <pre class="scroll code">{{ experiment.code }}</pre>
+  {% else %}<p class="muted">No code stored.</p>{% endif %}
+</section>
+
+<section class="card">
+  <h2>Live stdout</h2>
+  <pre id="live-stdout" class="scroll code">{{ live_stdout or "(no output yet)" }}</pre>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const el = document.getElementById("live-stdout");
+  if (!el) return;
+  const es = new EventSource("/live/{{ experiment.id }}");
+  es.onmessage = (ev) => {
+    el.textContent += ev.data + "\n";
+    el.scrollTop = el.scrollHeight;
+  };
+  es.onerror = () => { es.close(); };
+})();
+</script>
+{% endblock %}

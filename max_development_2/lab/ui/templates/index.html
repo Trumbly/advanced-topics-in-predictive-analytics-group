@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Studies — lab{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Studies</h1>
+  <div class="right">
+    <a href="/new" class="btn btn-primary">+ New study</a>
+  </div>
+</section>
+
+{% if not studies %}
+  <div class="empty">
+    <p>No studies yet.</p>
+    <a href="/new" class="btn btn-primary">Start your first study</a>
+  </div>
+{% else %}
+  <table class="studies">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Task</th>
+        <th>Status</th>
+        <th>Experiments</th>
+        <th>Best</th>
+        <th>Created</th>
+        <th>Tags</th>
+        <th>Pub.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in studies %}
+      <tr>
+        <td><a href="/studies/{{ s.id }}"><code>{{ s.name or s.id }}</code></a></td>
+        <td><span class="pill">{{ s.task_name }}</span></td>
+        <td><span class="status status-{{ s.status }}">{{ s.status }}</span></td>
+        <td class="num">{{ s.experiments_count }}</td>
+        <td class="num">{% if s.best_score is not none %}{{ "%.4f"|format(s.best_score) }}{% else %}—{% endif %}</td>
+        <td class="muted">{{ s.created_at[:19] if s.created_at else "" }}</td>
+        <td>{% for t in s.tags %}<span class="tag">{{ t }}</span>{% endfor %}</td>
+        <td>{% if s.publish %}<span class="pill pill-ok">published</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+
+<section class="tasks-summary">
+  <h2>Available tasks</h2>
+  <div class="cards">
+    {% for t in tasks %}
+    <div class="card">
+      <h3>{{ t.name }}</h3>
+      <p class="muted">{{ t.kind }}</p>
+      <p>{{ t.description }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

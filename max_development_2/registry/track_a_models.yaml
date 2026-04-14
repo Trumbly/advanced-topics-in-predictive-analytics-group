@@ -1,0 +1,33 @@
+# Track A — candidate architectures for the Disaster Tweets task.
+# Each entry is a hint for the LLM; it is free to propose other configurations
+# within the listed families.
+
+- name: bow_mlp_small
+  family: bow_mlp
+  input_shape: [64]
+  description: >
+    Bag-of-words embedding (sum-pool) followed by two Dense layers with
+    dropout. Baseline, trains in seconds.
+  params_approx: 500_000
+
+- name: cnn_1d_small
+  family: cnn_1d
+  input_shape: [64]
+  description: >
+    Embedding + two Conv1d blocks with max-pool + Dense head. Good speed
+    vs quality balance for short-text binary classification.
+  params_approx: 1_200_000
+
+- name: bilstm_small
+  family: gru_bidirectional
+  input_shape: [64]
+  description: >
+    Embedding + bidirectional GRU + attention pool + Dense head.
+  params_approx: 2_500_000
+
+- name: transformer_tiny
+  family: transformer_scratch
+  input_shape: [64]
+  description: >
+    4-layer transformer encoder, 4 heads, d_model=128, from scratch.
+  params_approx: 4_000_000

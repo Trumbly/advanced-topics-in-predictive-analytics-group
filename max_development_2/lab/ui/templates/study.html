@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ study.name }} — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div>
+    <nav class="crumbs"><a href="/">Studies</a> / <code>{{ study.id }}</code></nav>
+    <h1>{{ study.name }}</h1>
+  </div>
+  <div class="right">
+    <a href="/studies/{{ study.id }}/report" class="btn">Report</a>
+  </div>
+</section>
+
+<div class="grid-3">
+  <div class="card">
+    <h4>Task</h4>
+    <p class="big">{{ study.task_name }}</p>
+    <p class="muted">Primary: <code>{{ study.primary_metric }}</code></p>
+  </div>
+  <div class="card">
+    <h4>Status</h4>
+    <p class="big"><span class="status status-{{ study.status }}">{{ study.status }}</span></p>
+    <p class="muted">{{ study.experiments|length }} experiments</p>
+  </div>
+  <div class="card">
+    <h4>Best {{ study.primary_metric }}</h4>
+    <p class="big">
+      {% if study.best_score is not none %}{{ "%.4f"|format(study.best_score) }}{% else %}—{% endif %}
+    </p>
+    <p class="muted">{% if study.best_experiment_id %}<code>{{ study.best_experiment_id }}</code>{% else %}—{% endif %}</p>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Publishing</h2>
+  <form method="post" action="/studies/{{ study.id }}/publish" class="inline">
+    <label>
+      <input type="checkbox" name="publish" value="true" {% if study.publish %}checked{% endif %}>
+      Include this study when uploading the group package.
+    </label>
+    <button class="btn btn-primary" type="submit">Save</button>
+  </form>
+
+  <form method="post" action="/studies/{{ study.id }}/tags" class="inline">
+    <label for="tags">Tags (comma-separated)</label>
+    <input type="text" id="tags" name="tags" value="{{ study.tags|join(', ') }}">
+    <button class="btn" type="submit">Update tags</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Experiments</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>ID</th>
+        <th>Architecture</th>
+        <th>Family</th>
+        <th>Status</th>
+        <th>{{ study.primary_metric }}</th>
+        <th>Duration</th>
+        <th>Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in study.experiments %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td><a href="/studies/{{ study.id }}/experiments/{{ e.id }}"><code>{{ e.id }}</code></a></td>
+        <td>{{ e.architecture_name or "—" }}</td>
+        <td>{% if e.architecture_family %}<span class="pill">{{ e.architecture_family }}</span>{% endif %}</td>
+        <td><span class="status status-{{ e.status }}">{{ e.status }}</span></td>
+        <td class="num">{% if e.primary_score is not none %}{{ "%.4f"|format(e.primary_score) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if e.duration_seconds %}{{ "%.1f"|format(e.duration_seconds) }} s{% endif %}</td>
+        <td class="muted">{% if e.error %}{{ e.error.error_type }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Prompt versions used</h2>
+  <ul>
+    {% for k, v in study.prompt_template_paths.items() %}
+      <li><code>{{ k }}</code> → <code>{{ v }}</code></li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% endblock %}

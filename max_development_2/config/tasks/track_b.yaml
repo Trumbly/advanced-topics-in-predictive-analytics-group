@@ -1,0 +1,70 @@
+# Track B — BirdCLEF+ 2026
+# Multi-label audio classification of bird species from 5-second mel-spectrograms.
+
+name: track_b
+kind: audio_multilabel
+description: >
+  Multi-label classification of bird species from 5-second mel-spectrograms.
+  Heavy long-tail over 200+ classes. Final inference runs CPU-only in a
+  Kaggle notebook within a 90-minute runtime budget.
+
+adapter: lab.tasks.track_b_birdclef:BirdclefAdapter
+
+data:
+  raw:
+    train_audio: data/raw/track_b/train_audio
+    test_audio:  data/raw/track_b/test_soundscapes
+    metadata_csv: data/raw/track_b/train_metadata.csv
+  processed_dir: data/processed/track_b
+  features:
+    type: spectrogram
+    sample_rate: 32000
+    n_mels: 128
+    n_fft: 2048
+    hop_length: 512
+    window_seconds: 5.0
+    to_db: true
+  labels:
+    type: multi_label
+    class_column: primary_label
+
+metrics:
+  primary: f1_macro
+  others: [roc_auc_macro, cmap_at_5]
+
+model:
+  input_shape: [1, 128, 313]           # (channels, n_mels, time)
+  output_head: sigmoid_N
+  registry: registry/track_b_models.yaml
+
+loss:
+  type: bce_with_logits
+  pos_weight: auto
+
+compute_budget:
+  max_experiment_seconds: 7200
+  max_epochs_per_run: 1
+
+submission:
+  format: kaggle_notebook_cpu
+  columns: auto_from_classes
+  test_source: spectrograms_from_test_audio
+  runtime_budget_seconds: 5400
+  force_cpu: true
+
+prompt_slots:
+  task_description: |
+    Multi-label classification of bird species from 5-second mel-spectrograms.
+    The long-tail makes the minority classes the hard case. Final inference
+    runs CPU-only within a 90-minute Kaggle runtime budget, so architectures
+    must stay small.
+  input_tensor_shape: "(batch, 1, n_mels, time)"
+  output_description: "one logit per species; apply sigmoid for per-class probability"
+  valid_architecture_families:
+    - "[custom_cnn]"
+    - "[efficientnet_b0]"
+    - "[resnet18]"
+    - "[mobilenet_v3_small]"
+    - "[cnn_gru_hybrid]"
+    - "[specaugment_cnn]"
+  code_skeleton: config/skeletons/audio_multilabel.py.j2

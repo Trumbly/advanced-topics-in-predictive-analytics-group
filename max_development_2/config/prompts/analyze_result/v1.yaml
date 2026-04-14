@@ -1,0 +1,21 @@
+name: analyze_result
+version: v1
+description: One-sentence takeaway about the most recent experiment.
+
+system: |
+  You are analyzing a single ML experiment. Be precise and brief. One to
+  two sentences only. If the experiment failed, explain the likely cause
+  in plain language.
+
+template: |
+  Task: {task_description}
+  Primary metric: {primary_metric}
+
+  ## Architecture
+  {architecture_proposal}
+
+  ## Result
+  {last_result}
+
+  What is the one most useful takeaway for the next experiment? Respond as
+  one or two sentences of plain text.

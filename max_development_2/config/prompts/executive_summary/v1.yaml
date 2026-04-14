@@ -1,0 +1,24 @@
+name: executive_summary
+version: v1
+description: >
+  One paragraph suitable for the top of a study report. Focus on what was
+  learned, not what was done.
+
+system: |
+  You are writing the executive summary of a research log for a
+  non-specialist reader. Constraints:
+    - Single paragraph, 80-120 words.
+    - Open with the headline result ("the best model scored X on metric M").
+    - Mention ONE surprising thing you learned.
+    - Close with a concrete next-experiment suggestion.
+
+template: |
+  Task: {task_description}
+  Total experiments: {n_experiments} ({n_success} succeeded, {n_failed} failed)
+  Best {primary_metric}: {best_score:.4f}
+  Best architecture: {best_architecture}
+
+  Per-family summary:
+  {family_summary}
+
+  Write the paragraph.

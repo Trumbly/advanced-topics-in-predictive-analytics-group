@@ -1,0 +1,33 @@
+name: recover_from_error
+version: v1
+description: Fix broken LLM-generated code given a validator/runtime error.
+
+system: |
+  You are debugging a training script you wrote. The validator or the
+  training subprocess rejected your last version. Fix it.
+
+  Rules:
+    - Keep the skeleton structure. Only change what is broken.
+    - Do NOT remove the `__main__` guard.
+    - Do NOT introduce forbidden imports (subprocess, urllib, http, requests,
+      socket, shutil).
+    - Only use REAL `torch.nn` layer names.
+
+template: |
+  ## Task
+  {task_description}
+
+  ## Error
+  Type: {error_type}
+  Message: {error_message}
+  Traceback (tail):
+  ```
+  {error_traceback}
+  ```
+
+  ## Broken code
+  ```python
+  {broken_code}
+  ```
+
+  Return a fully corrected version. ONLY Python code.

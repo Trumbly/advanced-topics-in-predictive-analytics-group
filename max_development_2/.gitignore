@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.venv/
+venv/
+*.egg-info/
+
+# Sandbox artifacts are disposable
+sandbox/
+!sandbox/.gitkeep
+
+# Raw data never goes into git (Kaggle terms)
+data/raw/
+
+# Processed caches are local-only
+data/processed/
+
+# Reports / bundles
+reports/bundles/

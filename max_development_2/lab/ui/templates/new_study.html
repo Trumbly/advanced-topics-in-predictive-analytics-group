@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}New study — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1>New study</h1>
+</section>
+
+<form class="card" method="post" action="/api/new-study-command">
+  <label for="task">Task</label>
+  <select id="task" name="task">
+    {% for t in tasks %}
+      <option value="{{ t.name }}" {% if t.name == default_task %}selected{% endif %}>
+        {{ t.name }} — {{ t.kind }}
+      </option>
+    {% endfor %}
+  </select>
+  <p class="muted small">
+    The task YAML defines data paths, metrics, model registry, and prompt slots.
+    To add a new task, drop <code>config/tasks/&lt;name&gt;.yaml</code> and an
+    adapter class in <code>lab/tasks/</code>.
+  </p>
+
+  <label for="name">Study name (optional)</label>
+  <input id="name" name="name" type="text" placeholder="auto: &lt;task&gt;-&lt;timestamp&gt;">
+
+  <label for="tags">Tags (comma-separated)</label>
+  <input id="tags" name="tags" type="text" placeholder="baseline, cnn, track-b-cpu">
+
+  <label for="predecessor">Continue from predecessor study (optional)</label>
+  <select id="predecessor" name="predecessor">
+    <option value="">— none (fresh start) —</option>
+    {% for s in studies %}
+      <option value="{{ s.id }}">{{ s.name }} ({{ s.task_name }})</option>
+    {% endfor %}
+  </select>
+  <p class="muted small">
+    If selected, the new study's memory is seeded from the predecessor so the
+    agent can see what has already been tried.
+  </p>
+
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Show CLI command</button>
+    <a href="/" class="btn">Cancel</a>
+  </div>
+</form>
+
+<section class="card">
+  <h2>CLI equivalent</h2>
+  <p class="muted">The web UI runs the agent in a separate process. Copy-paste:</p>
+  <pre class="code">python -m lab run --task &lt;task&gt; [--name ...] [--tags ...] [--resume &lt;study_id&gt;]</pre>
+</section>
+
+{% endblock %}

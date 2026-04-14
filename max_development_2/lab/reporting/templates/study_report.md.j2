@@ -1,0 +1,77 @@
+# {{ study.name }}
+
+_Task: **{{ study.task_name }}** · Primary metric: **{{ study.primary_metric }}** · Status: **{{ study.status }}**_
+
+{% if exec_summary %}
+## Executive summary
+
+{{ exec_summary }}
+{% endif %}
+
+## Overview
+
+| | |
+|---|---|
+| Study ID | `{{ study.id }}` |
+| Started | {{ study.started_at or "—" }} |
+| Finished | {{ study.completed_at or "—" }} |
+| Experiments | {{ study.experiments|length }} ({{ n_success }} succeeded, {{ n_failed }} failed) |
+| Best {{ study.primary_metric }} | **{{ "%.4f"|format(study.best_score) if study.best_score is not none else "—" }}** |
+| Predecessor | {% if study.predecessor_id %}`{{ study.predecessor_id }}`{% else %}—{% endif %} |
+| Published | {{ "yes" if study.publish else "no" }} |
+| Tags | {% if study.tags %}{{ study.tags|join(", ") }}{% else %}—{% endif %} |
+
+## Metric trajectory
+
+![score progression](figures/score_progression.png)
+
+![failure breakdown](figures/failure_breakdown.png)
+
+{% if best_experiment %}
+## Best experiment — `{{ best_experiment.id }}`
+
+- Architecture: **{{ best_experiment.architecture_name }}** [{{ best_experiment.architecture_family or "—" }}]
+- {{ study.primary_metric }}: **{{ "%.4f"|format(best_experiment.primary_score) }}**
+- Duration: {{ "%.1f"|format(best_experiment.duration_seconds or 0) }} s
+- Other metrics:
+{% for k, v in best_experiment.metrics.items() %}  - `{{ k }}` = {{ "%.4f"|format(v) }}
+{% endfor %}
+
+{% if has_learning_curve %}![learning curve](figures/best_learning_curve.png){% endif %}
+
+### Architecture proposal (JSON)
+
+```json
+{{ best_experiment.architecture_proposal }}
+```
+{% endif %}
+
+## Per-architecture-family breakdown
+
+{% if has_family_box %}![by family](figures/per_family_box.png){% endif %}
+
+| Family | Runs | Best {{ study.primary_metric }} | Mean {{ study.primary_metric }} |
+|---|---:|---:|---:|
+{% for row in family_rows %}| {{ row.family }} | {{ row.count }} | {{ "%.4f"|format(row.best) }} | {{ "%.4f"|format(row.mean) }} |
+{% endfor %}
+
+## Failure analysis
+
+| Error type | Count | Example message |
+|---|---:|---|
+{% for row in failure_rows %}| {{ row.type }} | {{ row.count }} | `{{ row.example }}` |
+{% endfor %}
+
+## Prompt versions used
+
+| Prompt task | File |
+|---|---|
+{% for k, v in study.prompt_template_paths.items() %}| {{ k }} | `{{ v }}` |
+{% endfor %}
+
+## All experiments
+
+| # | ID | Status | Architecture | {{ study.primary_metric }} | Duration (s) |
+|---:|---|---|---|---:|---:|
+{% for e in study.experiments %}| {{ loop.index }} | `{{ e.id }}` | {{ e.status }} | {{ e.architecture_name or "—" }} | {% if e.primary_score is not none %}{{ "%.4f"|format(e.primary_score) }}{% else %}—{% endif %} | {{ "%.1f"|format(e.duration_seconds or 0) }} |
+{% endfor %}

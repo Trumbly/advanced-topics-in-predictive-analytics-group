@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Prompts — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1>Prompt engineering</h1>
+</section>
+
+<p class="muted">
+  Prompt files under <code>config/prompts/</code> are immutable once written. The
+  active version for each task is tracked in <code>_registry.yaml</code>; draft
+  a new version below to explore alternatives, then activate the winner.
+</p>
+
+{% for task in tasks %}
+<section class="card">
+  <h2>{{ task }}</h2>
+  <p class="muted">Active: <code>{{ active[task] }}</code></p>
+
+  <table>
+    <thead><tr><th>Version</th><th>Runs</th><th>Mean</th><th>Best</th><th>Action</th></tr></thead>
+    <tbody>
+    {% for v in versions[task] %}
+      {% set stats = scores.get(task, {}).get(v.version) %}
+      <tr>
+        <td><a href="/prompts/{{ task }}/{{ v.version }}"><code>{{ v.version }}</code></a>{% if v.version == active[task] %} <span class="pill pill-ok">active</span>{% endif %}</td>
+        <td class="num">{% if stats %}{{ stats.count }}{% else %}—{% endif %}</td>
+        <td class="num">{% if stats %}{{ "%.4f"|format(stats.mean) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if stats %}{{ "%.4f"|format(stats.best) }}{% else %}—{% endif %}</td>
+        <td>
+          {% if v.version != active[task] %}
+          <form method="post" action="/prompts/{{ task }}/activate/{{ v.version }}" class="inline">
+            <button class="btn small">Activate</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <details>
+    <summary>Draft new version</summary>
+    <form method="post" action="/prompts/{{ task }}/draft">
+      <label>Description</label>
+      <input type="text" name="description" placeholder="e.g. &quot;stronger emphasis on small models&quot;">
+      <label>System message</label>
+      <textarea name="system" rows="6"></textarea>
+      <label>Template</label>
+      <textarea name="template" rows="10"></textarea>
+      <label>
+        <input type="checkbox" name="make_active" value="true">
+        Activate this version immediately
+      </label>
+      <button class="btn btn-primary" type="submit">Save new version</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+
+{% endblock %}

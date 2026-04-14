@@ -1,0 +1,100 @@
+"""Training skeleton for audio multi-label classification (Track B).
+
+Fill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)
+spectrograms; output is a logit per species of shape (batch, num_classes).
+"""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+
+from lab.tasks.track_b_birdclef import load_audio_dataset
+
+
+EPOCHS = int(os.environ.get("AGENT_EPOCHS", "1"))
+BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
+NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "4"))
+DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+
+
+### MODEL ###
+# The LLM writes a `build_model(num_classes: int) -> nn.Module` here.
+### END MODEL ###
+
+
+def train_one_epoch(model, loader, optimizer, loss_fn, device):
+    model.train()
+    total, n = 0.0, 0
+    for x, y in loader:
+        x, y = x.to(device), y.to(device).float()
+        optimizer.zero_grad()
+        logits = model(x)
+        loss = loss_fn(logits, y)
+        loss.backward()
+        optimizer.step()
+        total += loss.item() * x.size(0)
+        n += x.size(0)
+    return total / max(n, 1)
+
+
+@torch.no_grad()
+def evaluate(model, loader, device):
+    from sklearn.metrics import f1_score, roc_auc_score
+    import numpy as np
+    model.eval()
+    ys, ps = [], []
+    for x, y in loader:
+        x = x.to(device)
+        probs = torch.sigmoid(model(x)).cpu().numpy()
+        ys.append(y.numpy())
+        ps.append(probs)
+    y = np.concatenate(ys, axis=0)
+    p = np.concatenate(ps, axis=0)
+    preds = (p > 0.5).astype(int)
+    try:
+        roc = float(roc_auc_score(y, p, average="macro"))
+    except Exception:
+        roc = 0.0
+    return {
+        "f1_macro": float(f1_score(y, preds, average="macro", zero_division=0)),
+        "roc_auc_macro": roc,
+        "loss": None,
+    }
+
+
+def main():
+    train_loader, val_loader, num_classes = load_audio_dataset(
+        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
+    )
+    model = build_model(num_classes).to(DEVICE)
+    loss_fn = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    history = []
+    for epoch in range(1, EPOCHS + 1):
+        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)
+        metrics = evaluate(model, val_loader, DEVICE)
+        metrics.update(loss=loss, epoch=epoch)
+        history.append(metrics)
+        print(f"[epoch {epoch}] loss={loss:.4f} "
+              f"f1_macro={metrics['f1_macro']:.4f} "
+              f"roc_auc_macro={metrics['roc_auc_macro']:.4f}",
+              flush=True)
+
+    best = max(history, key=lambda h: h["f1_macro"])
+    results = {
+        "primary_metric": "f1_macro",
+        "primary_score": best["f1_macro"],
+        "history": history,
+        "final": history[-1],
+        "best": best,
+    }
+    Path("results.json").write_text(json.dumps(results, indent=2))
+
+
+if __name__ == "__main__":
+    main()

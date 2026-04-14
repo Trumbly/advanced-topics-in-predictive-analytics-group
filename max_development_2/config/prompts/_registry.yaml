@@ -1,0 +1,38 @@
+# Prompt registry — pointer-of-truth for which prompt version each task uses.
+# Individual prompt files are immutable once written; to change a prompt,
+# create a new `v2.yaml` (`v3.yaml`, ...) and bump the `active` pointer.
+
+propose_architecture:
+  active: v1
+  versions:
+    v1:
+      path: propose_architecture/v1.yaml
+      description: Initial architecture-proposal prompt.
+
+generate_code:
+  active: v1
+  versions:
+    v1:
+      path: generate_code/v1.yaml
+      description: Task-agnostic code generator using task-provided skeleton.
+
+analyze_result:
+  active: v1
+  versions:
+    v1:
+      path: analyze_result/v1.yaml
+      description: Post-hoc analysis of a single experiment.
+
+recover_from_error:
+  active: v1
+  versions:
+    v1:
+      path: recover_from_error/v1.yaml
+      description: Fix broken code given validator / runtime errors.
+
+executive_summary:
+  active: v1
+  versions:
+    v1:
+      path: executive_summary/v1.yaml
+      description: One-paragraph study summary for the final report.
