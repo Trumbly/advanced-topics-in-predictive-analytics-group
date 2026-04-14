@@ -329,7 +329,9 @@ class KaggleExecutor:
                 return None, str(exc)
 
         slug = f"{self.username}/lab-agent-src"
-        digest = _hash_directory(lab_src)
+        # Bump the cache-schema token whenever the upload shape changes —
+        # invalidates old caches so subsequent runs push the new content.
+        digest = _hash_directory(lab_src) + ":zip"
         cache_file = self.sandbox_root / ".lab_dataset_cache"
         if cache_file.exists():
             try:
@@ -353,8 +355,14 @@ class KaggleExecutor:
                 "licenses": [{"name": "CC0-1.0"}],
             }, indent=2))
 
+            # `--dir-mode zip` is critical: Kaggle's default `skip` mode
+            # silently drops subdirectories (= our entire lab/ tree).
+            # `zip` uploads subdirs as zip files which the kernel
+            # bootstrap extracts at runtime.
             create = self._run_kaggle(
-                cli, ["datasets", "create", "-p", str(tmp_path)], timeout=600,
+                cli,
+                ["datasets", "create", "-p", str(tmp_path), "--dir-mode", "zip"],
+                timeout=600,
             )
             if create.returncode == 0:
                 logger.info("lab-src dataset created: %s", slug)
@@ -363,7 +371,8 @@ class KaggleExecutor:
                 msg = f"lab src {digest[:8]}"
                 version = self._run_kaggle(
                     cli,
-                    ["datasets", "version", "-p", str(tmp_path), "-m", msg],
+                    ["datasets", "version", "-p", str(tmp_path), "-m", msg,
+                     "--dir-mode", "zip"],
                     timeout=600,
                 )
                 if version.returncode != 0:
@@ -419,22 +428,60 @@ _lab_owner = {lab_owner!r}
 
 
 def _lab_bootstrap_find_lab_root():
-    """Return the directory that CONTAINS a usable ``lab`` package, or
-    None. Kaggle mounts datasets under a few possible layouts:
-      /kaggle/input/<dataset-name>/lab/…            (older)
-      /kaggle/input/datasets/<owner>/<dataset>/lab/…  (newer)
-    We also fall back to a bounded search so future layout changes
-    don't break us — we look for lab/__init__.py up to depth 4."""
-    if not _lab_dir_name:
+    """Return a directory containing a usable ``lab`` package, or None.
+
+    Kaggle mounts datasets under a few possible layouts:
+      /kaggle/input/<dataset-name>/lab/…              (older flat)
+      /kaggle/input/datasets/<owner>/<dataset>/lab/…  (newer nested)
+
+    AND: ``kaggle datasets create --dir-mode zip`` uploads subdirectories
+    as *zip files* (because the CLI's default `skip` mode silently drops
+    subdirs). So the dataset may contain ``lab.zip`` instead of a ``lab/``
+    tree — we auto-extract into /tmp and point sys.path there.
+    """
+    import zipfile as _zipfile
+    import tempfile as _tempfile
+
+    def _has_lab_pkg(d):
+        return _os.path.isfile(_os.path.join(d, "lab", "__init__.py"))
+
+    def _maybe_extract_zip(candidate):
+        """If ``candidate`` contains lab.zip, extract into a temp dir
+        and return that dir. Else None."""
+        zp = _os.path.join(candidate, "lab.zip")
+        if not _os.path.isfile(zp):
+            return None
+        dest = _tempfile.mkdtemp(prefix="lab-src-")
+        try:
+            with _zipfile.ZipFile(zp) as z:
+                z.extractall(dest)
+        except _zipfile.BadZipFile:
+            return None
+        if _has_lab_pkg(dest):
+            return dest
+        # ``--dir-mode zip`` sometimes writes the zip with the subdir
+        # name as the top-level entry — try one level deeper.
+        for entry in _os.listdir(dest):
+            inner = _os.path.join(dest, entry)
+            if _os.path.isdir(inner) and _has_lab_pkg(inner):
+                return inner
         return None
-    hints = [
-        _os.path.join(_input, _lab_dir_name),
-        _os.path.join(_input, "datasets", _lab_owner, _lab_dir_name),
-    ]
+
+    hints = []
+    if _lab_dir_name:
+        hints.extend([
+            _os.path.join(_input, _lab_dir_name),
+            _os.path.join(_input, "datasets", _lab_owner, _lab_dir_name),
+        ])
     for hint in hints:
-        if _os.path.isfile(_os.path.join(hint, "lab", "__init__.py")):
+        if _has_lab_pkg(hint):
             return hint
-    # Bounded walk
+        extracted = _maybe_extract_zip(hint)
+        if extracted:
+            print("[lab bootstrap] extracted lab.zip from " + hint)
+            return extracted
+
+    # Bounded walk — catches any layout we haven't hinted.
     if not _os.path.isdir(_input):
         return None
     base_depth = _input.count(_os.sep)
@@ -442,8 +489,13 @@ def _lab_bootstrap_find_lab_root():
         if root.count(_os.sep) - base_depth > 4:
             dirs[:] = []
             continue
-        if "lab" in dirs and _os.path.isfile(_os.path.join(root, "lab", "__init__.py")):
+        if _has_lab_pkg(root):
             return root
+        if "lab.zip" in files:
+            extracted = _maybe_extract_zip(root)
+            if extracted:
+                print("[lab bootstrap] extracted lab.zip from " + root)
+                return extracted
     return None
 
 
@@ -453,15 +505,29 @@ if _lab_root:
     print("[lab bootstrap] lab source on sys.path from " + _lab_root)
 else:
     print(
-        "[lab bootstrap] could not find lab/ anywhere under " + _input + "."
-        " Contents: "
-        + (", ".join(sorted(_os.listdir(_input))) if _os.path.isdir(_input) else "<none>")
+        "[lab bootstrap] could not find lab/ under " + _input + "."
+        " Dumping input tree for diagnosis:"
     )
+    if _os.path.isdir(_input):
+        _base = _input.count(_os.sep)
+        for _root, _dirs, _files in _os.walk(_input):
+            _depth = _root.count(_os.sep) - _base
+            if _depth > 4:
+                _dirs[:] = []
+                continue
+            _indent = "  " * _depth
+            print(_indent + _os.path.basename(_root) + "/")
+            for _f in sorted(_files)[:5]:
+                print(_indent + "  " + _f)
+            if len(_files) > 5:
+                print(_indent + "  ... (" + str(len(_files) - 5) + " more)")
     print(
-        "[lab bootstrap] attach dataset "
+        "[lab bootstrap] expected "
         + (_lab_owner + "/" + _lab_dir_name if _lab_dir_name else "lab-agent-src")
-        + " via executor.kaggle.dataset_sources, or run"
-        " `python -m lab kaggle sync-lab` once to upload it."
+        + ". If it's in the tree above under a different path, that's a"
+        " Kaggle layout change and you should file an issue."
+        " Otherwise check `kaggle datasets list -m` shows this dataset as"
+        " `ready` (not `processing`) and retry."
     )
 
 
