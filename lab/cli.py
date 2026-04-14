@@ -72,6 +72,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         adapter=adapter,
         predecessor=predecessor,
         prompt_overrides=prompt_overrides,
+        launch_id=args.launch_id,
     )
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
     study = orch.run_study(name=args.name or "", tags=tags)
@@ -171,6 +172,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "pin a prompt task to a specific version for this study (repeatable). "
             "Example: --prompt propose_architecture=v2 --prompt generate_code=v1"
+        ),
+    )
+    sp.add_argument(
+        "--launch-id", metavar="LAUNCH_ID", default=None,
+        help=(
+            "internal: when the UI spawns `lab run`, it passes a launch id "
+            "so the orchestrator can write its study id back into the launch "
+            "record — letting the UI link the running process to its study."
         ),
     )
     sp.set_defaults(fn=_cmd_run)

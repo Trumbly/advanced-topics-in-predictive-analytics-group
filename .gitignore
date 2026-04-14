@@ -18,3 +18,6 @@ data/processed/
 
 # Reports / bundles
 reports/bundles/
+
+# UI-spawned launches: records + logs live here. Local-only.
+experiments/launches/

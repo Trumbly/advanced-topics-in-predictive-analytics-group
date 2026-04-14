@@ -6,9 +6,9 @@
   <h1>New study</h1>
 </section>
 
-<form class="card" id="new-study-form" onsubmit="return false;">
+<form class="card" id="new-study-form" method="post" action="/run">
   <label for="task">Task</label>
-  <select id="task" name="task">
+  <select id="task" name="task" required>
     {% for t in tasks %}
       <option value="{{ t.name }}" {% if t.name == default_task %}selected{% endif %}>
         {{ t.name }} — {{ t.kind }}
@@ -40,42 +40,53 @@
   </p>
 
   <label class="inline-check" style="margin-top: 14px;">
-    <input type="checkbox" id="opt-report" checked>
+    <input type="checkbox" id="opt-report" name="report" value="true" checked>
     Render report when study finishes (adds <code>--report</code>)
   </label>
+
+  <section class="subcard">
+    <h3>Prompt versions</h3>
+    <p class="muted small">
+      Pick a specific version per prompt task for A/B testing, or leave on
+      <em>active</em> to use whatever version is currently marked active in
+      <code>config/prompts/_registry.yaml</code>. Results are attributed to the
+      chosen version in the prompt score aggregation.
+    </p>
+    <div class="prompt-grid">
+      {% for pt in prompt_tasks %}
+        <div class="field">
+          <label for="prompt-{{ pt.name }}">
+            {{ pt.name }} <span class="muted small">(active: {{ pt.active }})</span>
+          </label>
+          <select id="prompt-{{ pt.name }}" name="prompt_{{ pt.name }}"
+                  class="prompt-select" data-task="{{ pt.name }}">
+            <option value="">active ({{ pt.active }})</option>
+            {% for v in pt.versions %}
+              <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <div class="actions" style="margin-top: 18px;">
+    <button class="btn btn-primary" type="submit">▶ Start study</button>
+    <a href="/" class="btn">Cancel</a>
+  </div>
+  <p class="muted small">
+    Starts <code>python -m lab run …</code> as a detached subprocess on this
+    machine, using the current <code>config.yaml</code> (LLM provider, model,
+    compute budget). You'll be redirected to the study page as soon as the
+    agent has created it. Stop anytime with the <em>Stop</em> button.
+  </p>
 </form>
 
 <section class="card">
-  <h2>Prompt versions</h2>
+  <h2>CLI equivalent</h2>
   <p class="muted small">
-    Pick a specific version per prompt task for A/B testing, or leave on
-    <em>active</em> to use whatever version is currently marked active in
-    <code>config/prompts/_registry.yaml</code>. Results are attributed to the
-    chosen version in the prompt score aggregation.
-  </p>
-  <div class="prompt-grid">
-    {% for pt in prompt_tasks %}
-      <div class="field">
-        <label for="prompt-{{ pt.name }}">
-          {{ pt.name }} <span class="muted small">(active: {{ pt.active }})</span>
-        </label>
-        <select id="prompt-{{ pt.name }}" class="prompt-select" data-task="{{ pt.name }}">
-          <option value="">active ({{ pt.active }})</option>
-          {% for v in pt.versions %}
-            <option value="{{ v }}">{{ v }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    {% endfor %}
-  </div>
-</section>
-
-<section class="card">
-  <h2>CLI command</h2>
-  <p class="muted small">
-    The web UI starts the agent in a separate process. This command updates
-    as you edit the form above — click <strong>Copy</strong> and paste it in
-    your terminal.
+    If you'd rather run it yourself — e.g. on a remote box or inside a screen
+    session — copy the command below. It updates live as you edit the form.
   </p>
   <div class="cli-preview">
     <pre id="cli-command">python -m lab run</pre>
@@ -119,9 +130,6 @@
     if (tags) parts.push("--tags", quote(tags));
     if (predecessor) parts.push("--resume", predecessor);
     if (report) parts.push("--report");
-
-    // Prompt overrides — only emit a --prompt flag when the user chose a
-    // specific version (empty value = use active).
     $promptSelects.forEach(sel => {
       const v = sel.value.trim();
       if (v) {

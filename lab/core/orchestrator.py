@@ -80,6 +80,7 @@ class Orchestrator:
         hooks: OrchestratorHooks | None = None,
         predecessor: Study | None = None,
         prompt_overrides: dict[str, str] | None = None,
+        launch_id: str | None = None,
     ):
         self.settings = settings
         self.adapter = adapter
@@ -99,6 +100,9 @@ class Orchestrator:
         # Per-study prompt version overrides: {"propose_architecture": "v2", ...}
         # Empty/missing entries fall back to the registry's active version.
         self.prompt_overrides: dict[str, str] = dict(prompt_overrides or {})
+        # When spawned from the UI, launch_id is set so we can report our
+        # study_id back to the launch record for UI attribution.
+        self.launch_id = launch_id
 
         self.registry = PromptRegistry(settings.abspath(settings.paths.prompts_dir))
         self.engine = PromptEngine(self.registry)
@@ -151,6 +155,15 @@ class Orchestrator:
         study.started_at = _now()
         experiments_dir = self.settings.abspath(self.settings.paths.experiments)
         study.save(experiments_dir)
+
+        # Let the UI link a running launch to the study it ended up creating.
+        if self.launch_id:
+            try:
+                from lab.ui import launches  # local import to avoid cycles
+                launches.set_study_id(self.launch_id, study.id, self.settings.repo_root)
+            except Exception:  # noqa: BLE001
+                logger.exception("Failed to write launch breadcrumb for %s", self.launch_id)
+
         self._fire(self.hooks.on_study_start, study)
 
         # SIGINT → graceful abort

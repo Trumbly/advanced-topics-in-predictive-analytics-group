@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from lab.prompts.registry import PromptRegistry
 from lab.tasks.registry import list_available_tasks
-from lab.ui import loaders
+from lab.ui import launches, loaders
 
 
 router = APIRouter()
@@ -128,6 +128,7 @@ async def index(
                 "q": q, "task": task, "status": status, "tag": tag,
                 "min_score": min_score, "max_score": max_score, "sort": sort,
             },
+            "active_launches": launches.active_launches(settings.repo_root),
         },
     )
 
@@ -139,8 +140,10 @@ async def study_detail(study_id: str, request: Request):
     study = loaders.load_study(experiments_dir, study_id)
     if not study:
         raise HTTPException(404, f"No study {study_id}")
+    running_launch = launches.launch_for_study(study_id, settings.repo_root)
     return request.app.state.templates.TemplateResponse(
-        request, "study.html", {"study": study},
+        request, "study.html",
+        {"study": study, "running_launch": running_launch},
     )
 
 

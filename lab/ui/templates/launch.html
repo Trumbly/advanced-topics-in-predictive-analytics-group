@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ launch.id }} — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <div>
+    <nav class="crumbs"><a href="/">Studies</a> / launch / <code>{{ launch.id }}</code></nav>
+    <h1>Starting study…</h1>
+  </div>
+  <div class="right row-actions">
+    {% if launch.status == "running" %}
+    <form method="post" action="/launches/{{ launch.id }}/stop" class="inline"
+          onsubmit="return confirm('Stop this study? The agent finishes the current experiment before exiting.');">
+      <button class="btn btn-danger" type="submit">Stop</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<div class="grid-3">
+  <div class="card">
+    <h4>Task</h4>
+    <p class="big">{{ launch.task }}</p>
+  </div>
+  <div class="card">
+    <h4>Status</h4>
+    <p class="big"><span class="status status-{{ launch.status }}">{{ launch.status }}</span></p>
+    <p class="muted">PID {{ launch.pid }}</p>
+  </div>
+  <div class="card">
+    <h4>Started</h4>
+    <p class="big">{{ launch.started_at[:19] }}</p>
+  </div>
+</div>
+
+<section class="card">
+  <h2>Waiting for study…</h2>
+  <p class="muted">
+    The agent is bootstrapping. Once it has created the study directory, this page
+    will redirect automatically. Meanwhile, watch the agent log below.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Agent log</h2>
+  <pre id="launch-log" class="scroll code">(connecting…)</pre>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Tail the launch log via SSE.
+  const log = document.getElementById("launch-log");
+  if (log) {
+    log.textContent = "";
+    const es = new EventSource("/live/launches/{{ launch.id }}");
+    es.onmessage = (ev) => {
+      log.textContent += ev.data + "\n";
+      log.scrollTop = log.scrollHeight;
+    };
+    es.onerror = () => { es.close(); };
+  }
+  // Poll for a study_id every 2s; once set the server issues a 303 to /studies/<id>.
+  setInterval(async () => {
+    try {
+      const r = await fetch(window.location.pathname, {redirect: "manual"});
+      if (r.type === "opaqueredirect" || r.status === 303) {
+        window.location.href = window.location.pathname;
+      }
+    } catch (_) { /* ignore */ }
+  }, 2000);
+})();
+</script>
+{% endblock %}

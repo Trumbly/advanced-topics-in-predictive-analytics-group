@@ -8,6 +8,38 @@
   </div>
 </section>
 
+{% if active_launches %}
+<section class="card running-card">
+  <h2>Running <span class="muted small">({{ active_launches|length }})</span></h2>
+  <table>
+    <thead><tr><th>Launch</th><th>Task</th><th>Started</th><th>PID</th><th>Study</th><th></th></tr></thead>
+    <tbody>
+    {% for l in active_launches %}
+      <tr>
+        <td><a href="/launches/{{ l.id }}"><code>{{ l.id }}</code></a></td>
+        <td><span class="pill">{{ l.task }}</span></td>
+        <td class="muted">{{ l.started_at[:19] }}</td>
+        <td class="num">{{ l.pid }}</td>
+        <td>
+          {% if l.study_id %}
+            <a href="/studies/{{ l.study_id }}"><code>{{ l.study_id }}</code></a>
+          {% else %}
+            <span class="muted">bootstrapping…</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/launches/{{ l.id }}/stop" class="inline"
+                onsubmit="return confirm('Stop this study? The agent finishes the current experiment before exiting.');">
+            <button class="btn small btn-danger">Stop</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
 <form class="card filter-bar" method="get" action="/">
   <div class="filter-row">
     <div class="field field-wide">

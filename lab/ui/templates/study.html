@@ -8,6 +8,12 @@
     <h1>{{ study.name }}</h1>
   </div>
   <div class="right row-actions">
+    {% if running_launch %}
+      <form method="post" action="/launches/{{ running_launch.id }}/stop" class="inline"
+            onsubmit="return confirm('Stop this study? The agent finishes the current experiment before exiting.');">
+        <button class="btn btn-danger" type="submit">⏹ Stop</button>
+      </form>
+    {% endif %}
     <a href="/studies/{{ study.id }}/report" class="btn">Report</a>
     <form method="post" action="/studies/{{ study.id }}/delete" class="inline"
           onsubmit="return confirm('Delete study {{ study.name or study.id }}? This removes the study directory on disk.');">

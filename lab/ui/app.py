@@ -33,7 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     from lab.ui.routes import (
         studies, experiments, prompts, tasks, reports, api,
-        live as live_route, config_editor,
+        live as live_route, config_editor, run,
     )
     app.include_router(studies.router)
     app.include_router(experiments.router)
@@ -43,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(api.router)
     app.include_router(live_route.router)
     app.include_router(config_editor.router)
+    app.include_router(run.router)
 
     return app
 

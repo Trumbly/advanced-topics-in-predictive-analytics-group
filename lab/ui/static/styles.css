@@ -269,6 +269,23 @@ th.num .sortable { justify-content: flex-end; }
 :root[data-theme="light"] .theme-toggle .icon-sun  { display: none; }
 :root[data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
+/* Inline subcard (nested card inside a form, e.g. prompt-version picker) */
+.subcard {
+  margin-top: 20px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-soft) 50%, transparent);
+}
+.subcard h3 { margin-top: 0; }
+
+/* Running launches panel */
+.running-card {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+              var(--shadow-card);
+}
+
 /* Prompt selection grid on new-study form */
 .prompt-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

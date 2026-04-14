@@ -25,3 +25,20 @@ async def live_stdout(exp_id: str, request: Request):
             yield format_sse(line)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+@router.get("/live/launches/{launch_id}")
+async def live_launch(launch_id: str, request: Request):
+    """SSE stream for an agent subprocess log (combined stdout + stderr)."""
+    settings = request.app.state.settings
+    if not settings.ui.enable_live_sse:
+        return {"error": "disabled"}, 404
+    log_path = settings.abspath(f"experiments/launches/{launch_id}.log")
+
+    async def gen():
+        async for line in tail_file(log_path):
+            if await request.is_disconnected():
+                break
+            yield format_sse(line)
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
