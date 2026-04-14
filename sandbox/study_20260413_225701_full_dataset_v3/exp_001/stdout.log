@@ -50,3 +50,5 @@ epoch 4/7 starting (1457 batches)...
   epoch 4 [ 29.9%] batch 435/1457 loss=0.0984
   epoch 4 [ 39.8%] batch 580/1457 loss=0.1201
   epoch 4 [ 49.8%] batch 725/1457 loss=0.0904
+  epoch 4 [ 59.7%] batch 870/1457 loss=0.1354
+  epoch 4 [ 69.7%] batch 1015/1457 loss=0.1217

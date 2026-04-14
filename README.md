@@ -65,6 +65,9 @@ An AI-powered autonomous research agent that designs, trains, evaluates, and ite
 ├── data/
 │   ├── raw/                    # Kaggle download (gitignored)
 │   └── processed/              # .npy spectrograms + dataset_profile.json (gitignored)
+├── submission_for_kaggle/  # Ready-to-upload Kaggle notebook + export script
+│   ├── README.md              # Step-by-step Kaggle submission guide
+│   └── export_best.sh        # One-command: export best model → notebook
 ├── sandbox/                # Subprocess workdir for generated code (gitignored)
 ├── models/                 # Saved model checkpoints (gitignored)
 ├── notebooks/
