@@ -223,6 +223,20 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 details[open] summary { margin-bottom: 8px; }
 
+/* Sortable column headers */
+th .sortable {
+  color: var(--ink-dim);
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: inherit; text-transform: inherit; letter-spacing: inherit;
+}
+th .sortable:hover { color: var(--ink); text-decoration: none; }
+th .sortable.sort-active { color: var(--accent); }
+.sort-arrow { font-size: 10px; opacity: 0.7; }
+.sort-arrow-hint { opacity: 0.25; }
+th .sortable:hover .sort-arrow-hint { opacity: 0.6; }
+th.num .sortable { justify-content: flex-end; }
+
 /* Filter bar on studies list */
 .filter-bar { padding: 14px 16px; }
 .filter-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }

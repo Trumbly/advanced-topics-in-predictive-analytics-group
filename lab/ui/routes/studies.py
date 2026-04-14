@@ -50,19 +50,33 @@ def _filter_studies(
                 continue
         out.append(s)
 
-    # Sorting
-    if sort == "score_desc":
-        out.sort(key=lambda s: (s.best_score if s.best_score is not None else float("-inf")), reverse=True)
-    elif sort == "score_asc":
-        out.sort(key=lambda s: (s.best_score if s.best_score is not None else float("inf")))
-    elif sort == "name":
-        out.sort(key=lambda s: s.name.lower())
-    elif sort == "experiments_desc":
-        out.sort(key=lambda s: s.experiments_count, reverse=True)
-    elif sort == "created_asc":
-        out.sort(key=lambda s: s.created_at or "")
-    else:  # created_desc (default)
-        out.sort(key=lambda s: s.created_at or "", reverse=True)
+    # Sorting. Keys are "<column>_<direction>" so the template can toggle
+    # direction by appending/flipping the suffix on header clicks.
+    NONE_LOW = float("-inf")
+    NONE_HIGH = float("inf")
+    sort_key_map = {
+        "score": lambda s: s.best_score,
+        "roc":   lambda s: s.best_roc_auc,
+        "f1":    lambda s: s.best_f1,
+        "experiments": lambda s: s.experiments_count,
+        "name":  lambda s: s.name.lower(),
+        "task":  lambda s: s.task_name,
+        "status": lambda s: s.status,
+        "created": lambda s: s.created_at or "",
+    }
+    col, _, direction = sort.rpartition("_")
+    if not col or direction not in {"asc", "desc"}:
+        col, direction = "created", "desc"
+    getter = sort_key_map.get(col, sort_key_map["created"])
+    reverse = direction == "desc"
+
+    def _key(s):
+        v = getter(s)
+        if v is None:
+            return NONE_LOW if reverse else NONE_HIGH
+        return v
+
+    out.sort(key=_key, reverse=reverse)
     return out
 
 

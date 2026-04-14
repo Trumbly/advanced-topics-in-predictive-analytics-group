@@ -53,22 +53,7 @@
       <input id="max_score" name="max_score" type="number" step="0.0001"
              value="{{ filters.max_score }}" placeholder="e.g. 1.0">
     </div>
-    <div class="field">
-      <label for="sort">Sort</label>
-      <select id="sort" name="sort">
-        {% set opts = [
-          ('created_desc', 'newest first'),
-          ('created_asc',  'oldest first'),
-          ('score_desc',   'best score first'),
-          ('score_asc',    'worst score first'),
-          ('experiments_desc', 'most experiments'),
-          ('name',         'name A→Z'),
-        ] %}
-        {% for value, label in opts %}
-          <option value="{{ value }}" {% if value == filters.sort %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    <input type="hidden" name="sort" value="{{ filters.sort }}">
     <div class="field filter-actions">
       <label>&nbsp;</label>
       <div class="row-actions">
@@ -90,15 +75,35 @@
     {% endif %}
   </div>
 {% else %}
+  {# --- Build reusable URLs for column-header sort toggles. --- #}
+  {% macro sort_link(col, label, numeric=False) %}
+    {% set active_col, _, active_dir = filters.sort.rpartition('_') %}
+    {% set is_active = (active_col == col) %}
+    {% set next_dir = ('asc' if is_active and active_dir == 'desc' else 'desc') %}
+    {% set qp = [] %}
+    {% if filters.q %}{% set _ = qp.append('q=' ~ filters.q) %}{% endif %}
+    {% if filters.task %}{% set _ = qp.append('task=' ~ filters.task) %}{% endif %}
+    {% if filters.status %}{% set _ = qp.append('status=' ~ filters.status) %}{% endif %}
+    {% if filters.tag %}{% set _ = qp.append('tag=' ~ filters.tag) %}{% endif %}
+    {% if filters.min_score %}{% set _ = qp.append('min_score=' ~ filters.min_score) %}{% endif %}
+    {% if filters.max_score %}{% set _ = qp.append('max_score=' ~ filters.max_score) %}{% endif %}
+    {% set _ = qp.append('sort=' ~ col ~ '_' ~ next_dir) %}
+    <a class="sortable {% if is_active %}sort-active{% endif %}" href="/?{{ qp|join('&') }}">
+      {{ label }}{% if is_active %} <span class="sort-arrow">{% if active_dir == 'desc' %}▼{% else %}▲{% endif %}</span>{% else %}<span class="sort-arrow sort-arrow-hint">↕</span>{% endif %}
+    </a>
+  {% endmacro %}
+
   <table class="studies">
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Task</th>
-        <th>Status</th>
-        <th>Experiments</th>
-        <th>Best</th>
-        <th>Created</th>
+        <th>{{ sort_link('name', 'Name') }}</th>
+        <th>{{ sort_link('task', 'Task') }}</th>
+        <th>{{ sort_link('status', 'Status') }}</th>
+        <th class="num">{{ sort_link('experiments', '#', numeric=True) }}</th>
+        <th class="num">{{ sort_link('score', 'Primary', numeric=True) }}</th>
+        <th class="num">{{ sort_link('roc', 'ROC-AUC', numeric=True) }}</th>
+        <th class="num">{{ sort_link('f1', 'F1', numeric=True) }}</th>
+        <th>{{ sort_link('created', 'Created') }}</th>
         <th>Tags</th>
         <th>Pub.</th>
         <th></th>
@@ -111,7 +116,11 @@
         <td><span class="pill">{{ s.task_name }}</span></td>
         <td><span class="status status-{{ s.status }}">{{ s.status }}</span></td>
         <td class="num">{{ s.experiments_count }}</td>
-        <td class="num">{% if s.best_score is not none %}{{ "%.4f"|format(s.best_score) }}{% else %}—{% endif %}</td>
+        <td class="num" title="Primary metric: {{ s.primary_metric or '—' }}">
+          {% if s.best_score is not none %}{{ "%.4f"|format(s.best_score) }}{% else %}—{% endif %}
+        </td>
+        <td class="num">{% if s.best_roc_auc is not none %}{{ "%.4f"|format(s.best_roc_auc) }}{% else %}—{% endif %}</td>
+        <td class="num">{% if s.best_f1 is not none %}{{ "%.4f"|format(s.best_f1) }}{% else %}—{% endif %}</td>
         <td class="muted">{{ s.created_at[:19] if s.created_at else "" }}</td>
         <td>{% for t in s.tags %}<span class="tag">{{ t }}</span>{% endfor %}</td>
         <td>{% if s.publish %}<span class="pill pill-ok">published</span>{% else %}—{% endif %}</td>
