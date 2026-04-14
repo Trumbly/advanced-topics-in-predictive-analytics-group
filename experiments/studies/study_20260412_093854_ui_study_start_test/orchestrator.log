@@ -1,0 +1,248 @@
+Starting study_20260412_093854_ui_study_start_test
+  pipeline: config/pipelines/default_pipeline.yaml
+  model:    gemma4:e4b
+  budget:   10 experiments, 240 min wallclock
+
+==================================================================
+Starting study: Ui study start test
+  id:       study_20260412_093854_ui_study_start_test
+  pipeline: config/pipelines/default_pipeline.yaml
+  model:    gemma4:e4b
+  device:   mps
+  training: batch_size=512, num_workers=8
+  budget:   10 experiments, 240 min wallclock
+  steps:    ['propose_architecture', 'generate_code', 'validate_code', 'execute_training', 'capture_metrics', 'analyze_results']
+==================================================================
+
+──── Experiment 1/10 ────
+  [exp_001] propose_architecture (llm) ...
+    ✓ propose_architecture (4.4s) | arch=[custom_cnn] cnn_small_v1 baseline
+  [exp_001] generate_code (llm) ...
+    ✓ generate_code (42.8s) | 7479 bytes of code
+  [exp_001] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_001] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.9s) | training took 1.9s
+  [exp_001] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_001] attempting error recovery 1/2...
+    ✓ recovery produced 7587 bytes of new code
+  [exp_001] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_001] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 119,246 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (19%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.5385
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 4.8/16 cores (30%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.5333
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 5.2/16 cores (33%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.5171
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 3.8/16 cores (24%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.5062
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.5123
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 6.3/16 cores (39%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.4997
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 3.6/16 cores (22%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.4905
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.4702
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 3.8/16 cores (24%)
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 6.4/16 cores (40%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.4736
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 3.8/16 cores (24%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.4622
+      │   epoch 1 [100.0%] batch 365/365 loss=0.4680
+      │ epoch 1: running validation...
+      │ ... still running (141s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (19%)
+      │ epoch 1/1 done: loss=0.5097 roc_auc_macro=0.7144
+      │ all done: final roc_auc_macro=0.7144
+    ✓ execute_training (162.1s) | training took 162.1s
+  [exp_001] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.5097, roc_auc_macro=0.7144
+  [exp_001] analyze_results (llm) ...
+    ✓ analyze_results (5.0s)
+  [exp_001] COMPLETED | roc_auc_macro=0.7144 (recovered after 1 fix attempts)
+  ⭐ new best: exp_001 @ roc_auc_macro=0.7144
+
+──── Experiment 2/10 ────
+  [exp_002] propose_architecture (llm) ...
+Task exp_002_task_01_propose_architecture crashed
+Traceback (most recent call last):
+  File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/agent/orchestrator.py", line 1065, in _parse_llm_response
+    _parse_model_config(parsed)
+  File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/agent/orchestrator.py", line 1189, in _parse_model_config
+    raise ValueError(
+ValueError: Missing or empty 'architecture' field in proposal: {'type': 'object', 'required': ['architecture', 'pretrained_model', 'hyperparams', 'augmentation'], 'properties': {'architecture': {'type': 'string', 'description': '[efficientnet_b0] EfficientNet-B0 backbone via TorchvisionAdapter, dropout 0.1'}, 'pretrained_model': {'type': 'string', 'description': 'efficientnet_b0'}, 'hyperparams': {'type': 'object', 'required': ['lr', 'batch_size', 'epochs', 'optimizer'], 'properties': {'lr': {'type': 'number', 'description': 0.0005}, 'batch_size': {'type': 'integer', 'description': 128}, 'epochs': {'type': 'integer', 'description': 1}, 'optimizer': {'type': 'string', 'description': 'adam'}, 'weight_decay': {'type': 'number', 'description': 0.0}, 'dropout': {'type': 'number', 'description': 0.1}}}, 'augmentation': {'type': 'object', 'properties': {'time_shift': {'type': 'boolean', 'description': False}, 'noise_injection': {'type': 'boolean', 'description': False}, 'mixup': {'type': 'number', 'description': 0.0}, 'specaugment': {'type': 'boolean', 'description': True}}}}}
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/agent/orchestrator.py", line 478, in _run_experiment
+    self._run_llm_task(task, step, experiment, previous_task_output)
+  File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/agent/orchestrator.py", line 900, in _run_llm_task
+    task.output = self._parse_llm_response(step.task_name, response)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/agent/orchestrator.py", line 1067, in _parse_llm_response
+    raise ValueError(
+ValueError: propose_architecture: LLM JSON failed schema validation: Missing or empty 'architecture' field in proposal: {'type': 'object', 'required': ['architecture', 'pretrained_model', 'hyperparams', 'augmentation'], 'properties': {'architecture': {'type': 'string', 'description': '[efficientnet_b0] EfficientNet-B0 backbone via TorchvisionAdapter, dropout 0.1'}, 'pretrained_model': {'type': 'string', 'description': 'efficientnet_b0'}, 'hyperparams': {'type': 'object', 'required': ['lr', 'batch_size', 'epochs', 'optimizer'], 'properties': {'lr': {'type': 'number', 'description': 0.0005}, 'batch_size': {'type': 'integer', 'description': 128}, 'epochs': {'type': 'integer', 'description': 1}, 'optimizer': {'type': 'string', 'description': 'adam'}, 'weight_decay': {'type': 'number', 'description': 0.0}, 'dropout': {'type': 'number', 'description': 0.1}}}, 'augmentation': {'type': 'object', 'properties': {'time_shift': {'type': 'boolean', 'description': False}, 'noise_injection': {'type': 'boolean', 'description': False}, 'mixup': {'type': 'number', 'description': 0.0}, 'specaugment': {'type': 'boolean', 'description': True}}}}}. Got: {'type': 'object', 'required': ['architecture', 'pretrained_model', 'hyperparams', 'augmentation'], 'properties': {'architecture': {'type': 'string', 'description': '[efficientnet_b0] EfficientNet-B0 backbone via TorchvisionAdapter, dropout 0.1'}, 'pretrained_model': {'type': 'string', 'description': 'efficientnet_b0'}, 'hyperparams': {'type': 'object', 'required': ['lr', 'batch_size', 'epochs', 'optimizer'], 'properties': {'lr': {'type': 'number', 'description': 0.0005}, 'batch_size': {'type': 'integer', 'description': 128}, 'epochs': {'type': 'integer', 'description': 1}, 'optimizer': {'type': 'string', 'description': 'adam'}, 'weight_decay': {'type': 'number', 'description': 0.0}, 'dropout': {'type': 'number', 'description': 0.1}}}, 'augmentation': {'type': 'object', 'properties': {'time_shift': {'type': 'boolean', 'description': False}, 'noise_injection': {'type': 'boolean', 'description': False}, 'mixup': {'type': 'number', 'description': 0.0}, 'specaugment': {'type': 'boolean', 'description': True}}}}}
+    ✗ propose_architecture (19.5s) | ValueError: propose_architecture: LLM JSON failed schema validation: Missing or empty 'architecture' field in proposal: {'type': 'ob
+  [exp_002] FAILED after propose_architecture (recoveries used: 0)
+
+──── Experiment 3/10 ────
+  [exp_003] propose_architecture (llm) ...
+    ✓ propose_architecture (13.4s) | arch=[mobilenet_v3_small] MobileNetV3Small via TorchvisionAdapter, standard classification head
+  [exp_003] generate_code (llm) ...
+    ✓ generate_code (47.8s) | 8114 bytes of code
+  [exp_003] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_003] execute_training (predefined) ...
+      │ Warning: Could not import 'mobilenet_v3_small' from pipelines.models. Using a placeholder structure.
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_003] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_003] attempting error recovery 1/2...
+    ✓ recovery produced 8450 bytes of new code
+  [exp_003] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_003] execute_training (predefined) ...
+      │ Warning: Could not import 'mobilenet_v3_small' from pipelines.models. Using a placeholder structure.
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Expected more than 1 value per channel when training, got input size torch.Size([1, 32, 1, 1])
+    ✓ execute_training (1.7s) | training took 1.7s
+  [exp_003] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Expected more than 1 value per channel when training, got input size torch.Size([1, 32, 1, 1])
+  [exp_003] attempting error recovery 2/2...
+    ✓ recovery produced 5654 bytes of new code
+  [exp_003] validate_code (predefined) ...
+    ✗ validate_code (0.0s) | SyntaxError: Line 142: invalid syntax
+  [exp_003] FAILED after validate_code (recoveries used: 2)
+
+──── Experiment 4/10 ────
+  [exp_004] propose_architecture (llm) ...
+    ✓ propose_architecture (15.6s) | arch=[cnn_attention] EfficientNet-B0 backbone feeding into Self-Attention (Time-Domain) Encoder block
+  [exp_004] generate_code (llm) ...
+    ✓ generate_code (63.1s) | 7282 bytes of code
+  [exp_004] validate_code (predefined) ...
+    ✗ validate_code (0.0s) | SyntaxError: Line 177: unterminated string literal (detected at line 177)
+  [exp_004] attempting error recovery 1/2...
+    ✓ recovery produced 8276 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✗ validate_code (0.0s) | SyntaxError: Line 227: invalid syntax
+  [exp_004] attempting error recovery 2/2...
+    ✓ recovery produced 8281 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ Traceback (most recent call last):
+      │   File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_093854_ui_study_start_test/exp_004/code.py", line 10, in <module>
+      │     from pipelines.models import EfficientNetB0
+      │ ImportError: cannot import name 'EfficientNetB0' from 'pipelines.models' (/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/pipelines/models.py)
+    ✗ execute_training (1.3s) | ImportError: ImportError: cannot import name 'EfficientNetB0' from 'pipelines.models' (/Users/max/Documents/Master/Courses/Advanced P
+  [exp_004] FAILED after execute_training (recoveries used: 2)
+
+──── Experiment 5/10 ────
+  [exp_005] propose_architecture (llm) ...
+    ✓ propose_architecture (22.0s) | arch=[cnn_gru_hybrid] 3-conv CNN front-end (2-3 blocks) extracting spectral features, followed by a 1-layer GRU(256) processing the temporal sequence, and a final linear projection.
+  [exp_005] generate_code (llm) ...
+    ✓ generate_code (61.6s) | 7700 bytes of code
+  [exp_005] validate_code (predefined) ...
+    ✗ validate_code (0.0s) | SyntaxError: Line 184: expected 'except' or 'finally' block
+  [exp_005] attempting error recovery 1/2...
+    ✓ recovery produced 8474 bytes of new code
+  [exp_005] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_005] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ An error occurred during training: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+      │ Traceback (most recent call last):
+      │   File "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260412_093854_ui_study_start_test/exp_005/code.py", line 198, in <module>
+      │     results["final_auc"] = np.mean(curves["roc_auc_macro"]) if curves["roc_auc_macro"] else 0.0
+      │                                                                ^^^^^^
+      │ NameError: name 'curves' is not defined
+    ✗ execute_training (1.6s) | UnknownError: NameError: name 'curves' is not defined
+  [exp_005] attempting error recovery 2/2...
+    ✓ recovery produced 8189 bytes of new code
+  [exp_005] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_005] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ An error occurred during training: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+      │ Saving results...
+      │ Done.
+    ✓ execute_training (1.5s) | training took 1.5s
+  [exp_005] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens whe
+  [exp_005] FAILED after capture_metrics (recoveries used: 2)
+
+──── Experiment 6/10 ────
+  [exp_006] propose_architecture (llm) ...
+    ✓ propose_architecture (16.3s) | arch=[mobilenet_v3_small] MobileNetV3 backbone followed by a custom Squeeze-and-Excitation (SE) feature refinement block and Global Average Pooling
+  [exp_006] generate_code (llm) ...
+    ✓ generate_code (61.7s) | 10092 bytes of code
+  [exp_006] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_006] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ ERROR: Could not import 'mobilenet_v3_small' from pipelines.models. Please check environment setup.
+      │ training failed: ImportError: cannot import name 'mobilenet_v3_small' from 'pipelines.models' (/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/pipelines/models.py)
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_006] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ImportError: cannot import name 'mobilenet_v3_small' from 'pipelines.models' (/Users/max/Documents/Master/Courses/Advanc
+  [exp_006] attempting error recovery 1/2...
+    ✓ recovery produced 8113 bytes of new code
+  [exp_006] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_006] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (2.1s) | training took 2.1s
+  [exp_006] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_006] attempting error recovery 2/2...
+    ✓ recovery produced 8269 bytes of new code
+  [exp_006] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_006] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: Input type (MPSFloatType) and weight type (torch.FloatTensor) should be the same
+    ✓ execute_training (2.0s) | training took 2.0s
+  [exp_006] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: Input type (MPSFloatType) and weight type (torch.FloatTensor) should be the same
+  [exp_006] FAILED after capture_metrics (recoveries used: 2)
+
+──── Experiment 7/10 ────
+  [exp_007] propose_architecture (llm) ...
+    ✓ propose_architecture (19.4s) | arch=[cnn_attention] 3-conv CNN front-end (using residual blocks) extracting spectral features, followed by a Self-Attention mechanism operating over the feature maps, and concluding with Global Average Pooling and a linear head.
+  [exp_007] generate_code (llm) ...
+    ✓ generate_code (62.2s) | 9311 bytes of code
+  [exp_007] validate_code (predefined) ...
+    ✗ validate_code (0.0s) | SyntaxError: Line 243: '(' was never closed
+  [exp_007] attempting error recovery 1/2...

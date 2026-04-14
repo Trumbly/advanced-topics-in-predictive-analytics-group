@@ -1,0 +1,823 @@
+Starting study_20260412_105608_ui_study_start_test_with_dev_model_for_better_code
+  pipeline: config/pipelines/default_pipeline.yaml
+  model:    qwen3-coder:latest
+  budget:   6 experiments, 240 min wallclock
+
+==================================================================
+Starting study: Ui study start test with dev model for better code?
+  id:       study_20260412_105608_ui_study_start_test_with_dev_model_for_better_code
+  pipeline: config/pipelines/default_pipeline.yaml
+  model:    qwen3-coder:latest
+  device:   mps
+  training: batch_size=512, num_workers=8
+  budget:   6 experiments, 240 min wallclock
+  steps:    ['propose_architecture', 'generate_code', 'validate_code', 'execute_training', 'capture_metrics', 'analyze_results']
+==================================================================
+
+──── Experiment 1/6 ────
+  [exp_001] propose_architecture (llm) ...
+    ✓ propose_architecture (7.3s) | arch=[custom_cnn] cnn_small_v1 baseline
+  [exp_001] generate_code (llm) ...
+    ✓ generate_code (28.3s) | 6915 bytes of code
+  [exp_001] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_001] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_001] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_001] attempting error recovery 1/5...
+    ✓ recovery produced 7117 bytes of new code
+  [exp_001] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_001] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 313,902 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.5176
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 2.3/16 cores (14%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.4965
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 3.4/16 cores (22%)
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (17%)
+      │ ... still running (141s elapsed, timeout at 7200s) | CPU: 2.9/16 cores (18%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (162s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (172s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.4763
+      │ ... still running (182s elapsed, timeout at 7200s) | CPU: 3.3/16 cores (20%)
+      │ ... still running (192s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (12%)
+      │ ... still running (202s elapsed, timeout at 7200s) | CPU: 4.4/16 cores (27%)
+      │ ... still running (212s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (222s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.4831
+      │ ... still running (232s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (242s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (253s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (263s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (273s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (283s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.4618
+      │ ... still running (293s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (303s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (313s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (323s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (333s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (344s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.4601
+      │ ... still running (354s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (364s elapsed, timeout at 7200s) | CPU: 4.9/16 cores (31%)
+      │ ... still running (374s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (384s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (394s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (5%)
+      │ ... still running (404s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.4459
+      │ ... still running (414s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (424s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (435s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (445s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (455s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.4429
+      │ ... still running (465s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (475s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (485s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (495s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (505s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.4239
+      │ ... still running (515s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (526s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (536s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (546s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (556s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.4416
+      │ ... still running (566s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │   epoch 1 [100.0%] batch 365/365 loss=0.4162
+      │ epoch 1: running validation...
+      │ ... still running (576s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (586s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (596s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ epoch 1/1 done: loss=0.4795 roc_auc_macro=0.7957
+      │ all done: final roc_auc_macro=0.7957
+    ✓ execute_training (607.9s) | training took 607.9s
+  [exp_001] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.4795, roc_auc_macro=0.7957
+  [exp_001] analyze_results (llm) ...
+    ✓ analyze_results (5.8s)
+  [exp_001] COMPLETED | roc_auc_macro=0.7957 (recovered after 1 fix attempts)
+  ⭐ new best: exp_001 @ roc_auc_macro=0.7957
+
+──── Experiment 2/6 ────
+  [exp_002] propose_architecture (llm) ...
+    ✓ propose_architecture (4.0s) | arch=[cnn_attention] 4-conv CNN with self-attention and SE blocks, followed by adaptive pooling and sigmoid output
+  [exp_002] generate_code (llm) ...
+    ✓ generate_code (35.4s) | 8347 bytes of code
+  [exp_002] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_002] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_002] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_002] attempting error recovery 1/5...
+    ✓ recovery produced 8570 bytes of new code
+  [exp_002] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_002] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 1,248,812 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 5.0/16 cores (31%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.5042
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.4724
+      │ ... still running (141s elapsed, timeout at 7200s) | CPU: 3.1/16 cores (19%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (162s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (172s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (182s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (192s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.4359
+      │ ... still running (202s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (212s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (222s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (232s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (243s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (253s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │ ... still running (263s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (5%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.4070
+      │ ... still running (273s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (283s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (293s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (303s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (313s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (323s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.3781
+      │ ... still running (334s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (344s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │ ... still running (354s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (364s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (374s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (384s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.3482
+      │ ... still running (394s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │ ... still running (404s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (414s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (424s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (435s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (445s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.3345
+      │ ... still running (455s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (465s elapsed, timeout at 7200s) | CPU: 4.2/16 cores (26%)
+      │ ... still running (475s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (485s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (495s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (505s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.3222
+      │ ... still running (515s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (526s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (536s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (546s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (556s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (566s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.3280
+      │ ... still running (576s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (586s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (596s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (606s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (617s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (627s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.3082
+      │ ... still running (637s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │   epoch 1 [100.0%] batch 365/365 loss=0.3137
+      │ epoch 1: running validation...
+      │ ... still running (647s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (657s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (667s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (677s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ epoch 1/1 done: loss=0.4039 roc_auc_macro=0.9066
+      │ all done: final roc_auc_macro=0.9066
+    ✓ execute_training (685.7s) | training took 685.7s
+  [exp_002] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.4039, roc_auc_macro=0.9066
+  [exp_002] analyze_results (llm) ...
+    ✓ analyze_results (5.5s)
+  [exp_002] COMPLETED | roc_auc_macro=0.9066 (recovered after 1 fix attempts)
+  ⭐ new best: exp_002 @ roc_auc_macro=0.9066 (+0.1109)
+
+──── Experiment 3/6 ────
+  [exp_003] propose_architecture (llm) ...
+    ✓ propose_architecture (4.1s) | arch=[deep_cnn] 5-conv deep CNN with residual connections, BatchNorm, and SE attention blocks, followed by adaptive pooling and sigmoid output
+  [exp_003] generate_code (llm) ...
+    ✓ generate_code (33.2s) | 7834 bytes of code
+  [exp_003] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_003] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_003] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_003] attempting error recovery 1/5...
+    ✓ recovery produced 7990 bytes of new code
+  [exp_003] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_003] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 9,725,134 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 4.5/16 cores (28%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.4872
+      │ ... still running (141s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (162s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (172s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (182s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (192s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (202s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (212s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (222s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (233s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (3%)
+      │ ... still running (243s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (253s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (263s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.4348
+      │ ... still running (273s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (283s elapsed, timeout at 7200s) | CPU: 2.3/16 cores (14%)
+      │ ... still running (293s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (303s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (313s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (324s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (334s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (344s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (354s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (364s elapsed, timeout at 7200s) | CPU: 3.4/16 cores (21%)
+      │ ... still running (374s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (384s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (394s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.3866
+      │ ... still running (404s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (415s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (425s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (435s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (445s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (455s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (465s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (475s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (485s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (496s elapsed, timeout at 7200s) | CPU: 3.6/16 cores (23%)
+      │ ... still running (506s elapsed, timeout at 7200s) | CPU: 3.4/16 cores (21%)
+      │ ... still running (516s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (526s elapsed, timeout at 7200s) | CPU: 5.0/16 cores (31%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.3476
+      │ ... still running (536s elapsed, timeout at 7200s) | CPU: 4.0/16 cores (25%)
+      │ ... still running (546s elapsed, timeout at 7200s) | CPU: 3.1/16 cores (20%)
+      │ ... still running (556s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (566s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │ ... still running (576s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (587s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (597s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (607s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (617s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (627s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (13%)
+      │ ... still running (637s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (13%)
+      │ ... still running (647s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.3271
+      │ ... still running (657s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (668s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (678s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (688s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (698s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (708s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (718s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (728s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (738s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (748s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (759s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (769s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │ ... still running (779s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.2836
+      │ ... still running (789s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (799s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │ ... still running (809s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (819s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (829s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (840s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (850s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (860s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (870s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (880s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (19%)
+      │ ... still running (890s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (900s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.2786
+      │ ... still running (910s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (920s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (931s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (941s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (951s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (961s elapsed, timeout at 7200s) | CPU: 4.4/16 cores (27%)
+      │ ... still running (971s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (981s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (991s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (1001s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (1012s elapsed, timeout at 7200s) | CPU: 3.1/16 cores (20%)
+      │ ... still running (1022s elapsed, timeout at 7200s) | CPU: 3.6/16 cores (22%)
+      │ ... still running (1032s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.2639
+      │ ... still running (1042s elapsed, timeout at 7200s) | CPU: 3.5/16 cores (22%)
+      │ ... still running (1052s elapsed, timeout at 7200s) | CPU: 4.2/16 cores (26%)
+      │ ... still running (1062s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (1072s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (1082s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (1092s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (1103s elapsed, timeout at 7200s) | CPU: 2.9/16 cores (18%)
+      │ ... still running (1113s elapsed, timeout at 7200s) | CPU: 4.2/16 cores (26%)
+      │ ... still running (1123s elapsed, timeout at 7200s) | CPU: 4.0/16 cores (25%)
+      │ ... still running (1133s elapsed, timeout at 7200s) | CPU: 4.3/16 cores (27%)
+      │ ... still running (1143s elapsed, timeout at 7200s) | CPU: 5.5/16 cores (34%)
+      │ ... still running (1153s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │ ... still running (1163s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (1173s elapsed, timeout at 7200s) | CPU: 6.9/16 cores (43%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.2633
+      │ ... still running (1183s elapsed, timeout at 7200s) | CPU: 3.5/16 cores (22%)
+      │ ... still running (1194s elapsed, timeout at 7200s) | CPU: 4.9/16 cores (31%)
+      │ ... still running (1204s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (25%)
+      │ ... still running (1214s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │ ... still running (1224s elapsed, timeout at 7200s) | CPU: 4.5/16 cores (28%)
+      │ ... still running (1234s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (1244s elapsed, timeout at 7200s) | CPU: 3.3/16 cores (21%)
+      │ ... still running (1254s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (1264s elapsed, timeout at 7200s) | CPU: 3.5/16 cores (22%)
+      │ ... still running (1275s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (1285s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (1295s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (1305s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (1315s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.2585
+      │ ... still running (1325s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (1335s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │   epoch 1 [100.0%] batch 365/365 loss=0.2576
+      │ epoch 1: running validation...
+      │ ... still running (1345s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (1355s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (1365s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │ ... still running (1376s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │ ... still running (1386s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (1396s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (1406s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (1416s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (1426s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (1436s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ epoch 1/1 done: loss=0.3476 roc_auc_macro=0.9385
+      │ all done: final roc_auc_macro=0.9385
+    ✓ execute_training (1440.2s) | training took 1440.2s
+  [exp_003] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.3476, roc_auc_macro=0.9385
+  [exp_003] analyze_results (llm) ...
+    ✓ analyze_results (7.0s)
+  [exp_003] COMPLETED | roc_auc_macro=0.9385 (recovered after 1 fix attempts)
+  ⭐ new best: exp_003 @ roc_auc_macro=0.9385 (+0.0319)
+
+──── Experiment 4/6 ────
+  [exp_004] propose_architecture (llm) ...
+    ✓ propose_architecture (4.9s) | arch=[cnn_gru_hybrid] 3-conv CNN front-end feeding a 2-layer GRU(128) with dropout, followed by a linear head with sigmoid output
+  [exp_004] generate_code (llm) ...
+    ✓ generate_code (34.9s) | 8518 bytes of code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_004] attempting error recovery 1/5...
+    ✓ recovery produced 8440 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+    ✓ execute_training (1.7s) | training took 1.7s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+  [exp_004] attempting error recovery 2/5...
+    ✓ recovery produced 8440 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+  [exp_004] attempting error recovery 3/5...
+    ✓ recovery produced 8440 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+    ✓ execute_training (1.8s) | training took 1.8s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+  [exp_004] attempting error recovery 4/5...
+    ✓ recovery produced 8440 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+    ✓ execute_training (1.7s) | training took 1.7s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+  [exp_004] attempting error recovery 5/5...
+    ✓ recovery produced 8440 bytes of new code
+  [exp_004] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_004] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_004] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: RuntimeError: input.size(-1) must be equal to input_size. Expected 128, got 2048
+  [exp_004] FAILED after capture_metrics (codegen retries: 0, recoveries: 5)
+
+──── Experiment 5/6 ────
+  [exp_005] propose_architecture (llm) ...
+    ✓ propose_architecture (4.7s) | arch=[custom_cnn] 4-conv from-scratch with BatchNorm, SE attention, and adaptive pooling
+  [exp_005] generate_code (llm) ...
+    ✓ generate_code (32.7s) | 7036 bytes of code
+  [exp_005] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_005] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.7s) | training took 1.7s
+  [exp_005] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_005] attempting error recovery 1/5...
+    ✓ recovery produced 7156 bytes of new code
+  [exp_005] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_005] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 4,837,262 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (19%)
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (5%)
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (12%)
+      │ ... still running (141s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.4953
+      │ ... still running (162s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (172s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (182s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (192s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (202s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (212s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (222s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (13%)
+      │ ... still running (232s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (19%)
+      │ ... still running (243s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (253s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (263s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (273s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (12%)
+      │ ... still running (283s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (293s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.4579
+      │ ... still running (303s elapsed, timeout at 7200s) | CPU: 4.7/16 cores (29%)
+      │ ... still running (313s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (323s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (334s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (344s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (354s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (364s elapsed, timeout at 7200s) | CPU: 3.9/16 cores (24%)
+      │ ... still running (374s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (384s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (17%)
+      │ ... still running (394s elapsed, timeout at 7200s) | CPU: 4.2/16 cores (26%)
+      │ ... still running (404s elapsed, timeout at 7200s) | CPU: 3.5/16 cores (22%)
+      │ ... still running (414s elapsed, timeout at 7200s) | CPU: 4.5/16 cores (28%)
+      │ ... still running (425s elapsed, timeout at 7200s) | CPU: 3.3/16 cores (21%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.4128
+      │ ... still running (435s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (445s elapsed, timeout at 7200s) | CPU: 5.8/16 cores (36%)
+      │ ... still running (455s elapsed, timeout at 7200s) | CPU: 4.5/16 cores (28%)
+      │ ... still running (465s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (475s elapsed, timeout at 7200s) | CPU: 3.3/16 cores (21%)
+      │ ... still running (485s elapsed, timeout at 7200s) | CPU: 3.7/16 cores (23%)
+      │ ... still running (495s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (18%)
+      │ ... still running (505s elapsed, timeout at 7200s) | CPU: 3.6/16 cores (23%)
+      │ ... still running (516s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (526s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (536s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (546s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (556s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.3844
+      │ ... still running (566s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (576s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (3%)
+      │ ... still running (586s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (597s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (607s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (617s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (627s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (637s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (647s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (657s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (667s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (677s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (688s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.3534
+      │ ... still running (698s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (708s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (718s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (728s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (738s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (748s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (758s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (768s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (779s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (789s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (799s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (809s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (819s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.3264
+      │ ... still running (829s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (839s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (849s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (860s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (870s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (880s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (890s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (900s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (910s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (920s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (930s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (940s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.3185
+      │ ... still running (951s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (961s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (971s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (981s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (991s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (1001s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (1011s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (1021s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (1031s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (5%)
+      │ ... still running (1042s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (1052s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (1062s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1072s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.3106
+      │ ... still running (1082s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (1092s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (1102s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (1112s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (1123s elapsed, timeout at 7200s) | CPU: 2.3/16 cores (14%)
+      │ ... still running (1133s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (1143s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (1153s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (1163s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (1173s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1183s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (1193s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1203s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.2810
+      │ ... still running (1214s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (1224s elapsed, timeout at 7200s) | CPU: 4.3/16 cores (27%)
+      │ ... still running (1234s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │ ... still running (1244s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (1254s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (1264s elapsed, timeout at 7200s) | CPU: 2.3/16 cores (14%)
+      │ ... still running (1274s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (1284s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (12%)
+      │ ... still running (1295s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (1305s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (1315s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │ ... still running (1325s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.2726
+      │ ... still running (1335s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (1345s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [100.0%] batch 365/365 loss=0.2627
+      │ epoch 1: running validation...
+      │ ... still running (1355s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (8%)
+      │ ... still running (1365s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │ ... still running (1375s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (1386s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (1396s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1406s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1416s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ ... still running (1426s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (1436s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │ epoch 1/1 done: loss=0.3776 roc_auc_macro=0.9110
+      │ all done: final roc_auc_macro=0.9110
+    ✓ execute_training (1443.2s) | training took 1443.2s
+  [exp_005] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.3776, roc_auc_macro=0.9110
+  [exp_005] analyze_results (llm) ...
+    ✓ analyze_results (6.3s)
+  [exp_005] COMPLETED | roc_auc_macro=0.9110 (recovered after 1 fix attempts)
+
+──── Experiment 6/6 ────
+  [exp_006] propose_architecture (llm) ...
+    ✓ propose_architecture (4.8s) | arch=[cnn_attention] 4-conv CNN with self-attention and SE blocks, followed by adaptive pooling and sigmoid output
+  [exp_006] generate_code (llm) ...
+    ✓ generate_code (39.1s) | 9852 bytes of code
+  [exp_006] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_006] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ training failed: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error happens when you are using a `LazyModule` or explicitly manipulating `torch.nn.parameter.UninitializedParameter` objects. When using LazyModules Call `forward` with a dummy batch to initialize the parameters before calling torch functions
+    ✓ execute_training (1.6s) | training took 1.6s
+  [exp_006] capture_metrics (predefined) ...
+    ✗ capture_metrics (0.0s) | ScriptReportedError: ValueError: Attempted to use an uninitialized parameter in <method 'numel' of 'torch._C.TensorBase' objects>. This error
+  [exp_006] attempting error recovery 1/5...
+    ✓ recovery produced 9774 bytes of new code
+  [exp_006] validate_code (predefined) ...
+    ✓ validate_code (0.0s)
+  [exp_006] execute_training (predefined) ...
+      │ device: mps
+      │ loading data...
+      │ data loaded: 206 classes, 186478 train samples, 46623 val samples
+      │ model built: 1,237,906 parameters
+      │ epoch 1/1 starting (365 batches)...
+      │ ... still running (10s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (20s elapsed, timeout at 7200s) | CPU: 0.4/16 cores (2%)
+      │ ... still running (30s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (40s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (50s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (61s elapsed, timeout at 7200s) | CPU: 0.0/16 cores (0%)
+      │ ... still running (71s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [  9.9%] batch 36/365 loss=0.5039
+      │ ... still running (81s elapsed, timeout at 7200s) | CPU: 0.1/16 cores (1%)
+      │ ... still running (91s elapsed, timeout at 7200s) | CPU: 0.8/16 cores (5%)
+      │ ... still running (101s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (111s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (5%)
+      │ ... still running (121s elapsed, timeout at 7200s) | CPU: 0.3/16 cores (2%)
+      │   epoch 1 [ 19.7%] batch 72/365 loss=0.4786
+      │ ... still running (131s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (142s elapsed, timeout at 7200s) | CPU: 3.5/16 cores (22%)
+      │ ... still running (152s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (17%)
+      │ ... still running (162s elapsed, timeout at 7200s) | CPU: 3.3/16 cores (21%)
+      │ ... still running (172s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (182s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (192s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │   epoch 1 [ 29.6%] batch 108/365 loss=0.4503
+      │ ... still running (202s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (212s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (222s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (233s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (243s elapsed, timeout at 7200s) | CPU: 0.6/16 cores (4%)
+      │ ... still running (253s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (263s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │   epoch 1 [ 39.5%] batch 144/365 loss=0.4162
+      │ ... still running (273s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (283s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (293s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (303s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (7%)
+      │ ... still running (313s elapsed, timeout at 7200s) | CPU: 6.7/16 cores (42%)
+      │ ... still running (323s elapsed, timeout at 7200s) | CPU: 0.2/16 cores (1%)
+      │ ... still running (334s elapsed, timeout at 7200s) | CPU: 1.6/16 cores (10%)
+      │   epoch 1 [ 49.3%] batch 180/365 loss=0.3707
+      │ ... still running (344s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (354s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (364s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (374s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (384s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (394s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (404s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │   epoch 1 [ 59.2%] batch 216/365 loss=0.3647
+      │ ... still running (414s elapsed, timeout at 7200s) | CPU: 0.7/16 cores (4%)
+      │ ... still running (425s elapsed, timeout at 7200s) | CPU: 2.8/16 cores (18%)
+      │ ... still running (435s elapsed, timeout at 7200s) | CPU: 1.8/16 cores (11%)
+      │ ... still running (445s elapsed, timeout at 7200s) | CPU: 2.0/16 cores (13%)
+      │ ... still running (455s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ ... still running (465s elapsed, timeout at 7200s) | CPU: 1.0/16 cores (6%)
+      │ ... still running (475s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │   epoch 1 [ 69.0%] batch 252/365 loss=0.3329
+      │ ... still running (485s elapsed, timeout at 7200s) | CPU: 0.9/16 cores (6%)
+      │ ... still running (495s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │ ... still running (505s elapsed, timeout at 7200s) | CPU: 1.3/16 cores (8%)
+      │ ... still running (516s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (526s elapsed, timeout at 7200s) | CPU: 1.1/16 cores (7%)
+      │ ... still running (536s elapsed, timeout at 7200s) | CPU: 1.2/16 cores (8%)
+      │ ... still running (546s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │   epoch 1 [ 78.9%] batch 288/365 loss=0.3274
+      │ ... still running (556s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (9%)
+      │ ... still running (566s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (576s elapsed, timeout at 7200s) | CPU: 1.4/16 cores (9%)
+      │ ... still running (586s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (596s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (606s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (15%)
+      │ ... still running (617s elapsed, timeout at 7200s) | CPU: 0.5/16 cores (3%)
+      │   epoch 1 [ 88.8%] batch 324/365 loss=0.3134
+      │ ... still running (627s elapsed, timeout at 7200s) | CPU: 3.0/16 cores (18%)
+      │ ... still running (637s elapsed, timeout at 7200s) | CPU: 2.6/16 cores (16%)
+      │ ... still running (647s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (10%)
+      │ ... still running (657s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │ ... still running (667s elapsed, timeout at 7200s) | CPU: 1.7/16 cores (11%)
+      │ ... still running (677s elapsed, timeout at 7200s) | CPU: 2.1/16 cores (13%)
+      │ ... still running (687s elapsed, timeout at 7200s) | CPU: 1.5/16 cores (10%)
+      │   epoch 1 [ 98.6%] batch 360/365 loss=0.3032
+      │ ... still running (697s elapsed, timeout at 7200s) | CPU: 2.2/16 cores (14%)
+      │   epoch 1 [100.0%] batch 365/365 loss=0.2871
+      │ epoch 1: running validation...
+      │ ... still running (708s elapsed, timeout at 7200s) | CPU: 1.9/16 cores (12%)
+      │ ... still running (718s elapsed, timeout at 7200s) | CPU: 2.5/16 cores (16%)
+      │ ... still running (728s elapsed, timeout at 7200s) | CPU: 2.4/16 cores (15%)
+      │ ... still running (738s elapsed, timeout at 7200s) | CPU: 3.2/16 cores (20%)
+      │ ... still running (748s elapsed, timeout at 7200s) | CPU: 2.7/16 cores (17%)
+      │ epoch 1/1 done: loss=0.4081 roc_auc_macro=0.9073
+      │ all done: final roc_auc_macro=0.9073
+    ✓ execute_training (752.3s) | training took 752.3s
+  [exp_006] capture_metrics (predefined) ...
+    ✓ capture_metrics (0.0s) | loss=0.4081, roc_auc_macro=0.9073
+  [exp_006] analyze_results (llm) ...
+    ✓ analyze_results (6.3s)
+  [exp_006] COMPLETED | roc_auc_macro=0.9073 (recovered after 1 fix attempts)
+
+==================================================================
+Study finished: max_experiments
+  experiments run: 6
+  best: exp_003 @ roc_auc_macro=0.9385
+==================================================================
+
+Writing study report...
+2026-04-12 12:27:53,391 [INFO] agent.report: Study report written to experiments/studies/study_20260412_105608_ui_study_start_test_with_dev_model_for_better_code/report/report.md
+  report: experiments/studies/study_20260412_105608_ui_study_start_test_with_dev_model_for_better_code/report/report.md
+
+Stopped: max_experiments
+Experiments run: 6
+Best: exp_003 (score=0.9385)
