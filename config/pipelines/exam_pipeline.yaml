@@ -1,0 +1,51 @@
+# Exam / CPU pipeline for BirdCLEF experiments.
+# Optimized for CPU-only environments with limited time budgets.
+# Use this during the exam: python -m agent.main start --pipeline config/pipelines/exam_pipeline.yaml
+#
+# Key differences from default_pipeline.yaml:
+#   - max_epochs: 3 (vs 7) — faster convergence check
+#   - timeout: 3600s (1 hour vs 2 hours) — tighter time budget
+#   - Designed for CPU training with smaller batch sizes
+#
+# The generate_code prompt will pick up BIRDCLEF_EPOCHS=3 and BIRDCLEF_BATCH_SIZE
+# from the environment/config, so the generated code adapts automatically.
+
+name: exam_birdclef_cpu
+description: CPU-optimized loop for exam — fewer epochs, tighter timeout, lightweight models preferred
+
+steps:
+  - task_name: propose_architecture
+    task_type: llm
+    prompt_template: config/prompts/propose_architecture.yaml
+
+  - task_name: generate_code
+    task_type: llm
+    prompt_template: config/prompts/generate_code.yaml
+
+  - task_name: validate_code
+    task_type: predefined
+    handler: agent.handlers.validate_code
+    config:
+      check_imports: [torch, tensorflow, keras, pipelines]
+      max_epochs: 3                        # strict cap for exam time budget
+      reject_patterns:
+        - "os.system"
+        - "subprocess.Popen"
+        - "urllib.request"
+        - "requests.get"
+        - "requests.post"
+
+  - task_name: execute_training
+    task_type: predefined
+    handler: agent.handlers.execute_training
+    config:
+      timeout_seconds: 3600                # 1 hour max per experiment on CPU
+      catch_errors: [OOM, SyntaxError, ShapeMismatch, Timeout]
+
+  - task_name: capture_metrics
+    task_type: predefined
+    handler: agent.handlers.capture_metrics
+
+  - task_name: analyze_results
+    task_type: llm
+    prompt_template: config/prompts/analyze_results.yaml

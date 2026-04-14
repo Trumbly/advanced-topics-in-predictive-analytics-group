@@ -1,0 +1,64 @@
+# Exam / CPU configuration for the BirdCLEF autonomous research agent.
+# Use this during the exam when only CPU is available.
+#
+# Usage:
+#   python -m agent.main start \
+#       --config config/config_exam.yaml \
+#       --pipeline config/pipelines/exam_pipeline.yaml \
+#       --study exam_run \
+#       --hypothesis "CPU-optimized run for exam"
+#
+# Key differences from config.yaml:
+#   - device: cpu (no GPU)
+#   - batch_size: 32 (CPU-friendly, avoids memory pressure)
+#   - max_epochs_per_run: 3 (faster turnaround)
+#   - max_experiment_seconds: 3600 (1 hour cap)
+#   - num_workers: 4 (CPU has fewer cores available)
+#   - prefetch_factor: 2 (lower memory overhead)
+
+project: birdclef-2026-agent
+version: "0.1.0"
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  dataset_profile: data/processed/dataset_profile.json
+  experiments: experiments/studies
+  models: models
+  sandbox: sandbox
+  model_registry: registry/models.yaml
+
+llm:
+  provider: ollama
+  base_url: http://localhost:11434/v1
+  default_model: gemma4:e4b
+  temperature: 0.7
+  max_tokens: 8192
+  timeout_seconds: 300
+  retry_attempts: 3
+  retry_backoff_seconds: 5
+
+compute_budget:
+  max_experiments: 10                      # fewer experiments in exam time
+  max_wallclock_minutes: 240               # 4 hours total exam budget
+  max_experiment_seconds: 3600             # 1 hour per experiment
+  max_epochs_per_run: 3                    # 3 epochs max on CPU
+  max_recovery_attempts: 3                 # fewer retries to save time
+
+context:
+  max_prompt_tokens: 8000
+  memory_top_k: 5
+  memory_format: markdown
+
+logging:
+  level: INFO                              # less verbose for exam
+  console: true
+  file: experiments/agent.log
+
+# CPU-optimized training knobs
+training:
+  device: cpu                              # CPU only — no MPS/CUDA
+  batch_size: 32                           # CPU-friendly; 128 causes memory pressure on CPU
+  num_workers: 4                           # fewer workers on CPU
+  persistent_workers: true
+  prefetch_factor: 2                       # lower prefetch to reduce memory
