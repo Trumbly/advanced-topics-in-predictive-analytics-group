@@ -1,0 +1,4 @@
+device: mps
+loading data...
+data loaded: 206 classes, 186478 train samples, 46623 val samples
+training failed: ValueError: not enough values to unpack (expected 4, got 3)

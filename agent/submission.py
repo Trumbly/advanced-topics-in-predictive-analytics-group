@@ -472,14 +472,10 @@ class SubmissionExporter:
             # Full species list for submission (234 species)
             ALL_SPECIES = {all_species_json}
 
-            # Load per-class optimized thresholds (trained on validation set)
-            if os.path.exists(THRESHOLDS_PATH):
-                best_thresholds = np.load(THRESHOLDS_PATH)
-                print(f"Loaded optimized thresholds: mean={{best_thresholds.mean():.3f}}, "
-                      f"min={{best_thresholds.min():.3f}}, max={{best_thresholds.max():.3f}}")
-            else:
-                best_thresholds = np.full(NUM_CLASSES, 0.5)
-                print("WARNING: No optimized thresholds found, using default 0.5")
+            # NOTE: Competition metric is macro-averaged ROC-AUC, so we output
+            # raw probabilities, NOT binary predictions. Thresholds are not needed
+            # for submission but kept for local F1 evaluation.
+            print("Submission mode: outputting raw probabilities (ROC-AUC metric)")
 
             # Map our model's class indices to submission column positions
             # Our model outputs NUM_CLASSES probabilities in CLASS_IDS order
@@ -528,15 +524,11 @@ class SubmissionExporter:
                         logits = model(spec_tensor)
                         probs = torch.sigmoid(logits).cpu().numpy()[0]
 
-                    # Apply per-class optimized thresholds to convert
-                    # probabilities to binary predictions for F1
-                    preds_binary = (probs >= best_thresholds).astype(np.float32)
-
-                    # Map model predictions to submission columns
+                    # Output raw probabilities (competition metric is ROC-AUC)
                     # Species our model was not trained on get 0.0
                     row = np.zeros(len(ALL_SPECIES), dtype=np.float32)
                     for model_idx, sub_col in model_idx_to_sub_col.items():
-                        row[sub_col] = float(preds_binary[model_idx])
+                        row[sub_col] = float(probs[model_idx])
 
                     rows.append({{"row_id": row_id, **dict(zip(ALL_SPECIES, row))}})
 

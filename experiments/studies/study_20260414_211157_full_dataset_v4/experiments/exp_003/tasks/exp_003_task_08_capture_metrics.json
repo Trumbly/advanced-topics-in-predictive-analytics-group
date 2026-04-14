@@ -1,0 +1,23 @@
+{
+  "task_id": "exp_003_task_08_capture_metrics",
+  "experiment_id": "exp_003",
+  "task_type": "predefined",
+  "task_name": "capture_metrics",
+  "status": "failed",
+  "prompt_used": null,
+  "llm_response": null,
+  "code_used": null,
+  "output": {
+    "results_json_path": "/Users/dqureshi/advanced-topics-in-predictive-analytics-group/sandbox/study_20260414_211157_full_dataset_v4/exp_003/results.json",
+    "raw_results": {
+      "error": "ValueError: not enough values to unpack (expected 4, got 3)"
+    }
+  },
+  "error": {
+    "error_type": "ScriptReportedError",
+    "message": "ValueError: not enough values to unpack (expected 4, got 3)",
+    "traceback": null
+  },
+  "started_at": "2026-04-14T23:14:49.699048Z",
+  "completed_at": "2026-04-14T23:14:49.699196Z"
+}

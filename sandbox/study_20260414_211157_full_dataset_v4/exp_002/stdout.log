@@ -1,0 +1,47 @@
+device: mps
+loading data...
+data loaded: 206 classes, 186478 train samples, 46623 val samples
+model built: 1,045,870 parameters
+epoch 1/3 starting (1456 batches)...
+  epoch 1 [ 10.0%] batch 145/1456 loss=0.4077
+  epoch 1 [ 19.9%] batch 290/1456 loss=0.3453
+  epoch 1 [ 29.9%] batch 435/1456 loss=0.2982
+  epoch 1 [ 39.8%] batch 580/1456 loss=0.2868
+  epoch 1 [ 49.8%] batch 725/1456 loss=0.2684
+  epoch 1 [ 59.8%] batch 870/1456 loss=0.2773
+  epoch 1 [ 69.7%] batch 1015/1456 loss=0.2270
+  epoch 1 [ 79.7%] batch 1160/1456 loss=0.2364
+  epoch 1 [ 89.6%] batch 1305/1456 loss=0.2028
+  epoch 1 [ 99.6%] batch 1450/1456 loss=0.2192
+  epoch 1 [100.0%] batch 1456/1456 loss=0.2327
+epoch 1: running validation...
+epoch 1/3 done: loss=0.3042 f1=0.3384 roc_auc=0.9499 cmap@5=0.2892
+epoch 2/3 starting (1456 batches)...
+  epoch 2 [ 10.0%] batch 145/1456 loss=0.1991
+  epoch 2 [ 19.9%] batch 290/1456 loss=0.1943
+  epoch 2 [ 29.9%] batch 435/1456 loss=0.2212
+  epoch 2 [ 39.8%] batch 580/1456 loss=0.1966
+  epoch 2 [ 49.8%] batch 725/1456 loss=0.2033
+  epoch 2 [ 59.8%] batch 870/1456 loss=0.2178
+  epoch 2 [ 69.7%] batch 1015/1456 loss=0.1780
+  epoch 2 [ 79.7%] batch 1160/1456 loss=0.1735
+  epoch 2 [ 89.6%] batch 1305/1456 loss=0.2076
+  epoch 2 [ 99.6%] batch 1450/1456 loss=0.1642
+  epoch 2 [100.0%] batch 1456/1456 loss=0.2152
+epoch 2: running validation...
+epoch 2/3 done: loss=0.2002 f1=0.4843 roc_auc=0.9704 cmap@5=0.4649
+epoch 3/3 starting (1456 batches)...
+  epoch 3 [ 10.0%] batch 145/1456 loss=0.1813
+  epoch 3 [ 19.9%] batch 290/1456 loss=0.1567
+  epoch 3 [ 29.9%] batch 435/1456 loss=0.1281
+  epoch 3 [ 39.8%] batch 580/1456 loss=0.1583
+  epoch 3 [ 49.8%] batch 725/1456 loss=0.1711
+  epoch 3 [ 59.8%] batch 870/1456 loss=0.1439
+  epoch 3 [ 69.7%] batch 1015/1456 loss=0.1633
+  epoch 3 [ 79.7%] batch 1160/1456 loss=0.1744
+  epoch 3 [ 89.6%] batch 1305/1456 loss=0.1719
+  epoch 3 [ 99.6%] batch 1450/1456 loss=0.1359
+  epoch 3 [100.0%] batch 1456/1456 loss=0.1320
+epoch 3: running validation...
+epoch 3/3 done: loss=0.1570 f1=0.5568 roc_auc=0.9796 cmap@5=0.5508
+all done: f1=0.5568 roc_auc=0.9796 cmap@5=0.5508
