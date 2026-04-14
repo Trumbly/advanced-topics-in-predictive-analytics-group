@@ -49,6 +49,7 @@
         {% set p = raw.get("llm", {}).get("provider", "ollama") %}
         <option value="ollama" {% if p == "ollama" %}selected{% endif %}>ollama</option>
         <option value="openai" {% if p == "openai" %}selected{% endif %}>openai</option>
+        <option value="anthropic" {% if p == "anthropic" %}selected{% endif %}>anthropic</option>
       </select>
     </div>
     <div class="field field-wide">
@@ -87,8 +88,8 @@
       </div>
       <p class="muted small" id="model-fetch-hint">
         Click <em>Fetch available</em> to query the provider, or type a model id
-        directly. Ollama reads from <code>{base_url}/api/tags</code>; OpenAI reads
-        from <code>{base_url}/models</code> using the API key above.
+        directly. Ollama reads from <code>{base_url}/api/tags</code>; OpenAI and
+        Anthropic read from <code>{base_url}/models</code> using the API key above.
       </p>
     </div>
     <div class="field">
@@ -306,6 +307,7 @@
   const DEFAULT_BASE_URLS = {
     ollama: "http://localhost:11434/v1",
     openai: "https://api.openai.com/v1",
+    anthropic: "https://api.anthropic.com/v1",
   };
 
   function syncProviderDefaults() {
@@ -321,6 +323,9 @@
     // when it's required.
     if (p === "openai") {
       $apiKeyHint.textContent = "(required for OpenAI)";
+      $apiKeyRow.classList.add("required");
+    } else if (p === "anthropic") {
+      $apiKeyHint.textContent = "(required for Anthropic)";
       $apiKeyRow.classList.add("required");
     } else {
       $apiKeyHint.textContent = "(optional — Ollama ignores this)";

@@ -87,6 +87,7 @@ class Orchestrator:
             base_url=settings.llm.base_url,
             model=settings.llm.default_model,
             api_key=settings.llm.api_key,
+            provider=settings.llm.provider,
             temperature=settings.llm.temperature,
             max_tokens=settings.llm.max_tokens,
             timeout_seconds=settings.llm.timeout_seconds,

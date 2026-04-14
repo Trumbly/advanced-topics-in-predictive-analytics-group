@@ -157,6 +157,7 @@ def _render_exec_summary(
             base_url=settings.llm.base_url,
             model=settings.llm.default_model,
             api_key=settings.llm.api_key,
+            provider=settings.llm.provider,
             temperature=0.3,
             max_tokens=400,
             timeout_seconds=settings.llm.timeout_seconds,

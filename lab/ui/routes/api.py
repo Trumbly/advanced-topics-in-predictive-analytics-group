@@ -54,6 +54,8 @@ async def list_models(provider: str = "", base_url: str = "", api_key: str = "",
             models = _fetch_ollama_models(base_url or "http://localhost:11434/v1")
         elif provider == "openai":
             models = _fetch_openai_models(base_url or "https://api.openai.com/v1", api_key)
+        elif provider == "anthropic":
+            models = _fetch_anthropic_models(base_url or "https://api.anthropic.com/v1", api_key)
         else:
             return {"error": f"unknown provider: {provider!r}", "models": []}
     except PermissionError as exc:
@@ -84,6 +86,22 @@ def _fetch_ollama_models(base_url: str) -> list[str]:
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
         data = _http_json(f"{base_url}/models")
         return sorted(m["id"] for m in data.get("data", []) if isinstance(m, dict))
+
+
+def _fetch_anthropic_models(base_url: str, api_key: str) -> list[str]:
+    if not api_key or api_key == "ollama":
+        raise PermissionError("Anthropic requires an API key")
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+    }
+    try:
+        data = _http_json(f"{base_url}/models", headers=headers, timeout=15.0)
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            raise PermissionError("API key rejected") from exc
+        raise
+    return sorted(m.get("id") for m in data.get("data", []) if isinstance(m, dict) and m.get("id"))
 
 
 def _fetch_openai_models(base_url: str, api_key: str) -> list[str]:
