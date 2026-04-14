@@ -305,21 +305,37 @@ class KaggleExecutor:
         dir is present, or the upload failed. Callers treat None as
         "don't attach, let the kernel ImportError surface itself".
         """
+        slug, err = self.ensure_lab_dataset_verbose(cli)
+        if err:
+            logger.warning("lab-src upload failed: %s", err)
+        return slug
+
+    def ensure_lab_dataset_verbose(self, cli: str | None = None) -> tuple[str | None, str | None]:
+        """Same contract as ``_ensure_lab_dataset`` but also returns a
+        human-readable error string so the CLI can surface it.
+
+        Returns (slug, error). On success: (slug, None). On skip for a
+        clean reason: (None, None). On failure: (None, error_string).
+        """
         if not self.username:
-            logger.info("No kaggle username configured; skipping lab-src upload.")
-            return None
+            return None, "no kaggle username configured (executor.kaggle.username)"
         lab_src = self.repo_root / "lab"
         if not lab_src.exists():
-            return None
-        slug = f"{self.username}/lab-agent-src"
+            return None, f"no local lab/ directory at {lab_src}"
+        if cli is None:
+            try:
+                cli = _require_kaggle_cli()
+            except KaggleCLIUnavailable as exc:
+                return None, str(exc)
 
+        slug = f"{self.username}/lab-agent-src"
         digest = _hash_directory(lab_src)
         cache_file = self.sandbox_root / ".lab_dataset_cache"
         if cache_file.exists():
             try:
                 cached = json.loads(cache_file.read_text())
                 if cached.get("slug") == slug and cached.get("hash") == digest:
-                    return slug
+                    return slug, None
             except json.JSONDecodeError:
                 pass
 
@@ -331,7 +347,6 @@ class KaggleExecutor:
                 lab_src, tmp_path / "lab",
                 ignore=shutil.ignore_patterns("__pycache__", "ui", "*.pyc"),
             )
-            # Create is used the first time; version bumps existing datasets.
             (tmp_path / "dataset-metadata.json").write_text(json.dumps({
                 "title": "lab-agent-src",
                 "id": slug,
@@ -341,7 +356,9 @@ class KaggleExecutor:
             create = self._run_kaggle(
                 cli, ["datasets", "create", "-p", str(tmp_path)], timeout=600,
             )
-            if create.returncode != 0:
+            if create.returncode == 0:
+                logger.info("lab-src dataset created: %s", slug)
+            else:
                 # Likely already exists — push a new version.
                 msg = f"lab src {digest[:8]}"
                 version = self._run_kaggle(
@@ -350,19 +367,21 @@ class KaggleExecutor:
                     timeout=600,
                 )
                 if version.returncode != 0:
-                    logger.warning(
-                        "lab-src dataset upload failed (create: %s; version: %s).",
-                        (create.stderr or "")[:200].strip(),
-                        (version.stderr or "")[:200].strip(),
+                    combined = (
+                        f"`datasets create` exit {create.returncode}: "
+                        f"{(create.stderr or create.stdout or '').strip()[:300]}\n"
+                        f"`datasets version` exit {version.returncode}: "
+                        f"{(version.stderr or version.stdout or '').strip()[:300]}"
                     )
-                    return None
+                    return None, combined
+                logger.info("lab-src dataset versioned: %s", slug)
 
         try:
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             cache_file.write_text(json.dumps({"slug": slug, "hash": digest}))
         except OSError:
             pass
-        return slug
+        return slug, None
 
     def _failed(self, workdir: Path, start: float, err: TaskError) -> ExecutionResult:
         return ExecutionResult(
@@ -396,10 +415,25 @@ for _k, _v in _env.items():
     _os.environ.setdefault(_k, str(_v))
 _input = "/kaggle/input"
 _lab_dir_name = {lab_dir_name!r}
+_lab_mount = _os.path.join(_input, _lab_dir_name) if _lab_dir_name else ""
 # Put the lab-agent-src dataset on sys.path so `import lab.*` resolves
-# inside the kernel.
-if _lab_dir_name and _os.path.isdir(_os.path.join(_input, _lab_dir_name)):
-    _sys.path.insert(0, _os.path.join(_input, _lab_dir_name))
+# inside the kernel. If it's expected but not mounted, dump the
+# /kaggle/input tree so the error log explains WHY the import will
+# fail — users can verify their executor.kaggle.username / dataset
+# presence at a glance.
+if _lab_dir_name:
+    if _os.path.isdir(_lab_mount):
+        _sys.path.insert(0, _lab_mount)
+    else:
+        print(
+            "[lab bootstrap] expected lab source dataset at " + _lab_mount
+            + " but it isn't mounted. Kaggle /kaggle/input contains: "
+            + (", ".join(sorted(_os.listdir(_input))) if _os.path.isdir(_input) else "<no input dir>")
+        )
+        print(
+            "[lab bootstrap] attach the dataset in executor.kaggle.dataset_sources "
+            "or run `python -m lab kaggle sync-lab` once to upload it."
+        )
 # Map the first non-lab /kaggle/input subdir onto AGENT_PROCESSED_DIR.
 if _os.path.isdir(_input) and "AGENT_PROCESSED_DIR" not in _os.environ:
     _subdirs = sorted(

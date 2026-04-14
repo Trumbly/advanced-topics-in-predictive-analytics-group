@@ -156,6 +156,38 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_kaggle_sync_lab(args: argparse.Namespace) -> int:
+    """Upload/sync the lab/ source as a Kaggle dataset, verbose.
+
+    This is what the KaggleExecutor does automatically on the first
+    experiment push. Running it by hand helps users confirm their
+    credentials work and see any Kaggle CLI errors directly (instead
+    of scrolling through orchestrator logs)."""
+    settings = load_settings()
+    telemetry.configure(settings)
+    from lab.core.kaggle_executor import KaggleExecutor
+
+    k = settings.executor.kaggle
+    ex = KaggleExecutor(
+        username=k.username,
+        kernel_prefix=k.kernel_prefix,
+        enable_gpu=k.enable_gpu,
+        enable_internet=k.enable_internet,
+        sandbox_root=settings.abspath(settings.paths.sandbox),
+        repo_root=settings.repo_root,
+    )
+    print(f"Uploading lab/ to Kaggle as {k.username or '<unset>'}/lab-agent-src ...")
+    slug, err = ex.ensure_lab_dataset_verbose()
+    if err:
+        print(f"Failed: {err}", file=sys.stderr)
+        return 1
+    if slug is None:
+        print("No-op (nothing to upload).")
+        return 0
+    print(f"OK — attached as `dataset_sources: [{slug}]` for every kernel.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lab", description=f"lab v{__version__} — LLM research agent")
     p.add_argument("--task", help="task name (default: from config/config.yaml)")
@@ -221,6 +253,20 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("validate", help="validate a Python file against validator rules")
     sp.add_argument("file")
     sp.set_defaults(fn=_cmd_validate)
+
+    # Kaggle helpers
+    kaggle = sub.add_parser("kaggle", help="Kaggle utilities")
+    k_sub = kaggle.add_subparsers(dest="kaggle_cmd", required=True)
+    ksync = k_sub.add_parser(
+        "sync-lab",
+        help=(
+            "Upload this repo's lab/ tree as a private Kaggle dataset "
+            "<username>/lab-agent-src. Runs automatically on first Kaggle "
+            "experiment, but you can run it manually to verify credentials "
+            "and see any upload errors."
+        ),
+    )
+    ksync.set_defaults(fn=_cmd_kaggle_sync_lab)
 
     return p
 
