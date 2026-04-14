@@ -415,33 +415,101 @@ for _k, _v in _env.items():
     _os.environ.setdefault(_k, str(_v))
 _input = "/kaggle/input"
 _lab_dir_name = {lab_dir_name!r}
-_lab_mount = _os.path.join(_input, _lab_dir_name) if _lab_dir_name else ""
-# Put the lab-agent-src dataset on sys.path so `import lab.*` resolves
-# inside the kernel. If it's expected but not mounted, dump the
-# /kaggle/input tree so the error log explains WHY the import will
-# fail — users can verify their executor.kaggle.username / dataset
-# presence at a glance.
-if _lab_dir_name:
-    if _os.path.isdir(_lab_mount):
-        _sys.path.insert(0, _lab_mount)
-    else:
-        print(
-            "[lab bootstrap] expected lab source dataset at " + _lab_mount
-            + " but it isn't mounted. Kaggle /kaggle/input contains: "
-            + (", ".join(sorted(_os.listdir(_input))) if _os.path.isdir(_input) else "<no input dir>")
-        )
-        print(
-            "[lab bootstrap] attach the dataset in executor.kaggle.dataset_sources "
-            "or run `python -m lab kaggle sync-lab` once to upload it."
-        )
-# Map the first non-lab /kaggle/input subdir onto AGENT_PROCESSED_DIR.
-if _os.path.isdir(_input) and "AGENT_PROCESSED_DIR" not in _os.environ:
-    _subdirs = sorted(
-        p for p in _os.listdir(_input)
-        if _os.path.isdir(_os.path.join(_input, p)) and p != _lab_dir_name
+_lab_owner = {lab_owner!r}
+
+
+def _lab_bootstrap_find_lab_root():
+    """Return the directory that CONTAINS a usable ``lab`` package, or
+    None. Kaggle mounts datasets under a few possible layouts:
+      /kaggle/input/<dataset-name>/lab/…            (older)
+      /kaggle/input/datasets/<owner>/<dataset>/lab/…  (newer)
+    We also fall back to a bounded search so future layout changes
+    don't break us — we look for lab/__init__.py up to depth 4."""
+    if not _lab_dir_name:
+        return None
+    hints = [
+        _os.path.join(_input, _lab_dir_name),
+        _os.path.join(_input, "datasets", _lab_owner, _lab_dir_name),
+    ]
+    for hint in hints:
+        if _os.path.isfile(_os.path.join(hint, "lab", "__init__.py")):
+            return hint
+    # Bounded walk
+    if not _os.path.isdir(_input):
+        return None
+    base_depth = _input.count(_os.sep)
+    for root, dirs, files in _os.walk(_input):
+        if root.count(_os.sep) - base_depth > 4:
+            dirs[:] = []
+            continue
+        if "lab" in dirs and _os.path.isfile(_os.path.join(root, "lab", "__init__.py")):
+            return root
+    return None
+
+
+_lab_root = _lab_bootstrap_find_lab_root()
+if _lab_root:
+    _sys.path.insert(0, _lab_root)
+    print("[lab bootstrap] lab source on sys.path from " + _lab_root)
+else:
+    print(
+        "[lab bootstrap] could not find lab/ anywhere under " + _input + "."
+        " Contents: "
+        + (", ".join(sorted(_os.listdir(_input))) if _os.path.isdir(_input) else "<none>")
     )
-    if _subdirs:
-        _os.environ["AGENT_PROCESSED_DIR"] = _os.path.join(_input, _subdirs[0])
+    print(
+        "[lab bootstrap] attach dataset "
+        + (_lab_owner + "/" + _lab_dir_name if _lab_dir_name else "lab-agent-src")
+        + " via executor.kaggle.dataset_sources, or run"
+        " `python -m lab kaggle sync-lab` once to upload it."
+    )
+
+
+def _lab_bootstrap_find_processed_dir():
+    """Pick a non-lab /kaggle/input subtree that looks like training data
+    (contains labels.csv or similar). Walks both the flat layout and the
+    nested datasets/<owner>/<name> layout."""
+    if not _os.path.isdir(_input):
+        return None
+    skip = {{_lab_dir_name}} if _lab_dir_name else set()
+    candidates = []
+    # Top-level entries first
+    for entry in sorted(_os.listdir(_input)):
+        if entry in skip:
+            continue
+        p = _os.path.join(_input, entry)
+        if _os.path.isdir(p):
+            candidates.append(p)
+    # Also peek one or two levels deeper for the nested layout
+    for parent in ("datasets", "competitions"):
+        parent_dir = _os.path.join(_input, parent)
+        if not _os.path.isdir(parent_dir):
+            continue
+        for owner in sorted(_os.listdir(parent_dir)):
+            owner_dir = _os.path.join(parent_dir, owner)
+            if not _os.path.isdir(owner_dir):
+                continue
+            for name in sorted(_os.listdir(owner_dir)):
+                if name == _lab_dir_name:
+                    continue
+                d = _os.path.join(owner_dir, name)
+                if _os.path.isdir(d):
+                    candidates.append(d)
+    # Prefer one that has labels.csv at its root or under spectrograms/
+    for c in candidates:
+        if _os.path.isfile(_os.path.join(c, "labels.csv")):
+            return c
+    # Fallback: first non-lab directory we found
+    return candidates[0] if candidates else None
+
+
+if "AGENT_PROCESSED_DIR" not in _os.environ:
+    _d = _lab_bootstrap_find_processed_dir()
+    if _d:
+        _os.environ["AGENT_PROCESSED_DIR"] = _d
+        print("[lab bootstrap] AGENT_PROCESSED_DIR = " + _d)
+    else:
+        print("[lab bootstrap] no data directory found under " + _input)
 # --- end bootstrap ---------------------------------------------------
 '''
 
@@ -524,14 +592,21 @@ def _wrap_with_bootstrap(
     lab_dataset_slug: str | None = None,
 ) -> str:
     header, rest = _split_header(code)
-    # The Kaggle mount path is the dataset name without the username/
-    # prefix. For "max/lab-agent-src" the mount is /kaggle/input/lab-agent-src.
+    # The Kaggle mount path depends on the kernel-metadata version:
+    #   older: /kaggle/input/<dataset-name>/
+    #   newer: /kaggle/input/datasets/<owner>/<dataset-name>/
+    # We pass both parts so the bootstrap can check both layouts at runtime.
+    lab_owner = ""
     lab_dir_name = ""
     if lab_dataset_slug:
-        lab_dir_name = lab_dataset_slug.split("/", 1)[-1]
+        if "/" in lab_dataset_slug:
+            lab_owner, lab_dir_name = lab_dataset_slug.split("/", 1)
+        else:
+            lab_dir_name = lab_dataset_slug
     bootstrap = _KAGGLE_BOOTSTRAP.format(
         env_json=json.dumps(env),
         lab_dir_name=lab_dir_name,
+        lab_owner=lab_owner,
     )
     # Ensure a blank line between pieces so line numbers stay readable
     # in Kaggle's traceback output.
