@@ -1,0 +1,4 @@
+device: mps
+loading data...
+data loaded: 206 classes, 186478 train samples, 46623 val samples
+training failed: RuntimeError: Given groups=1, weight of size [32, 1, 3, 3], expected input[1, 32, 128, 313] to have 1 channels, but got 32 channels instead

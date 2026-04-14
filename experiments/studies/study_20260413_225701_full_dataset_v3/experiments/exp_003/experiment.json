@@ -1,0 +1,85 @@
+{
+  "experiment_id": "exp_003",
+  "study_id": "study_20260413_225701_full_dataset_v3",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_003_task_01_propose_architecture",
+    "exp_003_task_02_generate_code",
+    "exp_003_task_03_validate_code",
+    "exp_003_task_04_execute_training",
+    "exp_003_task_05_capture_metrics",
+    "exp_003_task_06_analyze_results"
+  ],
+  "config": {
+    "architecture": "[cnn_attention] 3-conv CNN feature extractor feeding into a self-attention block, followed by Global Average Pooling",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 7,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.1
+    },
+    "augmentation": {
+      "time_shift": false,
+      "noise_injection": true,
+      "mixup": 0.0,
+      "specaugment": true
+    }
+  },
+  "results": {
+    "metrics": {
+      "roc_auc_macro": 0.9176448159217777,
+      "cmap_at_5": 0.18596551634861014,
+      "f1_macro": 0.14062965964963625,
+      "loss": 0.30592172406613827
+    },
+    "training_curves": {
+      "loss": [
+        0.471830805722665,
+        0.39340905173794255,
+        0.3555665014946199,
+        0.3344067156028289,
+        0.31957389977197725,
+        0.31079966022254346,
+        0.30592172406613827
+      ],
+      "roc_auc_macro": [
+        0.7980425178670634,
+        0.8636050171029904,
+        0.8598224446929789,
+        0.9025291263218425,
+        0.9081800005376776,
+        0.915922597507731,
+        0.9176448159217777
+      ],
+      "cmap_at_5": [
+        0.04183315825847367,
+        0.08203754751829999,
+        0.08507882359851097,
+        0.1462116559722463,
+        0.16675709517607856,
+        0.18077217775682627,
+        0.18596551634861014
+      ],
+      "f1_macro": [
+        0.04000026787840149,
+        0.08195083934949006,
+        0.08415646982482282,
+        0.11503447358837897,
+        0.1262258141551767,
+        0.13492627268116378,
+        0.14062965964963625
+      ]
+    },
+    "duration_seconds": 3358.4334383010864,
+    "peak_ram_mb": null,
+    "val_predictions_path": null
+  },
+  "submission_path": null,
+  "status": "completed",
+  "created_at": "2026-04-14T03:22:38.391715Z",
+  "started_at": "2026-04-14T03:22:38.391715Z",
+  "completed_at": "2026-04-14T04:22:07.682164Z"
+}

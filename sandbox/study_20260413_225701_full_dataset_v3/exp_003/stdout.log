@@ -1,0 +1,103 @@
+device: mps
+loading data...
+data loaded: 206 classes, 186478 train samples, 46623 val samples
+model built: 127,886 parameters
+epoch 1/7 starting (1456 batches)...
+  epoch 1 [ 10.0%] batch 145/1456 loss=0.4894
+  epoch 1 [ 19.9%] batch 290/1456 loss=0.4822
+  epoch 1 [ 29.9%] batch 435/1456 loss=0.4879
+  epoch 1 [ 39.8%] batch 580/1456 loss=0.4874
+  epoch 1 [ 49.8%] batch 725/1456 loss=0.4718
+  epoch 1 [ 59.8%] batch 870/1456 loss=0.4693
+  epoch 1 [ 69.7%] batch 1015/1456 loss=0.4504
+  epoch 1 [ 79.7%] batch 1160/1456 loss=0.4240
+  epoch 1 [ 89.6%] batch 1305/1456 loss=0.4212
+  epoch 1 [ 99.6%] batch 1450/1456 loss=0.4475
+  epoch 1 [100.0%] batch 1456/1456 loss=0.4353
+epoch 1: running validation...
+epoch 1/7 done: loss=0.4718 roc_auc=0.7980 cmap@5=0.0418 f1=0.0400
+epoch 2/7 starting (1456 batches)...
+  epoch 2 [ 10.0%] batch 145/1456 loss=0.4092
+  epoch 2 [ 19.9%] batch 290/1456 loss=0.4087
+  epoch 2 [ 29.9%] batch 435/1456 loss=0.4158
+  epoch 2 [ 39.8%] batch 580/1456 loss=0.3891
+  epoch 2 [ 49.8%] batch 725/1456 loss=0.4192
+  epoch 2 [ 59.8%] batch 870/1456 loss=0.3773
+  epoch 2 [ 69.7%] batch 1015/1456 loss=0.3995
+  epoch 2 [ 79.7%] batch 1160/1456 loss=0.3886
+  epoch 2 [ 89.6%] batch 1305/1456 loss=0.3768
+  epoch 2 [ 99.6%] batch 1450/1456 loss=0.3555
+  epoch 2 [100.0%] batch 1456/1456 loss=0.3523
+epoch 2: running validation...
+epoch 2/7 done: loss=0.3934 roc_auc=0.8636 cmap@5=0.0820 f1=0.0820
+epoch 3/7 starting (1456 batches)...
+  epoch 3 [ 10.0%] batch 145/1456 loss=0.3711
+  epoch 3 [ 19.9%] batch 290/1456 loss=0.3595
+  epoch 3 [ 29.9%] batch 435/1456 loss=0.3586
+  epoch 3 [ 39.8%] batch 580/1456 loss=0.3534
+  epoch 3 [ 49.8%] batch 725/1456 loss=0.3473
+  epoch 3 [ 59.8%] batch 870/1456 loss=0.3419
+  epoch 3 [ 69.7%] batch 1015/1456 loss=0.3497
+  epoch 3 [ 79.7%] batch 1160/1456 loss=0.3460
+  epoch 3 [ 89.6%] batch 1305/1456 loss=0.3664
+  epoch 3 [ 99.6%] batch 1450/1456 loss=0.3970
+  epoch 3 [100.0%] batch 1456/1456 loss=0.3546
+epoch 3: running validation...
+epoch 3/7 done: loss=0.3556 roc_auc=0.8598 cmap@5=0.0851 f1=0.0842
+epoch 4/7 starting (1456 batches)...
+  epoch 4 [ 10.0%] batch 145/1456 loss=0.3398
+  epoch 4 [ 19.9%] batch 290/1456 loss=0.3303
+  epoch 4 [ 29.9%] batch 435/1456 loss=0.3379
+  epoch 4 [ 39.8%] batch 580/1456 loss=0.3025
+  epoch 4 [ 49.8%] batch 725/1456 loss=0.3159
+  epoch 4 [ 59.8%] batch 870/1456 loss=0.3626
+  epoch 4 [ 69.7%] batch 1015/1456 loss=0.3532
+  epoch 4 [ 79.7%] batch 1160/1456 loss=0.3210
+  epoch 4 [ 89.6%] batch 1305/1456 loss=0.3090
+  epoch 4 [ 99.6%] batch 1450/1456 loss=0.3413
+  epoch 4 [100.0%] batch 1456/1456 loss=0.3007
+epoch 4: running validation...
+epoch 4/7 done: loss=0.3344 roc_auc=0.9025 cmap@5=0.1462 f1=0.1150
+epoch 5/7 starting (1456 batches)...
+  epoch 5 [ 10.0%] batch 145/1456 loss=0.3538
+  epoch 5 [ 19.9%] batch 290/1456 loss=0.3071
+  epoch 5 [ 29.9%] batch 435/1456 loss=0.3221
+  epoch 5 [ 39.8%] batch 580/1456 loss=0.2946
+  epoch 5 [ 49.8%] batch 725/1456 loss=0.3028
+  epoch 5 [ 59.8%] batch 870/1456 loss=0.3458
+  epoch 5 [ 69.7%] batch 1015/1456 loss=0.3123
+  epoch 5 [ 79.7%] batch 1160/1456 loss=0.3165
+  epoch 5 [ 89.6%] batch 1305/1456 loss=0.3252
+  epoch 5 [ 99.6%] batch 1450/1456 loss=0.3184
+  epoch 5 [100.0%] batch 1456/1456 loss=0.3262
+epoch 5: running validation...
+epoch 5/7 done: loss=0.3196 roc_auc=0.9082 cmap@5=0.1668 f1=0.1262
+epoch 6/7 starting (1456 batches)...
+  epoch 6 [ 10.0%] batch 145/1456 loss=0.3456
+  epoch 6 [ 19.9%] batch 290/1456 loss=0.3301
+  epoch 6 [ 29.9%] batch 435/1456 loss=0.3237
+  epoch 6 [ 39.8%] batch 580/1456 loss=0.3119
+  epoch 6 [ 49.8%] batch 725/1456 loss=0.3240
+  epoch 6 [ 59.8%] batch 870/1456 loss=0.3019
+  epoch 6 [ 69.7%] batch 1015/1456 loss=0.3154
+  epoch 6 [ 79.7%] batch 1160/1456 loss=0.3068
+  epoch 6 [ 89.6%] batch 1305/1456 loss=0.2779
+  epoch 6 [ 99.6%] batch 1450/1456 loss=0.3061
+  epoch 6 [100.0%] batch 1456/1456 loss=0.3054
+epoch 6: running validation...
+epoch 6/7 done: loss=0.3108 roc_auc=0.9159 cmap@5=0.1808 f1=0.1349
+epoch 7/7 starting (1456 batches)...
+  epoch 7 [ 10.0%] batch 145/1456 loss=0.3123
+  epoch 7 [ 19.9%] batch 290/1456 loss=0.2979
+  epoch 7 [ 29.9%] batch 435/1456 loss=0.3057
+  epoch 7 [ 39.8%] batch 580/1456 loss=0.3285
+  epoch 7 [ 49.8%] batch 725/1456 loss=0.3206
+  epoch 7 [ 59.8%] batch 870/1456 loss=0.2839
+  epoch 7 [ 69.7%] batch 1015/1456 loss=0.3095
+  epoch 7 [ 79.7%] batch 1160/1456 loss=0.2998
+  epoch 7 [ 89.6%] batch 1305/1456 loss=0.3578
+  epoch 7 [ 99.6%] batch 1450/1456 loss=0.3013
+  epoch 7 [100.0%] batch 1456/1456 loss=0.3006
+epoch 7: running validation...
+epoch 7/7 done: loss=0.3059 roc_auc=0.9176 cmap@5=0.1860 f1=0.1406
+all done: roc_auc=0.9176 cmap@5=0.1860 f1=0.1406

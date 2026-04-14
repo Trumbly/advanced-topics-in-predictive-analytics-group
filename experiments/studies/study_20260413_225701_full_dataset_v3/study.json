@@ -21,12 +21,16 @@
   "dataset_profile_path": "data/processed/dataset_profile.json",
   "model_registry_path": "registry/models.yaml",
   "experiment_ids": [
-    "exp_001"
+    "exp_001",
+    "exp_002",
+    "exp_003",
+    "exp_004",
+    "exp_005"
   ],
-  "best_experiment_id": null,
-  "best_score": null,
+  "best_experiment_id": "exp_001",
+  "best_score": 0.9901357359437392,
   "submissions": [],
-  "status": "active",
+  "status": "completed",
   "created_at": "2026-04-13T22:57:01.060077Z",
-  "updated_at": "2026-04-13T22:57:01.775967Z"
+  "updated_at": "2026-04-14T07:44:49.989122Z"
 }

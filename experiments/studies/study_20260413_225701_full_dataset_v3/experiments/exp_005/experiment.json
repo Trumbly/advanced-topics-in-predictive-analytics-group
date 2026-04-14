@@ -1,0 +1,89 @@
+{
+  "experiment_id": "exp_005",
+  "study_id": "study_20260413_225701_full_dataset_v3",
+  "llm_model": "gemma4:e4b",
+  "task_ids": [
+    "exp_005_task_01_propose_architecture",
+    "exp_005_task_02_generate_code",
+    "exp_005_task_03_validate_code",
+    "exp_005_task_04_execute_training",
+    "exp_005_task_05_capture_metrics",
+    "exp_005_recovery_01_error_recovery",
+    "exp_005_task_06_validate_code",
+    "exp_005_task_07_execute_training",
+    "exp_005_task_08_capture_metrics",
+    "exp_005_task_09_analyze_results"
+  ],
+  "config": {
+    "architecture": "[cnn_gru_hybrid] 3-block CNN feature extractor (32->64 channels) followed by nn.GRU(128) for temporal sequence modeling",
+    "pretrained_model": null,
+    "hyperparams": {
+      "lr": 0.001,
+      "batch_size": 128,
+      "epochs": 7,
+      "optimizer": "adam",
+      "weight_decay": 0.0,
+      "dropout": 0.1
+    },
+    "augmentation": {
+      "time_shift": false,
+      "noise_injection": false,
+      "mixup": 0.0,
+      "specaugment": true
+    }
+  },
+  "results": {
+    "metrics": {
+      "roc_auc_macro": 0.870602115723447,
+      "cmap_at_5": 0.08747458388887239,
+      "f1_macro": 0.0764387127162335,
+      "loss": 0.3689175626406303
+    },
+    "training_curves": {
+      "loss": [
+        0.4966575846608196,
+        0.4513721967955212,
+        0.4216579986879459,
+        0.4000632239321431,
+        0.3843606716165176,
+        0.37405094623074425,
+        0.3689175626406303
+      ],
+      "roc_auc_macro": [
+        0.728762336861813,
+        0.7893948148236587,
+        0.8288348939313478,
+        0.8497287677556098,
+        0.8598887536725381,
+        0.8663233318133307,
+        0.870602115723447
+      ],
+      "cmap_at_5": [
+        0.02015606549457951,
+        0.03229965999117801,
+        0.04695963298775449,
+        0.06587992433397397,
+        0.07161055929772,
+        0.08504424685079412,
+        0.08747458388887239
+      ],
+      "f1_macro": [
+        0.01946664793379991,
+        0.03776160784219026,
+        0.05004500594759178,
+        0.06016390016860086,
+        0.0737249768308159,
+        0.07807136657134137,
+        0.0764387127162335
+      ]
+    },
+    "duration_seconds": 10948.053988933563,
+    "peak_ram_mb": null,
+    "val_predictions_path": null
+  },
+  "submission_path": null,
+  "status": "completed",
+  "created_at": "2026-04-14T04:36:22.164499Z",
+  "started_at": "2026-04-14T04:36:22.164499Z",
+  "completed_at": "2026-04-14T07:44:49.985869Z"
+}
