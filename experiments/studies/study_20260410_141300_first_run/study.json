@@ -6,7 +6,7 @@
   "created_at": "2026-04-10T14:13:00.032877Z",
   "started_at": "2026-04-10T14:13:00.032877Z",
   "completed_at": "2026-04-10T14:13:44.530995Z",
-  "primary_metric": "roc_auc_macro",
+  "primary_metric": "f1_macro",
   "best_experiment_id": null,
   "best_score": null,
   "experiments": [
@@ -19,7 +19,7 @@
       "architecture_family": null,
       "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 32,\n    \"epochs\": 2,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}",
       "code": null,
-      "primary_metric": "roc_auc_macro",
+      "primary_metric": "f1_macro",
       "primary_score": null,
       "metrics": {},
       "history": [],

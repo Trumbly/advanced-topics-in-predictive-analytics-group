@@ -52,7 +52,7 @@ from lab.core.models import (  # noqa: E402
 # Old BirdCLEF default. We map the old primary metric to the new schema so
 # that the v2 UI ranks the imported studies correctly.
 DEFAULT_LEGACY_TASK = "track_b"
-DEFAULT_LEGACY_METRIC = "roc_auc_macro"
+DEFAULT_LEGACY_METRIC = "f1_macro"
 DEFAULT_LEGACY_TAGS = ["legacy", "max_development"]
 
 
@@ -260,14 +260,26 @@ def convert_study(study_dir: Path, *, task_name: str, primary_metric: str, tags:
             except Exception as exc:  # noqa: BLE001
                 print(f"    ! skipping {exp_dir.name}: {exc}", file=sys.stderr)
 
+    # Re-derive best from the experiments using the *new* primary metric, so
+    # study.best_score reflects the metric the v2 UI is sorting by — not the
+    # ROC-AUC value the v1 agent happened to optimise.
+    best_exp_id: str | None = None
+    best_score: float | None = None
+    for e in experiments:
+        if e.primary_score is None:
+            continue
+        if best_score is None or e.primary_score > best_score:
+            best_score = e.primary_score
+            best_exp_id = e.id
+
     study = Study(
         id=study_id,
         name=data.get("name") or study_id,
         task_name=task_name,
         status=_map_status(data.get("status", "")),
         primary_metric=primary_metric,
-        best_experiment_id=data.get("best_experiment_id"),
-        best_score=data.get("best_score"),
+        best_experiment_id=best_exp_id,
+        best_score=best_score,
         experiments=experiments,
         prompt_template_paths=data.get("prompt_template_paths") or {},
         predecessor_id=None,
