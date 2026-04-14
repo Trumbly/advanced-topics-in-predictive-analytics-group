@@ -223,6 +223,16 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 details[open] summary { margin-bottom: 8px; }
 
+/* Config — model picker (select + free-text input side by side) */
+.model-picker { display: flex; gap: 8px; align-items: center; }
+.model-picker select { flex: 1 1 40%; min-width: 0; }
+.model-picker input { flex: 1 1 60%; min-width: 0; }
+#model-fetch-hint { margin-top: 6px; }
+#model-fetch-hint.error { color: var(--err); }
+label button.btn.small { margin-left: 10px; font-size: 11px; padding: 2px 10px;
+  text-transform: none; letter-spacing: 0; font-weight: 500; }
+#llm-apikey-row.required #llm_api_key { border-color: var(--accent); }
+
 /* Sortable column headers */
 th .sortable {
   color: var(--ink-dim);

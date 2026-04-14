@@ -57,11 +57,39 @@
              value="{{ raw.get('llm', {}).get('base_url', '') }}">
     </div>
   </div>
+
+  <div class="row" id="llm-apikey-row">
+    <div class="field field-wide">
+      <label for="llm_api_key">
+        API key
+        <span class="muted small" id="apikey-hint">(required for OpenAI)</span>
+      </label>
+      <input type="password" id="llm_api_key" name="llm_api_key"
+             value="{{ raw.get('llm', {}).get('api_key', '') }}"
+             placeholder="sk-…  or  ollama (ignored by ollama)"
+             autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+
   <div class="row">
     <div class="field field-wide">
-      <label for="llm_default_model">Default model</label>
-      <input type="text" id="llm_default_model" name="llm_default_model"
-             value="{{ raw.get('llm', {}).get('default_model', '') }}">
+      <label for="llm_default_model">
+        Default model
+        <button type="button" class="btn small" id="fetch-models-btn">Fetch available</button>
+      </label>
+      <div class="model-picker">
+        <select id="llm_model_picker">
+          <option value="">— fetch models to populate —</option>
+        </select>
+        <input type="text" id="llm_default_model" name="llm_default_model"
+               value="{{ raw.get('llm', {}).get('default_model', '') }}"
+               placeholder="model id (e.g. gemma4:e4b or gpt-4o-mini)">
+      </div>
+      <p class="muted small" id="model-fetch-hint">
+        Click <em>Fetch available</em> to query the provider, or type a model id
+        directly. Ollama reads from <code>{base_url}/api/tags</code>; OpenAI reads
+        from <code>{base_url}/models</code> using the API key above.
+      </p>
     </div>
     <div class="field">
       <label for="llm_temperature">Temperature</label>
@@ -261,6 +289,91 @@
     tabs.forEach(x => x.classList.toggle("active", x === t));
     panes.forEach(p => p.classList.toggle("active", p.dataset.pane === name));
   }));
+})();
+
+// ----- Provider-sensitive LLM controls -----------------------------------
+(function () {
+  const $provider = document.getElementById("llm_provider");
+  const $baseUrl = document.getElementById("llm_base_url");
+  const $apiKey = document.getElementById("llm_api_key");
+  const $apiKeyRow = document.getElementById("llm-apikey-row");
+  const $apiKeyHint = document.getElementById("apikey-hint");
+  const $modelInput = document.getElementById("llm_default_model");
+  const $modelPicker = document.getElementById("llm_model_picker");
+  const $fetchBtn = document.getElementById("fetch-models-btn");
+  const $hint = document.getElementById("model-fetch-hint");
+
+  const DEFAULT_BASE_URLS = {
+    ollama: "http://localhost:11434/v1",
+    openai: "https://api.openai.com/v1",
+  };
+
+  function syncProviderDefaults() {
+    const p = $provider.value;
+    // Only auto-rewrite the base URL when it's currently empty or matches
+    // the other provider's default — don't clobber a user's edits.
+    const current = ($baseUrl.value || "").trim();
+    const allDefaults = Object.values(DEFAULT_BASE_URLS);
+    if (current === "" || allDefaults.includes(current)) {
+      $baseUrl.value = DEFAULT_BASE_URLS[p] || "";
+    }
+    // API key row is always visible (Ollama ignores it), but we emphasise
+    // when it's required.
+    if (p === "openai") {
+      $apiKeyHint.textContent = "(required for OpenAI)";
+      $apiKeyRow.classList.add("required");
+    } else {
+      $apiKeyHint.textContent = "(optional — Ollama ignores this)";
+      $apiKeyRow.classList.remove("required");
+    }
+  }
+
+  async function fetchModels() {
+    $hint.textContent = "Fetching…";
+    $hint.classList.remove("error");
+    const params = new URLSearchParams({
+      provider: $provider.value,
+      base_url: $baseUrl.value,
+      api_key: $apiKey.value,
+    });
+    let data;
+    try {
+      const resp = await fetch(`/api/models?${params.toString()}`);
+      data = await resp.json();
+    } catch (exc) {
+      $hint.textContent = `Fetch failed: ${exc}`;
+      $hint.classList.add("error");
+      return;
+    }
+    if (data.error) {
+      $hint.textContent = data.error;
+      $hint.classList.add("error");
+      $modelPicker.innerHTML = '<option value="">— fetch failed —</option>';
+      return;
+    }
+    const models = data.models || [];
+    $modelPicker.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = `— ${models.length} models —`;
+    $modelPicker.appendChild(placeholder);
+    const current = $modelInput.value;
+    models.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m; opt.textContent = m;
+      if (m === current) opt.selected = true;
+      $modelPicker.appendChild(opt);
+    });
+    $hint.textContent = `Found ${models.length} models on ${data.provider}. Pick one or keep typing manually.`;
+  }
+
+  $modelPicker.addEventListener("change", () => {
+    if ($modelPicker.value) $modelInput.value = $modelPicker.value;
+  });
+  $fetchBtn.addEventListener("click", fetchModels);
+  $provider.addEventListener("change", syncProviderDefaults);
+
+  syncProviderDefaults();
 })();
 </script>
 {% endblock %}
