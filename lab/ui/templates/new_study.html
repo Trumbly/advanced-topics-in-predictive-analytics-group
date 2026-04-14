@@ -39,6 +39,25 @@
     agent can see what has already been tried.
   </p>
 
+  <label for="executor">Compute</label>
+  <select id="executor" name="executor">
+    {% set eb = default_executor or "local" %}
+    <option value="local" {% if eb == "local" %}selected{% endif %}>
+      local — this machine's CPU/GPU (default)
+    </option>
+    <option value="kaggle" {% if eb == "kaggle" %}selected{% endif %}>
+      kaggle — push each experiment as a kernel
+      {% if not kaggle_configured %}(⚠ username not set in config){% endif %}
+    </option>
+  </select>
+  <p class="muted small">
+    <strong>local</strong> uses the subprocess sandbox on this machine.
+    <strong>kaggle</strong> requires the <code>kaggle</code> CLI on PATH
+    + <code>~/.kaggle/kaggle.json</code> credentials; set
+    <code>executor.kaggle.username</code> in <a href="/config">Config</a>.
+    Each experiment becomes a private Kaggle kernel with GPU enabled.
+  </p>
+
   <label class="inline-check" style="margin-top: 14px;">
     <input type="checkbox" id="opt-report" name="report" value="true" checked>
     Render report when study finishes (adds <code>--report</code>)
@@ -104,6 +123,7 @@
   const $tags = document.getElementById("tags");
   const $predecessor = document.getElementById("predecessor");
   const $report = document.getElementById("opt-report");
+  const $executor = document.getElementById("executor");
   const $promptSelects = document.querySelectorAll(".prompt-select");
   const $cmd = document.getElementById("cli-command");
   const $copy = document.getElementById("cli-copy");
@@ -130,6 +150,8 @@
     if (tags) parts.push("--tags", quote(tags));
     if (predecessor) parts.push("--resume", predecessor);
     if (report) parts.push("--report");
+    const executor = $executor ? $executor.value.trim() : "";
+    if (executor) parts.push("--executor", executor);
     $promptSelects.forEach(sel => {
       const v = sel.value.trim();
       if (v) {
@@ -139,7 +161,7 @@
     $cmd.textContent = parts.join(" ");
   }
 
-  [$task, $name, $tags, $predecessor].forEach(el => {
+  [$task, $name, $tags, $predecessor, $executor].filter(Boolean).forEach(el => {
     el.addEventListener("input", build);
     el.addEventListener("change", build);
   });

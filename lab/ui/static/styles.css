@@ -139,6 +139,9 @@ tr:hover td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   display: inline-block;
 }
 .pill-ok { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.pill-backend { font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace; font-size: 11px; }
+.pill-backend-local { background: color-mix(in srgb, var(--ink-dim) 18%, transparent); color: var(--ink-dim); }
+.pill-backend-kaggle { background: color-mix(in srgb, var(--accent-2) 25%, transparent); color: var(--accent-2); }
 .tag { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent);
   font-size: 11px; padding: 2px 8px; border-radius: 6px; margin-right: 4px; }
 

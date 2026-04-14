@@ -92,6 +92,38 @@
 </section>
 
 <section class="card">
+  <h2>Compute</h2>
+  {% set eb = study.executor_backend or "local" %}
+  <p>
+    <span class="pill pill-backend pill-backend-{{ eb }}">
+      {% if eb == "kaggle" %}☁ kaggle{% else %}◼ local{% endif %}
+    </span>
+    <span class="muted">backend frozen at study start</span>
+  </p>
+  {% if study.executor_infrastructure %}
+  <table>
+    <thead><tr><th>Property</th><th>Value</th></tr></thead>
+    <tbody>
+      {% for k, v in study.executor_infrastructure.items() %}
+      <tr>
+        <td><code>{{ k }}</code></td>
+        <td>
+          {% if v is iterable and v is not string and v is not mapping %}
+            {% if v|length %}{{ v|join(", ") }}{% else %}—{% endif %}
+          {% elif v is sameas true %}yes
+          {% elif v is sameas false %}no
+          {% else %}{{ v }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No infrastructure details recorded.</p>
+  {% endif %}
+</section>
+
+<section class="card">
   <h2>Prompt versions used</h2>
   <ul>
     {% for k, v in study.prompt_template_paths.items() %}

@@ -135,6 +135,7 @@
         <th class="num">{{ sort_link('score', 'Primary', numeric=True) }}</th>
         <th class="num">{{ sort_link('roc', 'ROC-AUC', numeric=True) }}</th>
         <th class="num">{{ sort_link('f1', 'F1', numeric=True) }}</th>
+        <th>Compute</th>
         <th>{{ sort_link('created', 'Created') }}</th>
         <th>Tags</th>
         <th>Pub.</th>
@@ -153,6 +154,14 @@
         </td>
         <td class="num">{% if s.best_roc_auc is not none %}{{ "%.4f"|format(s.best_roc_auc) }}{% else %}—{% endif %}</td>
         <td class="num">{% if s.best_f1 is not none %}{{ "%.4f"|format(s.best_f1) }}{% else %}—{% endif %}</td>
+        <td>
+          {% set eb = s.executor_backend or "local" %}
+          <span class="pill pill-backend pill-backend-{{ eb }}"
+                title="{% if s.executor_infrastructure %}{{ s.executor_infrastructure|tojson }}{% endif %}">
+            {% if eb == "kaggle" %}☁ kaggle{% else %}◼ local{% endif %}
+            {% if eb == "kaggle" and s.executor_infrastructure and s.executor_infrastructure.get('enable_gpu') %} · gpu{% endif %}
+          </span>
+        </td>
         <td class="muted">{{ s.created_at[:19] if s.created_at else "" }}</td>
         <td>{% for t in s.tags %}<span class="tag">{{ t }}</span>{% endfor %}</td>
         <td>{% if s.publish %}<span class="pill pill-ok">published</span>{% else %}—{% endif %}</td>

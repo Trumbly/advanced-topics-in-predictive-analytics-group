@@ -130,6 +130,11 @@ class Study(BaseModel):
     publish: bool = False
     tags: list[str] = Field(default_factory=list)
 
+    # Where the study physically ran. Frozen at study start so the UI
+    # can show "ran on local CPU" vs "ran on Kaggle GPU" forever after.
+    executor_backend: str = "local"
+    executor_infrastructure: dict[str, Any] = Field(default_factory=dict)
+
     notes: str = ""
 
     def save(self, experiments_dir: Path) -> Path:

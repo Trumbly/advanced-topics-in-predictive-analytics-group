@@ -44,6 +44,8 @@ class StudySummary:
     experiments_count: int
     publish: bool
     tags: list[str]
+    executor_backend: str = "local"
+    executor_infrastructure: dict[str, Any] | None = None
     predecessor_id: str | None = None
 
 
@@ -64,6 +66,8 @@ def _summarise(data: dict[str, Any], fallback_id: str) -> StudySummary:
         experiments_count=len(experiments),
         publish=bool(data.get("publish", False)),
         tags=list(data.get("tags", [])),
+        executor_backend=data.get("executor_backend", "local"),
+        executor_infrastructure=data.get("executor_infrastructure") or {},
         predecessor_id=data.get("predecessor_id"),
     )
 

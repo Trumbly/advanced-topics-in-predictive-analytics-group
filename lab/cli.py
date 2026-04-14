@@ -73,6 +73,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         predecessor=predecessor,
         prompt_overrides=prompt_overrides,
         launch_id=args.launch_id,
+        executor_backend=args.executor,
     )
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
     study = orch.run_study(name=args.name or "", tags=tags)
@@ -180,6 +181,14 @@ def build_parser() -> argparse.ArgumentParser:
             "internal: when the UI spawns `lab run`, it passes a launch id "
             "so the orchestrator can write its study id back into the launch "
             "record — letting the UI link the running process to its study."
+        ),
+    )
+    sp.add_argument(
+        "--executor", choices=["local", "kaggle"], default=None,
+        help=(
+            "override the executor backend for this study. Defaults to "
+            "executor.backend from config.yaml. `kaggle` requires the "
+            "kaggle CLI + credentials + a configured username."
         ),
     )
     sp.set_defaults(fn=_cmd_run)

@@ -211,5 +211,7 @@ async def new_study_form(request: Request):
             "default_task": settings.default_task,
             "studies": loaders.iter_studies(experiments_dir),
             "prompt_tasks": prompt_tasks,
+            "default_executor": settings.executor.backend,
+            "kaggle_configured": bool(settings.executor.kaggle.username),
         },
     )

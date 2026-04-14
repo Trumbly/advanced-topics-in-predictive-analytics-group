@@ -96,6 +96,7 @@ def spawn(
     predecessor: str = "",
     report: bool = True,
     prompt_overrides: dict[str, str] | None = None,
+    executor_backend: str = "",
 ) -> Launch:
     launch_id = (
         "launch_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -117,6 +118,8 @@ def spawn(
     if report:
         cmd.append("--report")
     cmd.extend(["--launch-id", launch_id])
+    if executor_backend:
+        cmd.extend(["--executor", executor_backend])
     for k, v in (prompt_overrides or {}).items():
         cmd.extend(["--prompt", f"{k}={v}"])
 

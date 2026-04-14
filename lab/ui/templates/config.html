@@ -242,6 +242,72 @@
     </div>
   </div>
 
+  <h2>Executor</h2>
+  <div class="row">
+    <div class="field">
+      <label for="executor_backend">Default backend</label>
+      <select id="executor_backend" name="executor_backend">
+        {% set eb = raw.get("executor", {}).get("backend", "local") %}
+        <option value="local" {% if eb == "local" %}selected{% endif %}>local</option>
+        <option value="kaggle" {% if eb == "kaggle" %}selected{% endif %}>kaggle</option>
+      </select>
+    </div>
+    <div class="field field-wide">
+      <p class="muted small">
+        Where the generated training code runs by default. You can still pick
+        per-study in the New Study form. <strong>kaggle</strong> requires the
+        <code>kaggle</code> CLI on PATH plus credentials in
+        <code>~/.kaggle/kaggle.json</code>.
+      </p>
+    </div>
+  </div>
+
+  <h3 class="muted" style="margin-top: 14px;">Kaggle</h3>
+  <div class="row">
+    <div class="field">
+      <label for="kaggle_username">Username</label>
+      <input type="text" id="kaggle_username" name="kaggle_username"
+             value="{{ raw.get('executor', {}).get('kaggle', {}).get('username', '') }}"
+             placeholder="your_kaggle_username">
+    </div>
+    <div class="field">
+      <label for="kaggle_kernel_prefix">Kernel prefix</label>
+      <input type="text" id="kaggle_kernel_prefix" name="kaggle_kernel_prefix"
+             value="{{ raw.get('executor', {}).get('kaggle', {}).get('kernel_prefix', 'lab-exp') }}">
+    </div>
+    <div class="field">
+      <label for="kaggle_poll_interval_seconds">Poll interval (s)</label>
+      <input type="number" id="kaggle_poll_interval_seconds" name="kaggle_poll_interval_seconds"
+             value="{{ raw.get('executor', {}).get('kaggle', {}).get('poll_interval_seconds', '') }}">
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="kaggle_enable_gpu" value="true"
+               {% if raw.get("executor", {}).get("kaggle", {}).get("enable_gpu") %}checked{% endif %}>
+        Enable GPU
+      </label>
+      <label class="inline-check">
+        <input type="checkbox" name="kaggle_enable_internet" value="true"
+               {% if raw.get("executor", {}).get("kaggle", {}).get("enable_internet") %}checked{% endif %}>
+        Enable internet
+      </label>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field field-wide">
+      <label for="kaggle_competition_sources">Competition sources (comma-separated slugs)</label>
+      <input type="text" id="kaggle_competition_sources" name="kaggle_competition_sources"
+             value="{{ raw.get('executor', {}).get('kaggle', {}).get('competition_sources', [])|join(', ') }}"
+             placeholder="birdclef-2026, nlp-getting-started">
+    </div>
+    <div class="field field-wide">
+      <label for="kaggle_dataset_sources">Dataset sources (comma-separated slugs)</label>
+      <input type="text" id="kaggle_dataset_sources" name="kaggle_dataset_sources"
+             value="{{ raw.get('executor', {}).get('kaggle', {}).get('dataset_sources', [])|join(', ') }}"
+             placeholder="username/my-processed-spectrograms">
+    </div>
+  </div>
+
   <h2>Publishing</h2>
   <div class="row">
     <div class="field">

@@ -104,6 +104,14 @@ async def save_form(
     ui_enable_live_sse: str = Form("false"),
     publishing_default_publish: str = Form("false"),
     publishing_default_tags: str = Form(""),
+    executor_backend: str = Form(""),
+    kaggle_username: str = Form(""),
+    kaggle_kernel_prefix: str = Form(""),
+    kaggle_enable_gpu: str = Form("false"),
+    kaggle_enable_internet: str = Form("false"),
+    kaggle_poll_interval_seconds: str = Form(""),
+    kaggle_dataset_sources: str = Form(""),
+    kaggle_competition_sources: str = Form(""),
     raw_yaml: str = Form(""),
 ):
     settings = request.app.state.settings
@@ -161,6 +169,18 @@ async def save_form(
             "publishing": {
                 "default_publish": _as_bool(publishing_default_publish),
                 "default_tags": [t.strip() for t in publishing_default_tags.split(",") if t.strip()],
+            },
+            "executor": {
+                "backend": executor_backend,
+                "kaggle": {
+                    "username": kaggle_username,
+                    "kernel_prefix": kaggle_kernel_prefix,
+                    "enable_gpu": _as_bool(kaggle_enable_gpu),
+                    "enable_internet": _as_bool(kaggle_enable_internet),
+                    "poll_interval_seconds": _maybe_int(kaggle_poll_interval_seconds),
+                    "dataset_sources": [s.strip() for s in kaggle_dataset_sources.split(",") if s.strip()],
+                    "competition_sources": [s.strip() for s in kaggle_competition_sources.split(",") if s.strip()],
+                },
             },
         })
 

@@ -32,7 +32,7 @@ from typing import Callable
 from lab.config import Settings
 from lab.core import validator as validator_mod
 from lab.core.context import ContextBuilder, load_model_registry
-from lab.core.executor import CodeExecutor, ExecutionResult
+from lab.core.executor import Executor, ExecutionResult, LocalExecutor
 from lab.core.llm import LLMClient, LLMError, format_messages
 from lab.core.memory import Memory
 from lab.core.models import (
@@ -81,6 +81,7 @@ class Orchestrator:
         predecessor: Study | None = None,
         prompt_overrides: dict[str, str] | None = None,
         launch_id: str | None = None,
+        executor_backend: str | None = None,
     ):
         self.settings = settings
         self.adapter = adapter
@@ -127,12 +128,14 @@ class Orchestrator:
         )
 
         sandbox_root = settings.abspath(settings.paths.sandbox)
-        self.executor = CodeExecutor(
+        backend = (executor_backend or settings.executor.backend or "local").strip().lower()
+        self.executor: Executor = _build_executor(
+            backend=backend,
+            settings=settings,
             sandbox_root=sandbox_root,
-            timeout_seconds=settings.compute_budget.max_experiment_seconds,
-            repo_root=settings.repo_root,
             training_env=self._training_env(),
         )
+        logger.info("Executor backend: %s", self.executor.backend)
 
         # Graceful SIGINT handling — set by run()
         self._abort_requested = False
@@ -150,6 +153,8 @@ class Orchestrator:
             prompt_template_paths=self._resolve_prompt_paths(),
             publish=self.settings.publishing.default_publish,
             tags=tags or list(self.settings.publishing.default_tags),
+            executor_backend=self.executor.backend,
+            executor_infrastructure=self.executor.infrastructure(),
         )
         study.status = StudyStatus.RUNNING
         study.started_at = _now()
@@ -508,6 +513,45 @@ def _strip_fences(text: str) -> str:
         if stripped.endswith("```"):
             stripped = stripped[:-3]
     return stripped.strip()
+
+
+def _build_executor(
+    *,
+    backend: str,
+    settings: Settings,
+    sandbox_root: Path,
+    training_env: dict[str, str],
+) -> Executor:
+    """Factory for the executor named in ``backend``.
+
+    Unknown backends fall back to local with a warning so a typo in
+    the UI dropdown never blocks a study from starting.
+    """
+    timeout = settings.compute_budget.max_experiment_seconds
+    if backend == "kaggle":
+        from lab.core.kaggle_executor import KaggleExecutor
+        k = settings.executor.kaggle
+        return KaggleExecutor(
+            username=k.username,
+            kernel_prefix=k.kernel_prefix,
+            enable_gpu=k.enable_gpu,
+            enable_internet=k.enable_internet,
+            poll_interval_seconds=k.poll_interval_seconds,
+            poll_timeout_seconds=min(k.poll_timeout_seconds, timeout * 10) or timeout,
+            dataset_sources=list(k.dataset_sources),
+            competition_sources=list(k.competition_sources),
+            sandbox_root=sandbox_root,
+            repo_root=settings.repo_root,
+            training_env=training_env,
+        )
+    if backend != "local":
+        logger.warning("Unknown executor backend %r — falling back to local", backend)
+    return LocalExecutor(
+        sandbox_root=sandbox_root,
+        timeout_seconds=timeout,
+        repo_root=settings.repo_root,
+        training_env=training_env,
+    )
 
 
 __all__ = ["Orchestrator", "OrchestratorHooks"]

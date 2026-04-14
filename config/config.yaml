@@ -79,3 +79,19 @@ ui:
 publishing:
   default_publish: false
   default_tags: []
+
+# Where the generated training code physically runs. `local` uses the
+# subprocess sandbox on this machine; `kaggle` pushes each experiment
+# as a Kaggle notebook kernel. The UI lets you pick per-study, so this
+# is only the default for new studies.
+executor:
+  backend: local                       # local | kaggle
+  kaggle:
+    username: ""                       # Kaggle username (the part before the slash in kernel slugs)
+    kernel_prefix: lab-exp             # becomes slug `<username>/lab-exp-<experiment_id>`
+    enable_gpu: true
+    enable_internet: false             # keep off to match Kaggle competition rules
+    poll_interval_seconds: 30
+    poll_timeout_seconds: 36000        # 10h safety net
+    dataset_sources: []                # user-dataset slugs to attach (e.g. "maxuser/my-processed-data")
+    competition_sources: []            # competition slugs to attach (e.g. "birdclef-2026")

@@ -1,21 +1,22 @@
-"""Subprocess sandbox for LLM-generated training scripts.
+"""Executor abstraction + local subprocess sandbox.
 
-Ported from max_development with two changes:
-  * No psutil heartbeat — removed as requested.
-  * Env-var prefix comes from settings (``AGENT_*`` by default), so the
-    same executor works for audio / text / any other task.
+Two concrete implementations live in this package:
 
-Kept verbatim:
-  * Process-group isolation (``os.setsid``) so the timeout can kill the
-    whole tree (DataLoader workers included).
-  * Live stdout/stderr streaming into buffer + flushed live file + logger
-    — the UI tails the live file in real time.
-  * Error classification table for OOM / Syntax / Shape / Timeout / ...
+  * ``LocalExecutor`` (this file) runs the generated training script as a
+    detached subprocess on the same machine. Keeps process-group kill,
+    error classification, and live stdout streaming from max_development.
+
+  * ``KaggleExecutor`` (``lab.core.kaggle_executor``) pushes the script
+    as a Kaggle kernel, polls until done, and fetches the output.
+
+Both implement the lightweight ``Executor`` protocol below, and return
+the same ``ExecutionResult``, so the orchestrator never has to branch.
 """
 from __future__ import annotations
 
 import logging
 import os
+import platform
 import signal
 import subprocess
 import sys
@@ -23,7 +24,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, Protocol
 
 from lab.core.models import TaskError
 
@@ -125,8 +126,30 @@ class ExecutionResult:
 # ---------------------------------------------------------------------------
 
 
+class Executor(Protocol):
+    """The interface every backend implements.
+
+    All methods return a fully-populated ``ExecutionResult`` — failures
+    are captured in the result rather than raised, so the orchestrator
+    can classify them uniformly and feed the error into the recovery
+    prompt.
+    """
+
+    backend: str  # e.g. "local" | "kaggle"
+
+    def run(
+        self, code: str, *, experiment_id: str,
+        extra_env: dict[str, str] | None = None,
+    ) -> ExecutionResult: ...
+
+    def infrastructure(self) -> dict[str, Any]:
+        """Return a small JSON-serialisable dict describing where the
+        code will actually run. Recorded once per study so the UI can
+        show "ran on local CPU" vs "ran on Kaggle T4" forever after."""
+
+
 @dataclass
-class CodeExecutor:
+class LocalExecutor:
     """Write a training script to a sandbox dir and run it as a subprocess."""
 
     sandbox_root: Path = Path("sandbox")
@@ -136,6 +159,8 @@ class CodeExecutor:
     stream_output: bool = True
     log_line_prefix: str = "      │ "
     training_env: dict[str, str] = field(default_factory=dict)
+
+    backend: str = field(default="local", init=False)
 
     def run(
         self,
@@ -338,5 +363,29 @@ class CodeExecutor:
         except ProcessLookupError:
             pass
 
+    def infrastructure(self) -> dict[str, Any]:
+        """Describe the local box the generated code will run on."""
+        device = self.training_env.get(f"{_env_prefix()}_DEVICE", "cpu")
+        return {
+            "backend": "local",
+            "device": device,
+            "cpu_count": os.cpu_count() or 0,
+            "python_version": ".".join(map(str, sys.version_info[:3])),
+            "platform": platform.platform(terse=True),
+            "hostname": platform.node(),
+        }
 
-__all__ = ["CodeExecutor", "ExecutionResult", "classify_error"]
+
+def _env_prefix() -> str:
+    # Cheap helper — avoids importing Settings here just to read one str.
+    return os.environ.get("AGENT_ENV_PREFIX", "AGENT")
+
+
+# Backward-compat alias. External tools may still import ``CodeExecutor``.
+CodeExecutor = LocalExecutor
+
+
+__all__ = [
+    "Executor", "LocalExecutor", "CodeExecutor",
+    "ExecutionResult", "classify_error",
+]

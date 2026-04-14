@@ -86,6 +86,23 @@ class PublishingConfig(BaseModel):
     default_tags: list[str] = Field(default_factory=list)
 
 
+class KaggleConfig(BaseModel):
+    username: str = ""
+    kernel_prefix: str = "lab-exp"
+    enable_gpu: bool = True
+    enable_internet: bool = False
+    poll_interval_seconds: int = 30
+    poll_timeout_seconds: int = 36_000
+    dataset_sources: list[str] = Field(default_factory=list)
+    competition_sources: list[str] = Field(default_factory=list)
+
+
+class ExecutorConfig(BaseModel):
+    """Where the generated training code physically runs."""
+    backend: str = "local"                  # local | kaggle
+    kaggle: KaggleConfig = Field(default_factory=KaggleConfig)
+
+
 class Settings(BaseModel):
     """The full merged configuration."""
     project: str = "lab"
@@ -101,6 +118,7 @@ class Settings(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     ui: UIConfig = Field(default_factory=UIConfig)
     publishing: PublishingConfig = Field(default_factory=PublishingConfig)
+    executor: ExecutorConfig = Field(default_factory=ExecutorConfig)
 
     # Opaque bag of task-config values; the adapter consumes them.
     task_config: dict[str, Any] = Field(default_factory=dict)
