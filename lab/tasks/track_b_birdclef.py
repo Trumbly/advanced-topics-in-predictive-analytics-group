@@ -139,18 +139,44 @@ def load_audio_dataset(
             " to preprocess the audio first."
         )
 
-    class_list: list[str] = []
-    rows: list[tuple[str, list[str]]] = []
+    # The labels.csv schema isn't 100% standardised across the team's
+    # preprocessing variants. Auto-detect the columns: take the first
+    # field that looks like a sample identifier and the first that
+    # looks like a class label, and accept either pipe-separated
+    # multi-label strings or single integer/string labels per row
+    # (in which case we group by sample id).
+    rows_by_sample: dict[str, list[str]] = {}
+    class_set: set[str] = set()
     with labels_csv.open() as fh:
         reader = csv.DictReader(fh)
+        fields = list(reader.fieldnames or [])
+        sample_col = _first_present(
+            fields, ("filename", "sample_id", "id", "file", "row_id"),
+        )
+        label_col = _first_present(
+            fields, ("labels", "class_id", "class_ids", "label", "class", "primary_label"),
+        )
+        if sample_col is None or label_col is None:
+            raise RuntimeError(
+                f"labels.csv has unexpected columns {fields}. "
+                f"Expected one of (filename|sample_id|id|file) and one of "
+                f"(labels|class_id|label|class|primary_label)."
+            )
         for row in reader:
-            labels = [s for s in row.get("labels", "").split("|") if s]
-            rows.append((row["filename"], labels))
-            for c in labels:
-                if c not in class_list:
-                    class_list.append(c)
-    class_list.sort()
+            raw_sample = (row.get(sample_col) or "").strip()
+            if not raw_sample:
+                continue
+            # Spectrograms live as <name>.npy on disk. If the CSV stores
+            # bare ids, append the suffix; if it already has it, keep.
+            fname = raw_sample if raw_sample.endswith(".npy") else f"{raw_sample}.npy"
+            raw_label = (row.get(label_col) or "").strip()
+            row_labels = [s.strip() for s in raw_label.split("|") if s.strip()] if raw_label else []
+            rows_by_sample.setdefault(fname, []).extend(row_labels)
+            class_set.update(row_labels)
+
+    class_list = sorted(class_set)
     class_to_idx = {c: i for i, c in enumerate(class_list)}
+    rows: list[tuple[str, list[str]]] = list(rows_by_sample.items())
 
     class _SpecDataset(Dataset):
         def __init__(self, rows):
@@ -185,6 +211,20 @@ def load_audio_dataset(
         num_workers=num_workers, persistent_workers=bool(num_workers),
     )
     return train_loader, val_loader, len(class_list)
+
+
+def _first_present(fields: list[str], candidates: tuple[str, ...]) -> str | None:
+    """Return the first ``candidate`` that's in ``fields``, else None.
+
+    Used to auto-detect column names in labels.csv across the team's
+    different preprocessing outputs (filename vs sample_id, labels vs
+    class_id, …) without forcing a re-preprocess.
+    """
+    field_set = {f.strip(): f for f in fields}
+    for c in candidates:
+        if c in field_set:
+            return field_set[c]
+    return None
 
 
 __all__ = ["BirdclefAdapter", "load_audio_dataset"]
