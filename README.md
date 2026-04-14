@@ -276,6 +276,48 @@ pytest tests/ -v                  # verbose
 pytest tests/test_orchestrator.py # just the end-to-end smoke tests
 ```
 
+### 6. Reviewer quick start (CPU-only machines)
+
+If you are reviewing this project on a CPU-only machine (no GPU/MPS), use the
+exam config to verify the agent works end-to-end. This runs with 3 epochs,
+batch_size=32, and a 1-hour timeout — enough to complete 1-2 experiments and
+see the full autonomous loop in action.
+
+```bash
+# 1. Install dependencies + start Ollama (see steps 1-3 above)
+# 2. Run the agent with CPU-optimized settings:
+python -m agent.main start \
+    --config config/config_exam.yaml \
+    --pipeline config/pipelines/exam_pipeline.yaml \
+    --study reviewer_demo \
+    --hypothesis "CPU demo for review" \
+    --max-experiments 2
+```
+
+This will:
+- Ask the LLM to propose an architecture
+- Generate executable training code
+- Train on CPU (~30-60 min per experiment with 3 epochs)
+- Capture metrics (ROC-AUC, cmap@5, F1)
+- Feed results back to the LLM for analysis
+- Iterate with an improved architecture
+
+**Pre-computed results:** Full training results from our MPS (Apple Silicon GPU)
+runs are already saved in `experiments/studies/`. To browse them without
+re-training, launch the dashboard:
+
+```bash
+python -m agent.main ui
+# Open http://127.0.0.1:8000 — browse all studies, experiments, and metrics
+```
+
+**Kaggle submission:** The agent exports the best model as a standalone Kaggle
+notebook (CPU-only inference, well within the 90-minute runtime limit):
+
+```bash
+python -m agent.main submit
+```
+
 ## CLI Reference
 
 | Command | Description |
