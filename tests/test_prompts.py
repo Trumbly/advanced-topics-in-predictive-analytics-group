@@ -42,3 +42,23 @@ def test_prompt_engine_renders_v1(tmp_path):
     slots = {k: f"<{k}>" for k in slots_needed}
     system, user = engine.render("analyze_result", slots)
     assert "<task_description>" in system or "<task_description>" in user
+
+
+def test_cli_parses_prompt_overrides():
+    from lab.cli import _parse_prompt_overrides
+    assert _parse_prompt_overrides(["propose_architecture=v2", "generate_code=v1"]) == {
+        "propose_architecture": "v2",
+        "generate_code": "v1",
+    }
+    assert _parse_prompt_overrides(None) == {}
+    assert _parse_prompt_overrides([]) == {}
+
+
+def test_cli_rejects_malformed_prompt_overrides():
+    from lab.cli import _parse_prompt_overrides
+    with pytest.raises(ValueError):
+        _parse_prompt_overrides(["no_equals_here"])
+    with pytest.raises(ValueError):
+        _parse_prompt_overrides(["=v1"])
+    with pytest.raises(ValueError):
+        _parse_prompt_overrides(["task="])

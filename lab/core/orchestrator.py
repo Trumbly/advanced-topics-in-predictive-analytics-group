@@ -79,6 +79,7 @@ class Orchestrator:
         llm: LLMClient | None = None,
         hooks: OrchestratorHooks | None = None,
         predecessor: Study | None = None,
+        prompt_overrides: dict[str, str] | None = None,
     ):
         self.settings = settings
         self.adapter = adapter
@@ -94,6 +95,9 @@ class Orchestrator:
         )
         self.hooks = hooks or OrchestratorHooks()
         self.predecessor = predecessor
+        # Per-study prompt version overrides: {"propose_architecture": "v2", ...}
+        # Empty/missing entries fall back to the registry's active version.
+        self.prompt_overrides: dict[str, str] = dict(prompt_overrides or {})
 
         self.registry = PromptRegistry(settings.abspath(settings.paths.prompts_dir))
         self.engine = PromptEngine(self.registry)
@@ -351,12 +355,18 @@ class Orchestrator:
 
     def _propose_architecture(self) -> str:
         slots = self.context.build()
-        system, user = self.engine.render("propose_architecture", slots)
+        system, user = self.engine.render(
+            "propose_architecture", slots,
+            version=self.prompt_overrides.get("propose_architecture"),
+        )
         return self.llm.chat(format_messages(system, user))
 
     def _generate_code(self, architecture_proposal: str) -> str:
         slots = self.context.build(architecture_proposal=architecture_proposal)
-        system, user = self.engine.render("generate_code", slots)
+        system, user = self.engine.render(
+            "generate_code", slots,
+            version=self.prompt_overrides.get("generate_code"),
+        )
         raw = self.llm.chat(format_messages(system, user))
         return _strip_fences(raw)
 
@@ -367,7 +377,10 @@ class Orchestrator:
             error_traceback=traceback,
             broken_code=code,
         )
-        system, user = self.engine.render("recover_from_error", slots)
+        system, user = self.engine.render(
+            "recover_from_error", slots,
+            version=self.prompt_overrides.get("recover_from_error"),
+        )
         raw = self.llm.chat(format_messages(system, user))
         return _strip_fences(raw)
 
@@ -404,11 +417,22 @@ class Orchestrator:
         study.best_score = best.primary_score
 
     def _resolve_prompt_paths(self) -> dict[str, str]:
+        """Record which prompt file was actually used for each prompt task.
+
+        Respects ``self.prompt_overrides`` so per-study A/B runs are
+        attributable to the right version in prompt_scoring.
+        """
         out: dict[str, str] = {}
         for task in ("propose_architecture", "generate_code", "analyze_result",
                      "recover_from_error", "executive_summary"):
             try:
-                out[task] = str(self.registry.resolve_active_path(task))
+                override = self.prompt_overrides.get(task)
+                if override:
+                    data = self.registry._load_pointer()[task]
+                    rel = data["versions"][override]["path"]
+                    out[task] = str(self.registry.root / rel)
+                else:
+                    out[task] = str(self.registry.resolve_active_path(task))
             except KeyError:
                 continue
         return out

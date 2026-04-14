@@ -46,6 +46,31 @@
 </form>
 
 <section class="card">
+  <h2>Prompt versions</h2>
+  <p class="muted small">
+    Pick a specific version per prompt task for A/B testing, or leave on
+    <em>active</em> to use whatever version is currently marked active in
+    <code>config/prompts/_registry.yaml</code>. Results are attributed to the
+    chosen version in the prompt score aggregation.
+  </p>
+  <div class="prompt-grid">
+    {% for pt in prompt_tasks %}
+      <div class="field">
+        <label for="prompt-{{ pt.name }}">
+          {{ pt.name }} <span class="muted small">(active: {{ pt.active }})</span>
+        </label>
+        <select id="prompt-{{ pt.name }}" class="prompt-select" data-task="{{ pt.name }}">
+          <option value="">active ({{ pt.active }})</option>
+          {% for v in pt.versions %}
+            <option value="{{ v }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
   <h2>CLI command</h2>
   <p class="muted small">
     The web UI starts the agent in a separate process. This command updates
@@ -68,12 +93,11 @@
   const $tags = document.getElementById("tags");
   const $predecessor = document.getElementById("predecessor");
   const $report = document.getElementById("opt-report");
+  const $promptSelects = document.querySelectorAll(".prompt-select");
   const $cmd = document.getElementById("cli-command");
   const $copy = document.getElementById("cli-copy");
 
   function quote(value) {
-    // Wrap in single quotes when the value has spaces or shell-special
-    // chars; leave it bare otherwise for readability.
     if (!value) return "";
     if (/[\s"'$`\\*?&|;<>(){}!#]/.test(value)) {
       return "'" + value.replace(/'/g, "'\\''") + "'";
@@ -95,6 +119,15 @@
     if (tags) parts.push("--tags", quote(tags));
     if (predecessor) parts.push("--resume", predecessor);
     if (report) parts.push("--report");
+
+    // Prompt overrides — only emit a --prompt flag when the user chose a
+    // specific version (empty value = use active).
+    $promptSelects.forEach(sel => {
+      const v = sel.value.trim();
+      if (v) {
+        parts.push("--prompt", `${sel.dataset.task}=${v}`);
+      }
+    });
     $cmd.textContent = parts.join(" ");
   }
 
@@ -103,6 +136,7 @@
     el.addEventListener("change", build);
   });
   $report.addEventListener("change", build);
+  $promptSelects.forEach(el => el.addEventListener("change", build));
 
   $copy.addEventListener("click", async () => {
     const text = $cmd.textContent;

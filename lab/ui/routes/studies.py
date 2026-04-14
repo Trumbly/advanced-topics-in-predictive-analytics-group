@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from lab.prompts.registry import PromptRegistry
 from lab.tasks.registry import list_available_tasks
 from lab.ui import loaders
 
@@ -63,6 +64,17 @@ async def update_tags(study_id: str, request: Request, tags: str = Form("")):
 async def new_study_form(request: Request):
     settings = request.app.state.settings
     experiments_dir = settings.abspath(settings.paths.experiments)
+    registry = PromptRegistry(settings.abspath(settings.paths.prompts_dir))
+
+    prompt_tasks = []
+    for task in registry.list_tasks():
+        versions = [v.version for v in registry.list_versions(task)]
+        prompt_tasks.append({
+            "name": task,
+            "active": registry.active_version(task),
+            "versions": versions,
+        })
+
     return request.app.state.templates.TemplateResponse(
         request,
         "new_study.html",
@@ -70,5 +82,6 @@ async def new_study_form(request: Request):
             "tasks": list_available_tasks(settings),
             "default_task": settings.default_task,
             "studies": loaders.iter_studies(experiments_dir),
+            "prompt_tasks": prompt_tasks,
         },
     )

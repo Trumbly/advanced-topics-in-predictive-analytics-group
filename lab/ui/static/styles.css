@@ -181,6 +181,14 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 details[open] summary { margin-bottom: 8px; }
 
+/* Prompt selection grid on new-study form */
+.prompt-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 18px; margin-top: 8px;
+}
+.prompt-grid .field { min-width: 0; }
+.prompt-grid label { display: flex; justify-content: space-between; align-items: baseline; }
+
 /* Config page — row of fields */
 .row { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; }
 .field { flex: 1 1 150px; min-width: 140px; }

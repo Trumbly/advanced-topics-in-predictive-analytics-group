@@ -23,6 +23,21 @@ from lab.tasks.registry import get_task_adapter, list_available_tasks
 from lab.ui import loaders
 
 
+def _parse_prompt_overrides(raw: list[str] | None) -> dict[str, str]:
+    """Convert ``["propose_architecture=v2", "generate_code=v1"]`` to a dict."""
+    out: dict[str, str] = {}
+    for item in raw or []:
+        if "=" not in item:
+            raise ValueError(f"--prompt must be task=version, got {item!r}")
+        task, _, version = item.partition("=")
+        task = task.strip()
+        version = version.strip()
+        if not task or not version:
+            raise ValueError(f"empty task or version in --prompt {item!r}")
+        out[task] = version
+    return out
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     settings = load_settings(task=args.task)
     telemetry.configure(settings)
@@ -36,6 +51,15 @@ def _cmd_run(args: argparse.Namespace) -> int:
             return 2
         predecessor = Study.load(exp_dir)
 
+    try:
+        prompt_overrides = _parse_prompt_overrides(args.prompt)
+    except ValueError as exc:
+        log.error(str(exc))
+        return 2
+    if prompt_overrides:
+        log.info("Prompt overrides: %s",
+                 ", ".join(f"{k}={v}" for k, v in prompt_overrides.items()))
+
     adapter = get_task_adapter(task_name=settings.task_config.get("name"), settings=settings)
     log.info("Task %s | primary metric %s", adapter.name, adapter.primary_metric)
 
@@ -43,7 +67,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
     # commands on a Python without torch installed.
     from lab.core.orchestrator import Orchestrator
 
-    orch = Orchestrator(settings=settings, adapter=adapter, predecessor=predecessor)
+    orch = Orchestrator(
+        settings=settings,
+        adapter=adapter,
+        predecessor=predecessor,
+        prompt_overrides=prompt_overrides,
+    )
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
     study = orch.run_study(name=args.name or "", tags=tags)
 
@@ -137,6 +166,13 @@ def build_parser() -> argparse.ArgumentParser:
                     help="continue from predecessor study (seeds memory)")
     sp.add_argument("--report", action="store_true",
                     help="also render the report when the study finishes")
+    sp.add_argument(
+        "--prompt", action="append", metavar="TASK=VERSION", default=[],
+        help=(
+            "pin a prompt task to a specific version for this study (repeatable). "
+            "Example: --prompt propose_architecture=v2 --prompt generate_code=v1"
+        ),
+    )
     sp.set_defaults(fn=_cmd_run)
 
     sp = sub.add_parser("list", help="list studies")
