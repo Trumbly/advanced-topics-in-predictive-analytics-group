@@ -1,0 +1,232 @@
+{
+  "id": "study_20260410_130707_first_run",
+  "name": "first_run",
+  "task_name": "track_b",
+  "status": "completed",
+  "created_at": "2026-04-10T13:07:07.796727Z",
+  "started_at": "2026-04-10T13:07:07.796727Z",
+  "completed_at": "2026-04-10T13:08:58.074757Z",
+  "primary_metric": "roc_auc_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_001",
+      "study_id": "study_20260410_130707_first_run",
+      "index": 1,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "ValueError",
+        "message": "propose_architecture: LLM did not return valid JSON: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "ValueError",
+            "message": "propose_architecture: LLM did not return valid JSON: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:07:07.805330Z",
+      "completed_at": "2026-04-10T13:07:34.181671Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_002",
+      "study_id": "study_20260410_130707_first_run",
+      "index": 2,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 32,\n    \"epochs\": 50,\n    \"optimizer\": \"AdamW\",\n    \"weight_decay\": 0.01,\n    \"dropout\": 0.2\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": true\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "ForbiddenPattern",
+        "message": "Forbidden pattern found: 'eval('",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.001,
+                "batch_size": 32,
+                "epochs": 50,
+                "optimizer": "AdamW",
+                "weight_decay": 0.01,
+                "dropout": 0.2
+              },
+              "augmentation": {
+                "time_shift": true,
+                "noise_injection": true,
+                "mixup": 0.0,
+                "specaugment": true
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "from pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNNSmallV1\nimport torch\nimport torch.optim as optim\nfrom torch.utils.data import DataLoader\nimport numpy as np\nimport json\nimport time\nfrom tqdm import tqdm\n\n# --- Configuration from Proposal ---\n# Model Architecture: cnn_small_v1\n# Hyperparameters:\nLR = 0.001\nBATCH_SIZE = 32\nEPOCHS = 50\nOPTIMIZER_NAME = \"AdamW\"\nWEIGHT_DECAY = 0.01\nDROPOUT = 0.2\n\n# Augmentation (Note: Augmentation logic is usually handled within the DataLoader setup,\n# but since we only load the precomputed dataset, we will focus on the training loop structure.)\n\n# --- Setup ---\ntry:\n    # Load data: (train_loader, val_loader, num_classes)\n    train_loader, val_loader, NUM_CLASSES = load_precomputed_dataset()\nexcept Exception as e:\n    print(f\"Error loading dataset: {e}\")\n    # Create dummy variables to allow the script to attempt writing results.json\n    train_loader, val_loader, NUM_CLASSES = None, None, 206\n\ndevice = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n\n# Initialize Model\ntry:\n    model = CNNSmallV1(num_classes=NUM_CLASSES).to(device)\nexcept Exception as e:\n    print(f\"Error initializing model: {e}\")\n    model = None\n\n# Initialize Optimizer and Criterion\noptimizer = None\ncriterion = None\nif model:\n    optimizer_class = getattr(torch.optim, OPTIMIZER_NAME)\n    optimizer = optimizer_class(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)\n    # For multi-label classification, Binary Cross-Entropy Loss is standard\n    criterion = torch.nn.BCEWithLogitsLoss()\n\n# --- Training and Evaluation Functions ---\n\ndef train_one_epoch(model, data_loader, optimizer, criterion, device):\n    model.train()\n    total_loss = 0.0\n    \n    # Use tqdm for progress visualization\n    progress_bar = tqdm(data_loader, desc=\"Training\")\n    \n    for batch_idx, (data, labels) in enumerate(progress_bar):\n        # Assuming data is (B, C, T) and labels is (B, NumClasses) float/long\n        data = data.to(device)\n        # BCEWithLogitsLoss expects float targets (0.0 or 1.0)\n        labels = labels.float().to(device) \n        \n        optimizer.zero_grad()\n        \n        # Forward pass\n        outputs = model(data)\n        \n        # Calculate loss\n        loss = criterion(outputs, labels)\n        \n        # Backward pass and optimization\n        loss.backward()\n        optimizer.step()\n        \n        total_loss += loss.item()\n        \n        # Update progress bar with current loss\n        progress_bar.set_postfix(loss=f\"{loss.item():.4f}\")\n        \n    return total_loss / len(data_loader)\n\n@torch.no_grad()\ndef evaluate_model(model, data_loader, criterion, device):\n    model.eval()\n    total_loss = 0.0\n    all_preds = []\n    all_labels = []\n    \n    progress_bar = tqdm(data_loader, desc=\"Evaluating\")\n    \n    for data, labels in progress_bar:\n        data = data.to(device)\n        labels = labels.float().to(device)\n        \n        # Forward pass\n        outputs = model(data)\n        \n        # Calculate loss\n        loss = criterion(outputs, labels)\n        total_loss += loss.item()\n        \n        # For metrics calculation (like AUC), we need probabilities\n        # Sigmoid activation converts logits to probabilities [0, 1]\n        probs = torch.sigmoid(outputs)\n        \n        # Determine predicted labels (threshold at 0.5 for simplicity, though AUC doesn't strictly need it)\n        preds = (probs >= 0.5).float()\n        \n        all_preds.append(preds.cpu().numpy())\n        all_labels.append(labels.cpu().numpy())\n        \n    avg_loss = total_loss / len(data_loader)\n    \n    # Concatenate results\n    all_preds = np.concatenate(all_preds, axis=0)\n    all_labels = np.concatenate(all_labels, axis=0)\n    \n    return avg_loss, all_preds, all_labels\n\ndef calculate_roc_auc_macro(y_true, y_pred):\n    \"\"\"\n    Calculates the macro-averaged ROC AUC score.\n    y_true and y_pred must be binary arrays of shape (N, C).\n    \"\"\"\n    from sklearn.metrics import roc_auc_score\n    \n    # roc_auc_score expects probabilities (or positive class indicator)\n    # Since we need macro averaging, we calculate AUC for each class independently\n    \n    # Ensure inputs are numpy arrays\n    y_true = np.asarray(y_true)\n    y_pred = np.asarray(y_pred)\n    \n    num_classes = y_true.shape[1]\n    auc_scores = []\n    \n    for c in range(num_classes):\n        # Calculate AUC for class c (treating it as a binary classification problem)\n        # We use the probability of the positive class (y_pred[:, c])\n        try:\n            auc = roc_auc_score(y_true[:, c], y_pred[:, c])\n            auc_scores.append(auc)\n        except ValueError:\n            # This happens if a class is only present in one state (all 0 or all 1)\n            # In such cases, we might skip or assign a neutral value. Here, we assign 0.5.\n            auc_scores.append(0.5)\n            \n    return np.mean(auc_scores)\n\n\n# --- Main Training Loop ---\n\nstart_time = time.time()\ntraining_losses = []\nval_losses = []\nval_auc_scores = []\n\nif model and optimizer and criterion:\n    print(f\"--- Starting Training on {device} ---\")\n    \n    for epoch in range(EPOCHS):\n        # 1. Train\n        train_loss = train_one_epoch(model, train_loader, optimizer, criterion, device)\n        training_losses.append(train_loss)\n        \n        # 2. Validate\n        val_loss, val_preds, val_labels = evaluate_model(model, val_loader, criterion, device)\n        val_losses.append(val_loss)\n        \n        # Calculate MACRO AUC on validation set\n        val_auc = calculate_roc_auc_macro(val_labels, val_preds)\n        val_auc_scores.append(val_auc)\n        \n        print(f\"Epoch {epoch+1}/{EPOCHS}: \"\n              f\"Train Loss: {train_loss:.4f} | \"\n              f\"Val Loss: {val_loss:.4f} | \"\n              f\"Val AUC Macro: {val_auc:.4f}\")\n\n# --- Final Evaluation/Testing (Using the last validation fold results as proxy) ---\nfinal_val_loss = val_losses[-1] if val_losses else np.nan\nfinal_val_auc = val_auc_scores[-1] if val_auc_scores else np.nan\n\n\n# --- Results Compilation ---\nresults = {\n    \"metrics\": {\n        \"roc_auc_macro\": final_val_auc,\n        \"loss\": final_val_loss\n    },\n    \"training_curves\": {\n        \"loss\": training_losses,\n        \"roc_auc_macro\": val_auc_scores\n    },\n    \"duration_seconds\": time.time() - start_time\n}\n\n# Write results to results.json\ntry:\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=4)\n    print(\"\\nSuccessfully wrote results to results.json\")\nexcept Exception as e:\n    print(f\"\\nError writing results.json: {e}\")\n    # If writing fails, we still attempt to write an error JSON structure\n    error_result = {\n        \"metrics\": {\"roc_auc_macro\": np.nan, \"loss\": np.nan},\n        \"training_curves\": {\"loss\": [], \"roc_auc_macro\": []},\n        \"duration_seconds\": time.time() - start_time,\n        \"error\": str(e)\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(error_result, f, indent=4)\n    print(\"Wrote error structure to results.json instead.\")\n\n# Cleanup variables for final execution context\ndel model, optimizer, criterion, train_loader, val_loader\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "validation": "failed"
+          },
+          "code_used": "from pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNNSmallV1\nimport torch\nimport torch.optim as optim\nfrom torch.utils.data import DataLoader\nimport numpy as np\nimport json\nimport time\nfrom tqdm import tqdm\n\n# --- Configuration from Proposal ---\n# Model Architecture: cnn_small_v1\n# Hyperparameters:\nLR = 0.001\nBATCH_SIZE = 32\nEPOCHS = 50\nOPTIMIZER_NAME = \"AdamW\"\nWEIGHT_DECAY = 0.01\nDROPOUT = 0.2\n\n# Augmentation (Note: Augmentation logic is usually handled within the DataLoader setup,\n# but since we only load the precomputed dataset, we will focus on the training loop structure.)\n\n# --- Setup ---\ntry:\n    # Load data: (train_loader, val_loader, num_classes)\n    train_loader, val_loader, NUM_CLASSES = load_precomputed_dataset()\nexcept Exception as e:\n    print(f\"Error loading dataset: {e}\")\n    # Create dummy variables to allow the script to attempt writing results.json\n    train_loader, val_loader, NUM_CLASSES = None, None, 206\n\ndevice = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n\n# Initialize Model\ntry:\n    model = CNNSmallV1(num_classes=NUM_CLASSES).to(device)\nexcept Exception as e:\n    print(f\"Error initializing model: {e}\")\n    model = None\n\n# Initialize Optimizer and Criterion\noptimizer = None\ncriterion = None\nif model:\n    optimizer_class = getattr(torch.optim, OPTIMIZER_NAME)\n    optimizer = optimizer_class(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)\n    # For multi-label classification, Binary Cross-Entropy Loss is standard\n    criterion = torch.nn.BCEWithLogitsLoss()\n\n# --- Training and Evaluation Functions ---\n\ndef train_one_epoch(model, data_loader, optimizer, criterion, device):\n    model.train()\n    total_loss = 0.0\n    \n    # Use tqdm for progress visualization\n    progress_bar = tqdm(data_loader, desc=\"Training\")\n    \n    for batch_idx, (data, labels) in enumerate(progress_bar):\n        # Assuming data is (B, C, T) and labels is (B, NumClasses) float/long\n        data = data.to(device)\n        # BCEWithLogitsLoss expects float targets (0.0 or 1.0)\n        labels = labels.float().to(device) \n        \n        optimizer.zero_grad()\n        \n        # Forward pass\n        outputs = model(data)\n        \n        # Calculate loss\n        loss = criterion(outputs, labels)\n        \n        # Backward pass and optimization\n        loss.backward()\n        optimizer.step()\n        \n        total_loss += loss.item()\n        \n        # Update progress bar with current loss\n        progress_bar.set_postfix(loss=f\"{loss.item():.4f}\")\n        \n    return total_loss / len(data_loader)\n\n@torch.no_grad()\ndef evaluate_model(model, data_loader, criterion, device):\n    model.eval()\n    total_loss = 0.0\n    all_preds = []\n    all_labels = []\n    \n    progress_bar = tqdm(data_loader, desc=\"Evaluating\")\n    \n    for data, labels in progress_bar:\n        data = data.to(device)\n        labels = labels.float().to(device)\n        \n        # Forward pass\n        outputs = model(data)\n        \n        # Calculate loss\n        loss = criterion(outputs, labels)\n        total_loss += loss.item()\n        \n        # For metrics calculation (like AUC), we need probabilities\n        # Sigmoid activation converts logits to probabilities [0, 1]\n        probs = torch.sigmoid(outputs)\n        \n        # Determine predicted labels (threshold at 0.5 for simplicity, though AUC doesn't strictly need it)\n        preds = (probs >= 0.5).float()\n        \n        all_preds.append(preds.cpu().numpy())\n        all_labels.append(labels.cpu().numpy())\n        \n    avg_loss = total_loss / len(data_loader)\n    \n    # Concatenate results\n    all_preds = np.concatenate(all_preds, axis=0)\n    all_labels = np.concatenate(all_labels, axis=0)\n    \n    return avg_loss, all_preds, all_labels\n\ndef calculate_roc_auc_macro(y_true, y_pred):\n    \"\"\"\n    Calculates the macro-averaged ROC AUC score.\n    y_true and y_pred must be binary arrays of shape (N, C).\n    \"\"\"\n    from sklearn.metrics import roc_auc_score\n    \n    # roc_auc_score expects probabilities (or positive class indicator)\n    # Since we need macro averaging, we calculate AUC for each class independently\n    \n    # Ensure inputs are numpy arrays\n    y_true = np.asarray(y_true)\n    y_pred = np.asarray(y_pred)\n    \n    num_classes = y_true.shape[1]\n    auc_scores = []\n    \n    for c in range(num_classes):\n        # Calculate AUC for class c (treating it as a binary classification problem)\n        # We use the probability of the positive class (y_pred[:, c])\n        try:\n            auc = roc_auc_score(y_true[:, c], y_pred[:, c])\n            auc_scores.append(auc)\n        except ValueError:\n            # This happens if a class is only present in one state (all 0 or all 1)\n            # In such cases, we might skip or assign a neutral value. Here, we assign 0.5.\n            auc_scores.append(0.5)\n            \n    return np.mean(auc_scores)\n\n\n# --- Main Training Loop ---\n\nstart_time = time.time()\ntraining_losses = []\nval_losses = []\nval_auc_scores = []\n\nif model and optimizer and criterion:\n    print(f\"--- Starting Training on {device} ---\")\n    \n    for epoch in range(EPOCHS):\n        # 1. Train\n        train_loss = train_one_epoch(model, train_loader, optimizer, criterion, device)\n        training_losses.append(train_loss)\n        \n        # 2. Validate\n        val_loss, val_preds, val_labels = evaluate_model(model, val_loader, criterion, device)\n        val_losses.append(val_loss)\n        \n        # Calculate MACRO AUC on validation set\n        val_auc = calculate_roc_auc_macro(val_labels, val_preds)\n        val_auc_scores.append(val_auc)\n        \n        print(f\"Epoch {epoch+1}/{EPOCHS}: \"\n              f\"Train Loss: {train_loss:.4f} | \"\n              f\"Val Loss: {val_loss:.4f} | \"\n              f\"Val AUC Macro: {val_auc:.4f}\")\n\n# --- Final Evaluation/Testing (Using the last validation fold results as proxy) ---\nfinal_val_loss = val_losses[-1] if val_losses else np.nan\nfinal_val_auc = val_auc_scores[-1] if val_auc_scores else np.nan\n\n\n# --- Results Compilation ---\nresults = {\n    \"metrics\": {\n        \"roc_auc_macro\": final_val_auc,\n        \"loss\": final_val_loss\n    },\n    \"training_curves\": {\n        \"loss\": training_losses,\n        \"roc_auc_macro\": val_auc_scores\n    },\n    \"duration_seconds\": time.time() - start_time\n}\n\n# Write results to results.json\ntry:\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=4)\n    print(\"\\nSuccessfully wrote results to results.json\")\nexcept Exception as e:\n    print(f\"\\nError writing results.json: {e}\")\n    # If writing fails, we still attempt to write an error JSON structure\n    error_result = {\n        \"metrics\": {\"roc_auc_macro\": np.nan, \"loss\": np.nan},\n        \"training_curves\": {\"loss\": [], \"roc_auc_macro\": []},\n        \"duration_seconds\": time.time() - start_time,\n        \"error\": str(e)\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(error_result, f, indent=4)\n    print(\"Wrote error structure to results.json instead.\")\n\n# Cleanup variables for final execution context\ndel model, optimizer, criterion, train_loader, val_loader\n",
+          "error": {
+            "error_type": "ForbiddenPattern",
+            "message": "Forbidden pattern found: 'eval('",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:07:34.182804Z",
+      "completed_at": "2026-04-10T13:08:17.230021Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_003",
+      "study_id": "study_20260410_130707_first_run",
+      "index": 3,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.0005,\n    \"batch_size\": 32,\n    \"epochs\": 75,\n    \"optimizer\": \"AdamW\",\n    \"weight_decay\": 0.02,\n    \"dropout\": 0.15\n  },\n  \"augmentation\": {\n    \"time_shift\": false,\n    \"noise_injection\": false,\n    \"mixup\": 0.0,\n    \"specaugment\": true\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "ForbiddenPattern",
+        "message": "Forbidden pattern found: 'eval('",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.0005,
+                "batch_size": 32,
+                "epochs": 75,
+                "optimizer": "AdamW",
+                "weight_decay": 0.02,
+                "dropout": 0.15
+              },
+              "augmentation": {
+                "time_shift": false,
+                "noise_injection": false,
+                "mixup": 0.0,
+                "specaugment": true
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "from pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNNSmallV1\nimport torch\nimport torch.optim as optim\nfrom torch.utils.data import DataLoader\nimport json\nimport time\nfrom tqdm import tqdm\nfrom sklearn.metrics import roc_auc_score\n\n# --- Configuration from Proposal ---\nCONFIG = {\n    \"architecture\": \"cnn_small_v1\",\n    \"pretrained_model\": None,\n    \"hyperparams\": {\n        \"lr\": 0.0005,\n        \"batch_size\": 32,\n        \"epochs\": 75,\n        \"optimizer\": \"AdamW\",\n        \"weight_decay\": 0.02,\n        \"dropout\": 0.15\n    },\n    \"augmentation\": {\n        \"time_shift\": False,\n        \"noise_injection\": False,\n        \"mixup\": 0.0,\n        \"specaugment\": True\n    }\n}\n\n# --- Main Training Function ---\ndef train_model():\n    start_time = time.time()\n    \n    try:\n        # 1. Load Data\n        train_loader, val_loader, num_classes = load_precomputed_dataset()\n        \n        # 2. Initialize Model\n        # Assuming CNNSmallV1 takes (num_classes) for initialization\n        model = CNNSmallV1(num_classes=num_classes)\n        \n        # 3. Setup Training Components\n        device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n        model.to(device)\n        \n        params = CONFIG[\"hyperparams\"]\n        optimizer_name = params[\"optimizer\"]\n        \n        if optimizer_name == \"AdamW\":\n            optimizer = optim.AdamW(model.parameters(), lr=params[\"lr\"], weight_decay=params[\"weight_decay\"])\n        elif optimizer_name == \"Adam\":\n            optimizer = optim.Adam(model.parameters(), lr=params[\"lr\"])\n        else:\n            raise ValueError(f\"Unsupported optimizer: {optimizer_name}\")\n\n        criterion = torch.nn.CrossEntropyLoss() # Using CrossEntropyLoss for simplicity, though multi-label often uses BCEWithLogitsLoss\n        # For multi-label classification (like BirdCLEF), BCEWithLogitsLoss is standard.\n        criterion = torch.nn.BCEWithLogitsLoss() \n        \n        # 4. Training Loop\n        history = {\n            \"loss\": [],\n            \"roc_auc_macro\": []\n        }\n        \n        print(f\"Starting training on {device} for {params['epochs']} epochs...\")\n\n        for epoch in range(params[\"epochs\"]):\n            model.train()\n            running_loss = 0.0\n            \n            # Training Phase\n            train_loss = 0.0\n            pbar_train = tqdm(train_loader, desc=f\"Epoch {epoch+1}/{params['epochs']} [Train]\")\n            for batch in pbar_train:\n                inputs, targets = batch\n                inputs, targets = inputs.to(device), targets.to(device)\n                \n                # Assuming inputs are (batch_size, 1, 128, 313) and targets are (batch_size, num_classes) float/long\n                # Adjusting target handling for BCEWithLogitsLoss (requires float targets)\n                if targets.dtype != torch.float:\n                    targets = targets.float() \n                \n                optimizer.zero_grad()\n                outputs = model(inputs)\n                \n                # Calculate loss\n                loss = criterion(outputs, targets)\n                \n                # Backward pass and optimize\n                loss.backward()\n                optimizer.step()\n                \n                train_loss += loss.item() * inputs.size(0)\n                running_loss += loss.item()\n                \n                pbar_train.set_postfix({\"loss\": f\"{loss.item():.4f}\"})\n            \n            avg_train_loss = train_loss / train_loader.batch_size\n            \n            # Validation Phase\n            model.eval()\n            val_loss = 0.0\n            all_preds = []\n            all_targets = []\n            \n            with torch.no_grad():\n                pbar_val = tqdm(val_loader, desc=f\"Epoch {epoch+1}/{params['epochs']} [Val]\")\n                for batch in pbar_val:\n                    inputs, targets = batch\n                    inputs, targets = inputs.to(device), targets.to(device)\n                    \n                    if targets.dtype != torch.float:\n                        targets = targets.float()\n                        \n                    outputs = model(inputs)\n                    \n                    # Validation Loss\n                    loss = criterion(outputs, targets)\n                    val_loss += loss.item() * inputs.size(0)\n                    \n                    # Predictions for AUC: Sigmoid -> Probabilities\n                    probs = torch.sigmoid(outputs)\n                    all_preds.append(probs.cpu().numpy())\n                    all_targets.append(targets.cpu().numpy())\n            \n            avg_val_loss = (val_loss / val_loader.batch_size)\n            \n            # Calculate Macro ROC AUC\n            all_preds_np = np.concatenate(all_preds, axis=0)\n            all_targets_np = np.concatenate(all_targets, axis=0)\n            \n            try:\n                roc_auc = roc_auc_score(all_targets_np, all_preds_np, average='macro')\n            except ValueError:\n                # Handle case where only one class is present or all predictions are identical\n                roc_auc = 0.0 \n                \n            history[\"loss\"].append(avg_val_loss)\n            history[\"roc_auc_macro\"].append(roc_auc)\n            \n            print(f\"Epoch {epoch+1}/{params['epochs']} | Val Loss: {avg_val_loss:.4f} | Macro AUC: {roc_auc:.4f}\")\n\n        # 5. Final Evaluation (Using the last state)\n        model.eval()\n        final_all_preds = []\n        final_all_targets = []\n        with torch.no_grad():\n            for batch in val_loader:\n                inputs, targets = batch\n                inputs, targets = inputs.to(device), targets.to(device)\n                outputs = model(inputs)\n                \n                probs = torch.sigmoid(outputs)\n                final_all_preds.append(probs.cpu().numpy())\n                final_all_targets.append(targets.cpu().numpy())\n        \n        final_all_preds_np = np.concatenate(final_all_preds, axis=0)\n        final_all_targets_np = np.concatenate(final_all_targets, axis=0)\n        \n        final_roc_auc = roc_auc_score(final_all_targets_np, final_all_preds_np, average='macro')\n        final_loss = history[\"loss\"][-1]\n        \n        end_time = time.time()\n\n        # 6. Write Results\n        results = {\n            \"metrics\": {\n                \"roc_auc_macro\": final_roc_auc,\n                \"loss\": final_loss\n            },\n            \"training_curves\": {\n                \"loss\": history[\"loss\"],\n                \"roc_auc_macro\": history[\"roc_auc_macro\"]\n            },\n            \"duration_seconds\": end_time - start_time\n        }\n        \n        with open(\"results.json\", \"w\") as f:\n            json.dump(results, f, indent=4)\n            \n        print(\"Training complete. Results saved to results.json\")\n\n    except Exception as e:\n        print(f\"An error occurred during training: {e}\")\n        error_results = {\n            \"metrics\": {\"roc_auc_macro\": None, \"loss\": None},\n            \"training_curves\": {\"loss\": None, \"roc_auc_macro\": None},\n            \"duration_seconds\": time.time() - start_time,\n            \"error\": str(e)\n        }\n        with open(\"results.json\", \"w\") as f:\n            json.dump(error_results, f, indent=4)\n\nif __name__ == \"__main__\":\n    import numpy as np # Moved import here to ensure numpy is available for AUC calculation\n    train_model()\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "validation": "failed"
+          },
+          "code_used": "from pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNNSmallV1\nimport torch\nimport torch.optim as optim\nfrom torch.utils.data import DataLoader\nimport json\nimport time\nfrom tqdm import tqdm\nfrom sklearn.metrics import roc_auc_score\n\n# --- Configuration from Proposal ---\nCONFIG = {\n    \"architecture\": \"cnn_small_v1\",\n    \"pretrained_model\": None,\n    \"hyperparams\": {\n        \"lr\": 0.0005,\n        \"batch_size\": 32,\n        \"epochs\": 75,\n        \"optimizer\": \"AdamW\",\n        \"weight_decay\": 0.02,\n        \"dropout\": 0.15\n    },\n    \"augmentation\": {\n        \"time_shift\": False,\n        \"noise_injection\": False,\n        \"mixup\": 0.0,\n        \"specaugment\": True\n    }\n}\n\n# --- Main Training Function ---\ndef train_model():\n    start_time = time.time()\n    \n    try:\n        # 1. Load Data\n        train_loader, val_loader, num_classes = load_precomputed_dataset()\n        \n        # 2. Initialize Model\n        # Assuming CNNSmallV1 takes (num_classes) for initialization\n        model = CNNSmallV1(num_classes=num_classes)\n        \n        # 3. Setup Training Components\n        device = torch.device(\"cuda\" if torch.cuda.is_available() else \"cpu\")\n        model.to(device)\n        \n        params = CONFIG[\"hyperparams\"]\n        optimizer_name = params[\"optimizer\"]\n        \n        if optimizer_name == \"AdamW\":\n            optimizer = optim.AdamW(model.parameters(), lr=params[\"lr\"], weight_decay=params[\"weight_decay\"])\n        elif optimizer_name == \"Adam\":\n            optimizer = optim.Adam(model.parameters(), lr=params[\"lr\"])\n        else:\n            raise ValueError(f\"Unsupported optimizer: {optimizer_name}\")\n\n        criterion = torch.nn.CrossEntropyLoss() # Using CrossEntropyLoss for simplicity, though multi-label often uses BCEWithLogitsLoss\n        # For multi-label classification (like BirdCLEF), BCEWithLogitsLoss is standard.\n        criterion = torch.nn.BCEWithLogitsLoss() \n        \n        # 4. Training Loop\n        history = {\n            \"loss\": [],\n            \"roc_auc_macro\": []\n        }\n        \n        print(f\"Starting training on {device} for {params['epochs']} epochs...\")\n\n        for epoch in range(params[\"epochs\"]):\n            model.train()\n            running_loss = 0.0\n            \n            # Training Phase\n            train_loss = 0.0\n            pbar_train = tqdm(train_loader, desc=f\"Epoch {epoch+1}/{params['epochs']} [Train]\")\n            for batch in pbar_train:\n                inputs, targets = batch\n                inputs, targets = inputs.to(device), targets.to(device)\n                \n                # Assuming inputs are (batch_size, 1, 128, 313) and targets are (batch_size, num_classes) float/long\n                # Adjusting target handling for BCEWithLogitsLoss (requires float targets)\n                if targets.dtype != torch.float:\n                    targets = targets.float() \n                \n                optimizer.zero_grad()\n                outputs = model(inputs)\n                \n                # Calculate loss\n                loss = criterion(outputs, targets)\n                \n                # Backward pass and optimize\n                loss.backward()\n                optimizer.step()\n                \n                train_loss += loss.item() * inputs.size(0)\n                running_loss += loss.item()\n                \n                pbar_train.set_postfix({\"loss\": f\"{loss.item():.4f}\"})\n            \n            avg_train_loss = train_loss / train_loader.batch_size\n            \n            # Validation Phase\n            model.eval()\n            val_loss = 0.0\n            all_preds = []\n            all_targets = []\n            \n            with torch.no_grad():\n                pbar_val = tqdm(val_loader, desc=f\"Epoch {epoch+1}/{params['epochs']} [Val]\")\n                for batch in pbar_val:\n                    inputs, targets = batch\n                    inputs, targets = inputs.to(device), targets.to(device)\n                    \n                    if targets.dtype != torch.float:\n                        targets = targets.float()\n                        \n                    outputs = model(inputs)\n                    \n                    # Validation Loss\n                    loss = criterion(outputs, targets)\n                    val_loss += loss.item() * inputs.size(0)\n                    \n                    # Predictions for AUC: Sigmoid -> Probabilities\n                    probs = torch.sigmoid(outputs)\n                    all_preds.append(probs.cpu().numpy())\n                    all_targets.append(targets.cpu().numpy())\n            \n            avg_val_loss = (val_loss / val_loader.batch_size)\n            \n            # Calculate Macro ROC AUC\n            all_preds_np = np.concatenate(all_preds, axis=0)\n            all_targets_np = np.concatenate(all_targets, axis=0)\n            \n            try:\n                roc_auc = roc_auc_score(all_targets_np, all_preds_np, average='macro')\n            except ValueError:\n                # Handle case where only one class is present or all predictions are identical\n                roc_auc = 0.0 \n                \n            history[\"loss\"].append(avg_val_loss)\n            history[\"roc_auc_macro\"].append(roc_auc)\n            \n            print(f\"Epoch {epoch+1}/{params['epochs']} | Val Loss: {avg_val_loss:.4f} | Macro AUC: {roc_auc:.4f}\")\n\n        # 5. Final Evaluation (Using the last state)\n        model.eval()\n        final_all_preds = []\n        final_all_targets = []\n        with torch.no_grad():\n            for batch in val_loader:\n                inputs, targets = batch\n                inputs, targets = inputs.to(device), targets.to(device)\n                outputs = model(inputs)\n                \n                probs = torch.sigmoid(outputs)\n                final_all_preds.append(probs.cpu().numpy())\n                final_all_targets.append(targets.cpu().numpy())\n        \n        final_all_preds_np = np.concatenate(final_all_preds, axis=0)\n        final_all_targets_np = np.concatenate(final_all_targets, axis=0)\n        \n        final_roc_auc = roc_auc_score(final_all_targets_np, final_all_preds_np, average='macro')\n        final_loss = history[\"loss\"][-1]\n        \n        end_time = time.time()\n\n        # 6. Write Results\n        results = {\n            \"metrics\": {\n                \"roc_auc_macro\": final_roc_auc,\n                \"loss\": final_loss\n            },\n            \"training_curves\": {\n                \"loss\": history[\"loss\"],\n                \"roc_auc_macro\": history[\"roc_auc_macro\"]\n            },\n            \"duration_seconds\": end_time - start_time\n        }\n        \n        with open(\"results.json\", \"w\") as f:\n            json.dump(results, f, indent=4)\n            \n        print(\"Training complete. Results saved to results.json\")\n\n    except Exception as e:\n        print(f\"An error occurred during training: {e}\")\n        error_results = {\n            \"metrics\": {\"roc_auc_macro\": None, \"loss\": None},\n            \"training_curves\": {\"loss\": None, \"roc_auc_macro\": None},\n            \"duration_seconds\": time.time() - start_time,\n            \"error\": str(e)\n        }\n        with open(\"results.json\", \"w\") as f:\n            json.dump(error_results, f, indent=4)\n\nif __name__ == \"__main__\":\n    import numpy as np # Moved import here to ensure numpy is available for AUC calculation\n    train_model()\n",
+          "error": {
+            "error_type": "ForbiddenPattern",
+            "message": "Forbidden pattern found: 'eval('",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:08:17.231037Z",
+      "completed_at": "2026-04-10T13:08:58.073424Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    }
+  ],
+  "prompt_template_paths": {},
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "legacy",
+    "max_development"
+  ],
+  "notes": "Explore architectures for BirdCLEF 2026."
+}

@@ -1,0 +1,474 @@
+{
+  "id": "study_20260410_131833_first_run",
+  "name": "first_run",
+  "task_name": "track_b",
+  "status": "completed",
+  "created_at": "2026-04-10T13:18:33.964435Z",
+  "started_at": "2026-04-10T13:18:33.964435Z",
+  "completed_at": "2026-04-10T13:21:55.839899Z",
+  "primary_metric": "roc_auc_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_001",
+      "study_id": "study_20260410_131833_first_run",
+      "index": 1,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "ValueError",
+        "message": "propose_architecture: LLM did not return valid JSON: No JSON object found in response",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "ValueError",
+            "message": "propose_architecture: LLM did not return valid JSON: No JSON object found in response",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:18:33.972434Z",
+      "completed_at": "2026-04-10T13:19:02.164263Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_002",
+      "study_id": "study_20260410_131833_first_run",
+      "index": 2,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 32,\n    \"epochs\": 100,\n    \"optimizer\": \"SGD\",\n    \"weight_decay\": 0.001,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": false,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": false\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "NameError: name 'cnn_small_v1' is not defined",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_002/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.001,
+                "batch_size": 32,
+                "epochs": 100,
+                "optimizer": "SGD",
+                "weight_decay": 0.001,
+                "dropout": 0.1
+              },
+              "augmentation": {
+                "time_shift": false,
+                "noise_injection": true,
+                "mixup": 0.2,
+                "specaugment": false
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport time\nfrom collections import defaultdict\nfrom pathlib import Path\nfrom typing import Tuple, List, Any\n\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import cnn_small_v1\nfrom torch.nn import BCEWithLogitsLoss\nfrom torch.optim import SGD\nfrom sklearn.metrics import roc_auc_score\nimport numpy as np\n\ndef train_one_epoch(model, loader, loss_fn, optimizer, device):\n    model.train()\n    epoch_loss = 0.0\n    all_preds = []\n    all_labels = []\n    for xb, yb in loader:\n        xb, yb = xb.to(device), yb.to(device)\n        optimizer.zero_grad()\n        logits = model(xb)\n        loss = loss_fn(logits, yb, reduction='mean')\n        loss.backward()\n        optimizer.step()\n        epoch_loss += loss.item() * xb.size(0)\n        preds = torch.softmax(logits, dim=1)\n        all_preds.append(preds.cpu())\n        all_labels.append(yb.cpu())\n    epoch_loss /= len(loader.dataset)\n    preds = torch.cat(all_preds).numpy()\n    labels = torch.cat(all_labels).numpy().ravel()\n    macro_auc = roc_auc_score(labels, preds, average='macro')\n    return epoch_loss, macro_auc, preds, labels\n\ndef main():\n    try:\n        start = time.time()\n        train_loader, val_loader, num_classes = load_precomputed_dataset()\n        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n        model = cnn_small_v1(num_classes).to(device)\n        optimizer = SGD(model.parameters(), lr=0.001, weight_decay=0.001)\n        loss_fn = BCEWithLogitsLoss()\n        train_curves = []\n        for epoch in range(1, 101):\n            train_loss, train_auc, _, _ = train_one_epoch(model, train_loader, loss_fn, optimizer, device)\n            train_curves.append({'loss': train_loss, 'roc_auc_macro': train_auc})\n        final_loss = train_curves[-1]['loss']\n        final_auc = train_curves[-1]['roc_auc_macro']\n        duration = time.time() - start\n        results = {\n            \"metrics\": {\"roc_auc_macro\": float(final_auc), \"loss\": float(final_loss)},\n            \"training_curves\": [{\"loss\": float(item['loss']), \"roc_auc_macro\": float(item['roc_auc_macro'])} for item in train_curves],\n            \"duration_seconds\": float(duration)\n        }\n        with open('results.json', 'w') as f:\n            json.dump(results, f)\n    except Exception as e:\n        results = {\"error\": str(e)}\n        with open('results.json', 'w') as f:\n            json.dump(results, f)\n\nif __name__ == '__main__':\n    main()\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 2450
+          },
+          "code_used": "import json\nimport time\nfrom collections import defaultdict\nfrom pathlib import Path\nfrom typing import Tuple, List, Any\n\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import cnn_small_v1\nfrom torch.nn import BCEWithLogitsLoss\nfrom torch.optim import SGD\nfrom sklearn.metrics import roc_auc_score\nimport numpy as np\n\ndef train_one_epoch(model, loader, loss_fn, optimizer, device):\n    model.train()\n    epoch_loss = 0.0\n    all_preds = []\n    all_labels = []\n    for xb, yb in loader:\n        xb, yb = xb.to(device), yb.to(device)\n        optimizer.zero_grad()\n        logits = model(xb)\n        loss = loss_fn(logits, yb, reduction='mean')\n        loss.backward()\n        optimizer.step()\n        epoch_loss += loss.item() * xb.size(0)\n        preds = torch.softmax(logits, dim=1)\n        all_preds.append(preds.cpu())\n        all_labels.append(yb.cpu())\n    epoch_loss /= len(loader.dataset)\n    preds = torch.cat(all_preds).numpy()\n    labels = torch.cat(all_labels).numpy().ravel()\n    macro_auc = roc_auc_score(labels, preds, average='macro')\n    return epoch_loss, macro_auc, preds, labels\n\ndef main():\n    try:\n        start = time.time()\n        train_loader, val_loader, num_classes = load_precomputed_dataset()\n        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n        model = cnn_small_v1(num_classes).to(device)\n        optimizer = SGD(model.parameters(), lr=0.001, weight_decay=0.001)\n        loss_fn = BCEWithLogitsLoss()\n        train_curves = []\n        for epoch in range(1, 101):\n            train_loss, train_auc, _, _ = train_one_epoch(model, train_loader, loss_fn, optimizer, device)\n            train_curves.append({'loss': train_loss, 'roc_auc_macro': train_auc})\n        final_loss = train_curves[-1]['loss']\n        final_auc = train_curves[-1]['roc_auc_macro']\n        duration = time.time() - start\n        results = {\n            \"metrics\": {\"roc_auc_macro\": float(final_auc), \"loss\": float(final_loss)},\n            \"training_curves\": [{\"loss\": float(item['loss']), \"roc_auc_macro\": float(item['roc_auc_macro'])} for item in train_curves],\n            \"duration_seconds\": float(duration)\n        }\n        with open('results.json', 'w') as f:\n            json.dump(results, f)\n    except Exception as e:\n        results = {\"error\": str(e)}\n        with open('results.json', 'w') as f:\n            json.dump(results, f)\n\nif __name__ == '__main__':\n    main()\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "exit_code": 1,
+            "duration_seconds": 0.01224304101197049,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_002",
+            "results_json_path": null,
+            "timed_out": false
+          },
+          "code_used": "cnn_small_v1",
+          "error": {
+            "error_type": "UnknownError",
+            "message": "NameError: name 'cnn_small_v1' is not defined",
+            "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_002/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:19:02.165219Z",
+      "completed_at": "2026-04-10T13:19:37.454327Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_003",
+      "study_id": "study_20260410_131833_first_run",
+      "index": 3,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.01,\n    \"batch_size\": 64,\n    \"epochs\": 150,\n    \"optimizer\": \"Adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.0\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": false,\n    \"mixup\": 0.2,\n    \"specaugment\": false\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "NameError: name 'cnn_small_v1' is not defined",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_003/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.01,
+                "batch_size": 64,
+                "epochs": 150,
+                "optimizer": "Adam",
+                "weight_decay": 0.0,
+                "dropout": 0.0
+              },
+              "augmentation": {
+                "time_shift": true,
+                "noise_injection": false,
+                "mixup": 0.2,
+                "specaugment": false
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import import_snippet\nimport time\nfrom sklearn.metrics import roc_auc_score, precision_score, recall_score\nimport numpy as np\nimport warnings\nwarnings.filterwarnings('ignore')\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    model = import_snippet(\"cnn_small_v1\")\n    model = model.to('cpu')  # assuming CPU\n    model.train()\n\n    batch_size = 64\n    epochs = 150\n    lr = 0.01\n    weight_decay = 0.0\n    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)\n    loss_fn = nn.BCEWithLogitsLoss()\n\n    loss_history = []\n    auc_history = []\n    start = time.time()\n    final_loss = None\n    final_auc = None\n\n    for epoch in range(epochs):\n        epoch_loss = 0.0\n        all_preds = []\n        all_labels = []\n        model.train()\n        for batch_idx, (spec, labels) in enumerate(train_loader):\n            optimizer.zero_grad()\n            spec = spec.to('cpu')\n            labels = labels.to('cpu')\n            outputs = model(spec)\n            loss = loss_fn(outputs, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n            epoch_loss /= (batch_idx + 1)\n            all_preds.append(outputs.detach().cpu().numpy())\n            all_labels.append(labels.cpu().numpy())\n\n        # Validation\n        model.eval()\n        with torch.no_grad():\n            val_loss = 0.0\n            val_preds = []\n            val_labels = []\n            for spec, labels in val_loader:\n                spec = spec.to('cpu')\n                labels = labels.to('cpu')\n                outputs = model(spec)\n                val_loss += loss_fn(outputs, labels).item()\n                val_preds.append(outputs.detach().cpu().numpy())\n                val_labels.append(labels.cpu().numpy())\n            val_loss /= len(val_loader)\n            val_loss = val_loss / len(val_loader)\n\n            # Compute macro AUC\n            val_preds_np = np.concatenate(val_preds, axis=0)\n            val_labels_np = np.concatenate(val_labels, axis=0)\n            valid_auc = roc_auc_score(val_labels_np, val_preds_np, multi_class='multilabel-roc')\n            final_auc = valid_auc\n            final_loss = val_loss\n\n        epoch_auc = final_auc\n        loss_history.append(epoch_loss)\n        auc_history.append(final_auc)\n\n        if epoch % 10 == 0 or epoch == epochs - 1:\n            print(f\"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {final_loss:.4f}, Val AUC: {final_auc:.4f}\")\n\n    duration = time.time() - start\n    final_metrics = {\n        \"roc_auc_macro\": final_auc,\n        \"loss\": final_loss\n    }\n    training_curves = {\n        \"loss\": loss_history,\n        \"roc_auc_macro\": auc_history\n    }\n    results = {\n        \"metrics\": final_metrics,\n        \"training_curves\": training_curves,\n        \"duration_seconds\": duration\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n\nexcept Exception as e:\n    error_msg = f\"Error occurred: {str(e)}\"\n    results = {\"error\": error_msg}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 3273
+          },
+          "code_used": "import json\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import import_snippet\nimport time\nfrom sklearn.metrics import roc_auc_score, precision_score, recall_score\nimport numpy as np\nimport warnings\nwarnings.filterwarnings('ignore')\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    model = import_snippet(\"cnn_small_v1\")\n    model = model.to('cpu')  # assuming CPU\n    model.train()\n\n    batch_size = 64\n    epochs = 150\n    lr = 0.01\n    weight_decay = 0.0\n    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)\n    loss_fn = nn.BCEWithLogitsLoss()\n\n    loss_history = []\n    auc_history = []\n    start = time.time()\n    final_loss = None\n    final_auc = None\n\n    for epoch in range(epochs):\n        epoch_loss = 0.0\n        all_preds = []\n        all_labels = []\n        model.train()\n        for batch_idx, (spec, labels) in enumerate(train_loader):\n            optimizer.zero_grad()\n            spec = spec.to('cpu')\n            labels = labels.to('cpu')\n            outputs = model(spec)\n            loss = loss_fn(outputs, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n            epoch_loss /= (batch_idx + 1)\n            all_preds.append(outputs.detach().cpu().numpy())\n            all_labels.append(labels.cpu().numpy())\n\n        # Validation\n        model.eval()\n        with torch.no_grad():\n            val_loss = 0.0\n            val_preds = []\n            val_labels = []\n            for spec, labels in val_loader:\n                spec = spec.to('cpu')\n                labels = labels.to('cpu')\n                outputs = model(spec)\n                val_loss += loss_fn(outputs, labels).item()\n                val_preds.append(outputs.detach().cpu().numpy())\n                val_labels.append(labels.cpu().numpy())\n            val_loss /= len(val_loader)\n            val_loss = val_loss / len(val_loader)\n\n            # Compute macro AUC\n            val_preds_np = np.concatenate(val_preds, axis=0)\n            val_labels_np = np.concatenate(val_labels, axis=0)\n            valid_auc = roc_auc_score(val_labels_np, val_preds_np, multi_class='multilabel-roc')\n            final_auc = valid_auc\n            final_loss = val_loss\n\n        epoch_auc = final_auc\n        loss_history.append(epoch_loss)\n        auc_history.append(final_auc)\n\n        if epoch % 10 == 0 or epoch == epochs - 1:\n            print(f\"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {final_loss:.4f}, Val AUC: {final_auc:.4f}\")\n\n    duration = time.time() - start\n    final_metrics = {\n        \"roc_auc_macro\": final_auc,\n        \"loss\": final_loss\n    }\n    training_curves = {\n        \"loss\": loss_history,\n        \"roc_auc_macro\": auc_history\n    }\n    results = {\n        \"metrics\": final_metrics,\n        \"training_curves\": training_curves,\n        \"duration_seconds\": duration\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n\nexcept Exception as e:\n    error_msg = f\"Error occurred: {str(e)}\"\n    results = {\"error\": error_msg}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "exit_code": 1,
+            "duration_seconds": 0.01662724994821474,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_003",
+            "results_json_path": null,
+            "timed_out": false
+          },
+          "code_used": "cnn_small_v1",
+          "error": {
+            "error_type": "UnknownError",
+            "message": "NameError: name 'cnn_small_v1' is not defined",
+            "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_003/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:19:37.454955Z",
+      "completed_at": "2026-04-10T13:20:09.980211Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_004",
+      "study_id": "study_20260410_131833_first_run",
+      "index": 4,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 30,\n    \"optimizer\": \"Adam\",\n    \"weight_decay\": 0.0001,\n    \"dropout\": 0.2\n  },\n  \"augmentation\": {\n    \"time_shift\": false,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": true\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "NameError: name 'cnn_small_v1' is not defined",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_004/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.001,
+                "batch_size": 128,
+                "epochs": 30,
+                "optimizer": "Adam",
+                "weight_decay": 0.0001,
+                "dropout": 0.2
+              },
+              "augmentation": {
+                "time_shift": false,
+                "noise_injection": true,
+                "mixup": 0.2,
+                "specaugment": true
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport time\nimport torch\nfrom torch import nn\nimport torch.nn.functional as F\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNN_SmallV1\n\ndef macro_auc_score(y_true, probs):\n    y_pred = (probs >= 0.5).float()\n    auc = F.roc_auc_score(y_true, probs).item()\n    return auc\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    hyperparams = {\n        \"lr\": 0.001,\n        \"batch_size\": 128,\n        \"epochs\": 30,\n        \"optimizer\": \"Adam\",\n        \"weight_decay\": 0.0001,\n        \"dropout\": 0.2\n    }\n    # instantiate model\n    model = CNN_SmallV1(num_classes=num_classes, **hyperparams)\n    model.train()\n    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams[\"lr\"], weight_decay=hyperparams[\"weight_decay\"])\n    loss_fn = nn.CrossEntropyLoss()\n    training_curves = {\"loss\": [], \"roc_auc_macro\": []}\n    start_time = time.time()\n    val_losses = []\n    val_roc = []\n    for epoch in range(hyperparams[\"epochs\"]):\n        epoch_loss = 0.0\n        model.train()\n        for batch_idx, (spec, labels) in enumerate(train_loader):\n            optimizer.zero_grad()\n            # spec shape: (1, 128, 313)\n            # labels shape: (1, 1, 313?) Actually each sample has 206 binary labels? Might be binary per class? Need flatten.\n            # Assume labels are binary per class per sample: shape (batch, num_classes)\n            # spec is spectrogram (1,128,313) maybe need processing? We'll assume model expects that.\n            outputs = model(spec)\n            loss = loss_fn(outputs, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n        epoch_loss /= len(train_loader)\n        val_loss = 0.0\n        model.eval()\n        with torch.no_grad():\n            all_preds = []\n            all_labels = []\n            for _, labels in val_loader:\n                outputs = model(batch_spec)\n                loss = loss_fn(outputs, labels)\n                val_loss += loss.item()\n                all_preds.append(outputs)\n                all_labels.append(labels)\n            val_loss /= len(val_loader)\n            val_losses.append(val_loss)\n            probs = torch.cat(all_preds, dim=0).cpu().numpy()\n            labels = torch.cat(all_labels, dim=0).cpu().numpy()\n            val_roc.append(macro_auc_score(labels, probs))\n        training_curves[\"loss\"].append(epoch_loss)\n        training_curves[\"roc_auc_macro\"].append(val_roc[-1])\n    duration = time.time() - start_time\n    metrics = {\"loss\": val_loss, \"roc_auc_macro\": val_roc[-1]}\n    results = {\"metrics\": metrics, \"training_curves\": training_curves, \"duration_seconds\": duration}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\nexcept Exception as e:\n    results = {\"error\": str(e)}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 2911
+          },
+          "code_used": "import json\nimport time\nimport torch\nfrom torch import nn\nimport torch.nn.functional as F\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CNN_SmallV1\n\ndef macro_auc_score(y_true, probs):\n    y_pred = (probs >= 0.5).float()\n    auc = F.roc_auc_score(y_true, probs).item()\n    return auc\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    hyperparams = {\n        \"lr\": 0.001,\n        \"batch_size\": 128,\n        \"epochs\": 30,\n        \"optimizer\": \"Adam\",\n        \"weight_decay\": 0.0001,\n        \"dropout\": 0.2\n    }\n    # instantiate model\n    model = CNN_SmallV1(num_classes=num_classes, **hyperparams)\n    model.train()\n    optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams[\"lr\"], weight_decay=hyperparams[\"weight_decay\"])\n    loss_fn = nn.CrossEntropyLoss()\n    training_curves = {\"loss\": [], \"roc_auc_macro\": []}\n    start_time = time.time()\n    val_losses = []\n    val_roc = []\n    for epoch in range(hyperparams[\"epochs\"]):\n        epoch_loss = 0.0\n        model.train()\n        for batch_idx, (spec, labels) in enumerate(train_loader):\n            optimizer.zero_grad()\n            # spec shape: (1, 128, 313)\n            # labels shape: (1, 1, 313?) Actually each sample has 206 binary labels? Might be binary per class? Need flatten.\n            # Assume labels are binary per class per sample: shape (batch, num_classes)\n            # spec is spectrogram (1,128,313) maybe need processing? We'll assume model expects that.\n            outputs = model(spec)\n            loss = loss_fn(outputs, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n        epoch_loss /= len(train_loader)\n        val_loss = 0.0\n        model.eval()\n        with torch.no_grad():\n            all_preds = []\n            all_labels = []\n            for _, labels in val_loader:\n                outputs = model(batch_spec)\n                loss = loss_fn(outputs, labels)\n                val_loss += loss.item()\n                all_preds.append(outputs)\n                all_labels.append(labels)\n            val_loss /= len(val_loader)\n            val_losses.append(val_loss)\n            probs = torch.cat(all_preds, dim=0).cpu().numpy()\n            labels = torch.cat(all_labels, dim=0).cpu().numpy()\n            val_roc.append(macro_auc_score(labels, probs))\n        training_curves[\"loss\"].append(epoch_loss)\n        training_curves[\"roc_auc_macro\"].append(val_roc[-1])\n    duration = time.time() - start_time\n    metrics = {\"loss\": val_loss, \"roc_auc_macro\": val_roc[-1]}\n    results = {\"metrics\": metrics, \"training_curves\": training_curves, \"duration_seconds\": duration}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\nexcept Exception as e:\n    results = {\"error\": str(e)}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "exit_code": 1,
+            "duration_seconds": 0.011739332985598594,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_004",
+            "results_json_path": null,
+            "timed_out": false
+          },
+          "code_used": "cnn_small_v1",
+          "error": {
+            "error_type": "UnknownError",
+            "message": "NameError: name 'cnn_small_v1' is not defined",
+            "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_004/code.py\", line 1, in <module>\n    cnn_small_v1\nNameError: name 'cnn_small_v1' is not defined"
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:20:09.981004Z",
+      "completed_at": "2026-04-10T13:20:45.600052Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_005",
+      "study_id": "study_20260410_131833_first_run",
+      "index": 5,
+      "status": "failed",
+      "architecture_name": "efficientnet_b0",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"efficientnet_b0\",\n  \"pretrained_model\": \"efficientnet_b0\",\n  \"hyperparams\": {\n    \"lr\": 0.0001,\n    \"batch_size\": 64,\n    \"epochs\": 30,\n    \"optimizer\": \"Adam\",\n    \"weight_decay\": 0.0001,\n    \"dropout\": 0.2\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.2,\n    \"specaugment\": false\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "NameError: name 'efficientnet_b0' is not defined",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_005/code.py\", line 1, in <module>\n    efficientnet_b0\nNameError: name 'efficientnet_b0' is not defined"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "efficientnet_b0",
+              "pretrained_model": "efficientnet_b0",
+              "hyperparams": {
+                "lr": 0.0001,
+                "batch_size": 64,
+                "epochs": 30,
+                "optimizer": "Adam",
+                "weight_decay": 0.0001,
+                "dropout": 0.2
+              },
+              "augmentation": {
+                "time_shift": true,
+                "noise_injection": true,
+                "mixup": 0.2,
+                "specaugment": false
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torchmetrics\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import EfficientNetB0\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n    args = {\n        \"lr\": 0.0001,\n        \"batch_size\": 64,\n        \"epochs\": 30,\n        \"optimizer\": \"Adam\",\n        \"weight_decay\": 0.0001,\n        \"dropout\": 0.2\n    }\n    model = EfficientNetB0(num_classes=206, pretrained=True)\n    model = model.to(device)\n    optimizer = optim.Adam(model.parameters(), lr=args[\"lr\"], weight_decay=args[\"weight_decay\"])\n    loss_fn = nn.BCEWithLogitsLoss()\n    train_losses = []\n    train_roc_aucs = []\n    start = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None\n    end = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None\n    elapsed = 0.0\n    macro_auc_all = []\n\n    for epoch in range(args[\"epochs\"]):\n        model.train()\n        epoch_loss = 0.0\n        for specs, labels in train_loader:\n            specs = specs.to(device)\n            labels = labels.to(device)\n            optimizer.zero_grad()\n            logits = model(specs)\n            loss = loss_fn(logits, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n        train_losses.append(epoch_loss / len(train_loader.dataset))\n        train_roc_aucs.append(0.0)\n\n        model.eval()\n        all_preds = []\n        all_labels = []\n        val_loss = 0.0\n        with torch.no_grad():\n            for specs, labels in val_loader:\n                specs = specs.to(device)\n                labels = labels.to(device)\n                logits = model(specs)\n                loss = loss_fn(logits, labels)\n                val_loss += loss.item()\n                probs = torch.sigmoid(logits)\n                all_preds.append(probs.cpu().numpy())\n                all_labels.append(labels.cpu().numpy())\n        val_loss = val_loss / len(val_loader.dataset)\n        all_preds.append(probs.cpu().numpy())\n        all_labels.append(labels.cpu().numpy())\n        all_preds = np.concatenate(all_preds)\n        all_labels = np.concatenate(all_labels)\n        val_auc = torchmetrics.MultiLabelAUCRate(num_classes, torch.tensor(all_preds).float(),\n                                                torch.tensor(all_labels).float, average='macro').item()\n        macro_auc_all.append(val_auc)\n        train_losses[-1] = epoch_loss / len(train_loader.dataset)\n        train_roc_aucs[-1] = val_auc\n\n        if start:\n            start.elapsed_time(end)\n            elapsed = start.elapsed_time(end)\n        else:\n            elapsed = 0.0\n\n    final_loss = train_losses[-1]\n    final_auc = train_roc_aucs[-1]\n\n    results = {\n        \"metrics\": {\"roc_auc_macro\": final_auc, \"loss\": final_loss},\n        \"training_curves\": {\"loss\": train_losses, \"roc_auc_macro\": train_roc_aucs},\n        \"duration_seconds\": elapsed\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n\nexcept Exception as e:\n    results = {\"error\": str(e), \"metrics\": {\"roc_auc_macro\": 0.0, \"loss\": 0.0},\n               \"training_curves\": {\"loss\": [], \"roc_auc_macro\": []},\n               \"duration_seconds\": 0.0}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 3454
+          },
+          "code_used": "import json\nimport numpy as np\nimport torch\nimport torch.nn as nn\nimport torch.optim as optim\nimport torchmetrics\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import EfficientNetB0\n\ntry:\n    train_loader, val_loader, num_classes = load_precomputed_dataset()\n    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n    args = {\n        \"lr\": 0.0001,\n        \"batch_size\": 64,\n        \"epochs\": 30,\n        \"optimizer\": \"Adam\",\n        \"weight_decay\": 0.0001,\n        \"dropout\": 0.2\n    }\n    model = EfficientNetB0(num_classes=206, pretrained=True)\n    model = model.to(device)\n    optimizer = optim.Adam(model.parameters(), lr=args[\"lr\"], weight_decay=args[\"weight_decay\"])\n    loss_fn = nn.BCEWithLogitsLoss()\n    train_losses = []\n    train_roc_aucs = []\n    start = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None\n    end = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None\n    elapsed = 0.0\n    macro_auc_all = []\n\n    for epoch in range(args[\"epochs\"]):\n        model.train()\n        epoch_loss = 0.0\n        for specs, labels in train_loader:\n            specs = specs.to(device)\n            labels = labels.to(device)\n            optimizer.zero_grad()\n            logits = model(specs)\n            loss = loss_fn(logits, labels)\n            loss.backward()\n            optimizer.step()\n            epoch_loss += loss.item()\n        train_losses.append(epoch_loss / len(train_loader.dataset))\n        train_roc_aucs.append(0.0)\n\n        model.eval()\n        all_preds = []\n        all_labels = []\n        val_loss = 0.0\n        with torch.no_grad():\n            for specs, labels in val_loader:\n                specs = specs.to(device)\n                labels = labels.to(device)\n                logits = model(specs)\n                loss = loss_fn(logits, labels)\n                val_loss += loss.item()\n                probs = torch.sigmoid(logits)\n                all_preds.append(probs.cpu().numpy())\n                all_labels.append(labels.cpu().numpy())\n        val_loss = val_loss / len(val_loader.dataset)\n        all_preds.append(probs.cpu().numpy())\n        all_labels.append(labels.cpu().numpy())\n        all_preds = np.concatenate(all_preds)\n        all_labels = np.concatenate(all_labels)\n        val_auc = torchmetrics.MultiLabelAUCRate(num_classes, torch.tensor(all_preds).float(),\n                                                torch.tensor(all_labels).float, average='macro').item()\n        macro_auc_all.append(val_auc)\n        train_losses[-1] = epoch_loss / len(train_loader.dataset)\n        train_roc_aucs[-1] = val_auc\n\n        if start:\n            start.elapsed_time(end)\n            elapsed = start.elapsed_time(end)\n        else:\n            elapsed = 0.0\n\n    final_loss = train_losses[-1]\n    final_auc = train_roc_aucs[-1]\n\n    results = {\n        \"metrics\": {\"roc_auc_macro\": final_auc, \"loss\": final_loss},\n        \"training_curves\": {\"loss\": train_losses, \"roc_auc_macro\": train_roc_aucs},\n        \"duration_seconds\": elapsed\n    }\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n\nexcept Exception as e:\n    results = {\"error\": str(e), \"metrics\": {\"roc_auc_macro\": 0.0, \"loss\": 0.0},\n               \"training_curves\": {\"loss\": [], \"roc_auc_macro\": []},\n               \"duration_seconds\": 0.0}\n    with open(\"results.json\", \"w\") as f:\n        json.dump(results, f, indent=2)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "exit_code": 1,
+            "duration_seconds": 0.020194917044136673,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_005",
+            "results_json_path": null,
+            "timed_out": false
+          },
+          "code_used": "efficientnet_b0",
+          "error": {
+            "error_type": "UnknownError",
+            "message": "NameError: name 'efficientnet_b0' is not defined",
+            "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260410_131833_first_run/exp_005/code.py\", line 1, in <module>\n    efficientnet_b0\nNameError: name 'efficientnet_b0' is not defined"
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-10T13:20:45.600690Z",
+      "completed_at": "2026-04-10T13:21:55.838694Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    }
+  ],
+  "prompt_template_paths": {},
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "legacy",
+    "max_development"
+  ],
+  "notes": "Explore architectures for BirdCLEF 2026."
+}

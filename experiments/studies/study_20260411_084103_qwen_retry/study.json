@@ -1,0 +1,269 @@
+{
+  "id": "study_20260411_084103_qwen_retry",
+  "name": "qwen_retry",
+  "task_name": "track_b",
+  "status": "completed",
+  "created_at": "2026-04-11T08:41:03.164617Z",
+  "started_at": "2026-04-11T08:41:03.164617Z",
+  "completed_at": "2026-04-11T08:41:56.467353Z",
+  "primary_metric": "roc_auc_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_001",
+      "study_id": "study_20260411_084103_qwen_retry",
+      "index": 1,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": null,
+      "architecture_proposal": "{\n  \"architecture\": \"cnn_small_v1\",\n  \"pretrained_model\": null,\n  \"hyperparams\": {\n    \"lr\": 0.001,\n    \"batch_size\": 128,\n    \"epochs\": 1,\n    \"optimizer\": \"adam\",\n    \"weight_decay\": 0.0,\n    \"dropout\": 0.1\n  },\n  \"augmentation\": {\n    \"time_shift\": true,\n    \"noise_injection\": true,\n    \"mixup\": 0.0,\n    \"specaugment\": false\n  }\n}",
+      "code": null,
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "ScriptReportedError",
+        "message": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "error_recovery",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "error_recovery",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\n# Ensure we don't use multiprocessing for data loading to avoid pickling issues\ntrain_loader = torch.utils.data.DataLoader(\n    train_loader.dataset,\n    batch_size=train_loader.batch_size,\n    shuffle=True,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\nval_loader = torch.utils.data.DataLoader(\n    val_loader.dataset,\n    batch_size=val_loader.batch_size,\n    shuffle=False,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_proposal": {
+              "architecture": "cnn_small_v1",
+              "pretrained_model": null,
+              "hyperparams": {
+                "lr": 0.001,
+                "batch_size": 128,
+                "epochs": 1,
+                "optimizer": "adam",
+                "weight_decay": 0.0,
+                "dropout": 0.1
+              },
+              "augmentation": {
+                "time_shift": true,
+                "noise_injection": true,
+                "mixup": 0.0,
+                "specaugment": false
+              }
+            }
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "code": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n"
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 4278
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "exit_code": 0,
+            "duration_seconds": 2.038998709002044,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001",
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "timed_out": false
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "capture_metrics",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "raw_results": {
+              "error": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'"
+            }
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "ScriptReportedError",
+            "message": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 4278
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "exit_code": 0,
+            "duration_seconds": 2.0316160829970613,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001",
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "timed_out": false
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "capture_metrics",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "raw_results": {
+              "error": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'"
+            }
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "ScriptReportedError",
+            "message": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validation": "passed",
+            "code_bytes": 4774
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\n# Ensure we don't use multiprocessing for data loading to avoid pickling issues\ntrain_loader = torch.utils.data.DataLoader(\n    train_loader.dataset,\n    batch_size=train_loader.batch_size,\n    shuffle=True,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\nval_loader = torch.utils.data.DataLoader(\n    val_loader.dataset,\n    batch_size=val_loader.batch_size,\n    shuffle=False,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "exit_code": 0,
+            "duration_seconds": 2.0225866249529645,
+            "workdir": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001",
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "timed_out": false
+          },
+          "code_used": "import json\nimport os\nimport time\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom sklearn.metrics import roc_auc_score\nfrom pipelines.data_loader import load_precomputed_dataset\nfrom pipelines.models import CnnSmallV1\n\n# Saturate every CPU core for matrix ops\ntorch.set_num_threads(os.cpu_count() or 4)\n\n# === Hardcode hyperparameters from the proposal (NOT a hyperparams dict) ===\n# NOTE: batch_size / num_workers / persistent_workers / prefetch_factor\n# come from config/config.yaml `training:` via env vars — do NOT\n# hardcode them here. The data loader picks them up automatically.\nEPOCHS = 1                 # CAP at 1 — fast-iteration mode\nLR = 1e-3\nAUGMENTATION = {\"time_shift\": True, \"noise_injection\": True}\n\n# === Model definition ===\n# Use registry model CnnSmallV1\nmodel = CnnSmallV1(num_classes=206, in_channels=1)\n\nstart = time.time()\nresults = {}\ntry:\n    print(\"loading data...\", flush=True)\n    # batch_size / num_workers / persistent_workers / prefetch_factor\n    # are read from BIRDCLEF_* env vars (sourced from config.yaml).\n    train_loader, val_loader, num_classes = load_precomputed_dataset(\n        augmentation=AUGMENTATION,\n    )\n    print(\n        f\"data loaded: {num_classes} classes, \"\n        f\"{len(train_loader.dataset)} train samples, \"\n        f\"{len(val_loader.dataset)} val samples\",\n        flush=True,\n    )\n\n    # Build the model here — num_classes is now defined at MODULE scope\n    n_params = sum(p.numel() for p in model.parameters())\n    print(f\"model built: {n_params:,} parameters\", flush=True)\n\n    optimizer = torch.optim.Adam(model.parameters(), lr=LR)\n    criterion = nn.BCEWithLogitsLoss()\n\n    n_train_batches = len(train_loader)\n    log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch\n\n    curves = {\"loss\": [], \"roc_auc_macro\": []}\n    for epoch in range(EPOCHS):\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} starting \"\n            f\"({n_train_batches} batches)...\",\n            flush=True,\n        )\n        model.train()\n        epoch_losses = []\n        for batch_idx, (x, y) in enumerate(train_loader):\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            epoch_losses.append(float(loss.item()))\n\n            if (batch_idx + 1) % log_every == 0 or batch_idx + 1 == n_train_batches:\n                pct = 100.0 * (batch_idx + 1) / n_train_batches\n                print(\n                    f\"  epoch {epoch + 1} [{pct:5.1f}%] \"\n                    f\"batch {batch_idx + 1}/{n_train_batches} \"\n                    f\"loss={loss.item():.4f}\",\n                    flush=True,\n                )\n\n        print(f\"epoch {epoch + 1}: running validation...\", flush=True)\n        model.eval()\n        all_probs, all_targs = [], []\n        with torch.no_grad():\n            for x, y in val_loader:\n                all_probs.append(torch.sigmoid(model(x)).numpy())\n                all_targs.append(y.numpy())\n        probs = np.concatenate(all_probs, axis=0)\n        targs = np.concatenate(all_targs, axis=0)\n\n        # Macro ROC-AUC over columns with at least one positive\n        aucs = []\n        for c in range(targs.shape[1]):\n            if targs[:, c].sum() > 0:\n                aucs.append(roc_auc_score(targs[:, c], probs[:, c]))\n        val_auc = float(np.mean(aucs)) if aucs else 0.0\n        epoch_loss = float(np.mean(epoch_losses))\n\n        curves[\"loss\"].append(epoch_loss)\n        curves[\"roc_auc_macro\"].append(val_auc)\n        print(\n            f\"epoch {epoch + 1}/{EPOCHS} done: \"\n            f\"loss={epoch_loss:.4f} roc_auc_macro={val_auc:.4f}\",\n            flush=True,\n        )\n\n    results = {\n        \"metrics\": {\n            \"roc_auc_macro\": curves[\"roc_auc_macro\"][-1],\n            \"loss\": curves[\"loss\"][-1],\n        },\n        \"training_curves\": curves,\n        \"duration_seconds\": time.time() - start,\n    }\n    print(\n        f\"all done: final roc_auc_macro={curves['roc_auc_macro'][-1]:.4f}\",\n        flush=True,\n    )\nexcept Exception as exc:\n    results = {\"error\": f\"{type(exc).__name__}: {exc}\"}\n    print(f\"training failed: {type(exc).__name__}: {exc}\", flush=True)\n\n# Ensure we don't use multiprocessing for data loading to avoid pickling issues\ntrain_loader = torch.utils.data.DataLoader(\n    train_loader.dataset,\n    batch_size=train_loader.batch_size,\n    shuffle=True,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\nval_loader = torch.utils.data.DataLoader(\n    val_loader.dataset,\n    batch_size=val_loader.batch_size,\n    shuffle=False,\n    num_workers=0,  # Important for avoiding pickle issues\n    pin_memory=False\n)\n\nwith open(\"results.json\", \"w\") as fh:\n    json.dump(results, fh)\n",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "capture_metrics",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "results_json_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260411_084103_qwen_retry/exp_001/results.json",
+            "raw_results": {
+              "error": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'"
+            }
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "ScriptReportedError",
+            "message": "AttributeError: Can't pickle local object 'load_precomputed_dataset.<locals>._TorchAdapter'",
+            "traceback": null
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-11T08:41:03.172104Z",
+      "completed_at": "2026-04-11T08:41:56.466554Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    }
+  ],
+  "prompt_template_paths": {},
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "legacy",
+    "max_development"
+  ],
+  "notes": "Explore architectures for BirdCLEF 2026."
+}
