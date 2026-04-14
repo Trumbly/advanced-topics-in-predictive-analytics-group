@@ -573,16 +573,23 @@ def submit(ctx: click.Context, study_id: str | None) -> None:
         )
 
     exporter = SubmissionExporter()
-    exp_dir = (
-        gc.paths.experiments
-        / study.study_id
-        / "experiments"
-        / (study.best_experiment_id or "")
+    study_dir = gc.paths.experiments / study.study_id
+    sandbox_dir = gc.paths.sandbox / study.study_id
+    click.echo(
+        f"Exporting best experiment from {study_dir}/\n"
+        f"experiments/{study.best_experiment_id}"
     )
-    click.echo(f"Exporting best experiment from {exp_dir}")
-    output_path = gc.paths.experiments / study.study_id / "submissions" / "submission.ipynb"
-    exporter.export(study=study, output_path=output_path)
-    click.echo(f"Wrote submission notebook to {output_path}")
+    output_path = study_dir / "submissions" / "submission.ipynb"
+    try:
+        result = exporter.export_best(
+            study=study,
+            study_dir=study_dir,
+            sandbox_dir=sandbox_dir,
+            output_path=output_path,
+        )
+        click.echo(f"Wrote submission notebook to {result}")
+    except Exception as exc:
+        raise click.ClickException(str(exc))
 
 
 @cli.command("ui")
