@@ -8,7 +8,8 @@ Targets the two hardenings that prevent prose-as-code crashes:
 """
 from __future__ import annotations
 
-from lab.core.orchestrator import _strip_fences
+from lab.core.models import Experiment, ExperimentStatus, StudyStatus
+from lab.core.orchestrator import Orchestrator, _strip_fences
 
 
 def test_strip_fences_extracts_python_block_among_prose():
@@ -52,3 +53,35 @@ def test_strip_fences_strips_pure_prose_to_itself():
     raw = "Looking at the error, I think we should just give up."
     out = _strip_fences(raw)
     assert "Looking at the error" in out
+
+
+# ---------------------------------------------------------------------------
+# Final study status derivation
+# ---------------------------------------------------------------------------
+
+
+def _exp(status: ExperimentStatus) -> Experiment:
+    return Experiment(study_id="s", primary_metric="x", status=status)
+
+
+def test_final_status_aborted_wins_even_with_a_success():
+    derive = Orchestrator._derive_final_status
+    exps = [_exp(ExperimentStatus.COMPLETED), _exp(ExperimentStatus.FAILED)]
+    assert derive(exps, aborted=True) == StudyStatus.ABORTED
+
+
+def test_final_status_completed_when_at_least_one_succeeded():
+    derive = Orchestrator._derive_final_status
+    exps = [_exp(ExperimentStatus.FAILED), _exp(ExperimentStatus.COMPLETED), _exp(ExperimentStatus.FAILED)]
+    assert derive(exps, aborted=False) == StudyStatus.COMPLETED
+
+
+def test_final_status_failed_when_all_experiments_failed():
+    derive = Orchestrator._derive_final_status
+    exps = [_exp(ExperimentStatus.FAILED), _exp(ExperimentStatus.FAILED)]
+    assert derive(exps, aborted=False) == StudyStatus.FAILED
+
+
+def test_final_status_failed_when_no_experiments_ran():
+    derive = Orchestrator._derive_final_status
+    assert derive([], aborted=False) == StudyStatus.FAILED

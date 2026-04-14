@@ -215,7 +215,9 @@ class Orchestrator:
                 study.save(experiments_dir)
                 self._fire(self.hooks.on_experiment_end, exp)
 
-            study.status = StudyStatus.ABORTED if self._abort_requested else StudyStatus.COMPLETED
+            study.status = self._derive_final_status(
+                study.experiments, aborted=self._abort_requested,
+            )
         except Exception:  # noqa: BLE001 — we want to persist even on crash
             logger.exception("Orchestrator crashed")
             study.status = StudyStatus.FAILED
@@ -522,6 +524,24 @@ class Orchestrator:
         }
         env.update(self.adapter.env_vars(self.settings))
         return env
+
+    @staticmethod
+    def _derive_final_status(experiments: list[Experiment], *, aborted: bool) -> StudyStatus:
+        """Pick the right end-of-loop status for the study.
+
+        - User abort wins everything (matches what they asked for).
+        - At least one COMPLETED experiment → study COMPLETED.
+        - Empty experiments list or all FAILED → study FAILED.
+
+        Without this rule the orchestrator marks every loop that exits
+        without an exception as COMPLETED, which is misleading when all
+        N experiments crashed.
+        """
+        if aborted:
+            return StudyStatus.ABORTED
+        if any(e.status == ExperimentStatus.COMPLETED for e in experiments):
+            return StudyStatus.COMPLETED
+        return StudyStatus.FAILED
 
     def _persist(self) -> None:
         """Re-save the study mid-experiment so the UI sees live status.
