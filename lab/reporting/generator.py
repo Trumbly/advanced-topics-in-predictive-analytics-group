@@ -148,7 +148,11 @@ def _render_exec_summary(
                 "n_success": n_success,
                 "n_failed": n_failed,
                 "primary_metric": study.primary_metric,
-                "best_score": best_score,
+                # Pre-format because the prompt engine stringifies every
+                # slot before rendering; passing the float would let the
+                # template's `{best_score:.4f}` crash with "Unknown
+                # format code 'f' for object of type 'str'".
+                "best_score": f"{best_score:.4f}",
                 "best_architecture": (best.architecture_name if best else "n/a"),
                 "family_summary": fam_summary,
             },

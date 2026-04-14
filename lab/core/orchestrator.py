@@ -381,11 +381,45 @@ class Orchestrator:
                     error_message=result.error.message,
                     traceback=result.error.traceback or "",
                 )
+                # Re-validate the recovered code BEFORE shipping it to the
+                # executor. The recovery LLM occasionally returns prose
+                # ("Looking at the error, the issue is …") which would
+                # otherwise blow up at runtime as a SyntaxError. We give
+                # the LLM up to 3 chances to correct itself before giving
+                # up on this experiment.
+                code = self._revalidate_with_retries(code, exp)
                 exp.code = code
             except LLMError as exc:
                 logger.error("recover_from_error LLM call failed: %s", exc)
                 return result
         return result  # type: ignore[return-value]
+
+    def _revalidate_with_retries(self, code: str, exp: Experiment) -> str:
+        """Run the validator on `code`; on failure, re-prompt the LLM
+        (up to 3 attempts) to fix the validation error. Returns the
+        last code we have, validated or not — the executor will then
+        produce the actual error which the outer recovery loop handles.
+        """
+        for revalidation_attempt in range(1, 4):
+            val = validator_mod.validate(
+                code, extra_spawn_triggers=self.adapter.spawn_triggering_calls(),
+            )
+            if val.ok:
+                return code
+            logger.warning(
+                "Recovered code rejected by validator (%s): %s — re-prompting (%d/3)",
+                val.error_type, val.message[:120], revalidation_attempt,
+            )
+            try:
+                code = self._recover_code(
+                    code,
+                    error_type=val.error_type,
+                    error_message=val.message,
+                    traceback="",
+                )
+            except LLMError:
+                break
+        return code
 
     # ------------------------------------------------------------------
     # LLM calls — thin wrappers around prompt engine + llm client
@@ -534,11 +568,28 @@ class Orchestrator:
 # ---------------------------------------------------------------------------
 
 
-_FENCE_RE = re.compile(r"^```[a-zA-Z0-9]*\s*|\s*```$", re.MULTILINE)
+# Match ```python … ``` (or just ``` … ```) anywhere in the response.
+# We grab the FIRST fenced block — when the LLM wraps its prose with
+# code in the middle, we want the code, not the prose.
+_FENCED_BLOCK_RE = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.DOTALL)
 
 
 def _strip_fences(text: str) -> str:
-    """Remove common ``` markdown fences the LLM sprinkles around code."""
+    """Extract Python code from an LLM response.
+
+    Three cases:
+      1. The response contains a fenced ```python``` block somewhere
+         — we return its contents.
+      2. The response IS already a code block (starts with ```) — we
+         peel the outer fence.
+      3. The response is bare code (or bare prose; the validator will
+         reject the latter on the next round-trip).
+    """
+    # Case 1: any fenced block anywhere — return the first one.
+    m = _FENCED_BLOCK_RE.search(text)
+    if m:
+        return m.group(1).strip()
+    # Case 2: outer fence only (no closing on its own line).
     stripped = text.strip()
     if stripped.startswith("```"):
         first_nl = stripped.find("\n")

@@ -15,7 +15,7 @@ system: |
 template: |
   Task: {task_description}
   Total experiments: {n_experiments} ({n_success} succeeded, {n_failed} failed)
-  Best {primary_metric}: {best_score:.4f}
+  Best {primary_metric}: {best_score}
   Best architecture: {best_architecture}
 
   Per-family summary:
