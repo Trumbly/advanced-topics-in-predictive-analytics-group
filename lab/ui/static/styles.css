@@ -1,25 +1,55 @@
-/* lab UI — dark, minimal, zero framework. */
+/* lab UI — dual-theme, minimal, zero framework.
+ *
+ * Theme is controlled by data-theme="dark" | "light" on <html>.
+ * Default is dark; the toggle in the top bar persists the choice in
+ * localStorage. All colors flow through CSS variables so switching is
+ * instantaneous and doesn't require reflowing the whole page.
+ */
 
-:root {
+:root,
+:root[data-theme="dark"] {
   --bg: #0b1020;
+  --bg-grad: radial-gradient(ellipse at top, #141a38, #0b1020 60%);
   --bg-soft: #121832;
   --bg-card: #151c3a;
   --ink: #e7ecff;
   --ink-dim: #8ea0c8;
   --accent: #7c9cff;
+  --accent-ink: #0b1020;
   --accent-2: #8be0c0;
   --warn: #ff9a6b;
   --err: #ff7a87;
   --ok: #69d7a6;
   --line: #253060;
   --pill: #28325e;
+  --btn-primary-grad: linear-gradient(135deg, #5c7aff, #7cb2ff);
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.02) inset;
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f7fb;
+  --bg-grad: radial-gradient(ellipse at top, #ffffff, #eef1f7 60%);
+  --bg-soft: #f1f3f8;
+  --bg-card: #ffffff;
+  --ink: #1a1f36;
+  --ink-dim: #6b7389;
+  --accent: #4560e0;
+  --accent-ink: #ffffff;
+  --accent-2: #1a9f7a;
+  --warn: #d97a3a;
+  --err: #d84355;
+  --ok: #16a071;
+  --line: #e2e5ee;
+  --pill: #e9ecf4;
+  --btn-primary-grad: linear-gradient(135deg, #4560e0, #6c82f0);
+  --shadow-card: 0 1px 2px rgba(20, 25, 60, 0.04), 0 1px 3px rgba(20, 25, 60, 0.03);
 }
 
 * { box-sizing: border-box; }
 
 html, body {
   margin: 0; padding: 0;
-  background: radial-gradient(ellipse at top, #141a38, #0b1020 60%);
+  background: var(--bg-grad);
   color: var(--ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
                "Helvetica Neue", Arial, sans-serif;
@@ -40,7 +70,7 @@ code, pre {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 32px;
   border-bottom: 1px solid var(--line);
-  background: rgba(11, 16, 32, 0.8);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: saturate(160%) blur(10px);
   position: sticky; top: 0; z-index: 5;
 }
@@ -82,6 +112,7 @@ h4 { font-size: 12px; margin: 0; color: var(--ink-dim); text-transform: uppercas
   border-radius: 12px;
   padding: 18px 20px;
   margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
 }
 .grid-3 {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -98,7 +129,7 @@ th, td {
   border-bottom: 1px solid var(--line);
 }
 th { font-size: 11px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; }
-tr:hover td { background: rgba(124, 156, 255, 0.05); }
+tr:hover td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
 /* Pills, tags, status */
 .pill {
@@ -107,18 +138,18 @@ tr:hover td { background: rgba(124, 156, 255, 0.05); }
   font-size: 11px; color: var(--ink);
   display: inline-block;
 }
-.pill-ok { background: rgba(105, 215, 166, 0.2); color: var(--ok); }
-.tag { background: rgba(124, 156, 255, 0.15); color: var(--accent);
+.pill-ok { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+.tag { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent);
   font-size: 11px; padding: 2px 8px; border-radius: 6px; margin-right: 4px; }
 
 .status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
   padding: 2px 8px; border-radius: 999px; font-weight: 600; }
-.status-pending, .status-PENDING { background: rgba(142, 160, 200, 0.15); color: var(--ink-dim); }
-.status-running, .status-RUNNING { background: rgba(124, 156, 255, 0.2); color: var(--accent); }
-.status-completed, .status-COMPLETED { background: rgba(105, 215, 166, 0.18); color: var(--ok); }
-.status-failed, .status-FAILED { background: rgba(255, 122, 135, 0.18); color: var(--err); }
-.status-aborted, .status-ABORTED { background: rgba(255, 154, 107, 0.18); color: var(--warn); }
-.status-skipped, .status-SKIPPED { background: rgba(142, 160, 200, 0.1); color: var(--ink-dim); }
+.status-pending, .status-PENDING { background: color-mix(in srgb, var(--ink-dim) 15%, transparent); color: var(--ink-dim); }
+.status-running, .status-RUNNING { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.status-completed, .status-COMPLETED { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.status-failed, .status-FAILED { background: color-mix(in srgb, var(--err) 18%, transparent); color: var(--err); }
+.status-aborted, .status-ABORTED { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.status-skipped, .status-SKIPPED { background: color-mix(in srgb, var(--ink-dim) 10%, transparent); color: var(--ink-dim); }
 
 /* Buttons + forms */
 .btn {
@@ -130,10 +161,21 @@ tr:hover td { background: rgba(124, 156, 255, 0.05); }
 .btn:hover { border-color: var(--accent); text-decoration: none; }
 .btn:active { transform: translateY(1px); }
 .btn-primary {
-  background: linear-gradient(135deg, #5c7aff, #7cb2ff);
-  border-color: transparent; color: #0b1020; font-weight: 600;
+  background: var(--btn-primary-grad);
+  border-color: transparent; color: var(--accent-ink); font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.05); border-color: transparent; }
+.btn-danger {
+  background: transparent; border-color: var(--err); color: var(--err);
+}
+.btn-danger:hover { background: var(--err); color: var(--accent-ink); border-color: var(--err); }
+.btn[disabled], .btn[disabled]:hover {
+  opacity: 0.4; cursor: not-allowed; border-color: var(--line);
 }
 .btn.small { padding: 4px 10px; font-size: 12px; }
+
+/* Grouped action buttons on table rows and headers */
+.row-actions { display: inline-flex; gap: 8px; align-items: center; }
 
 form.inline { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 label { display: block; font-size: 12px; color: var(--ink-dim);
@@ -160,7 +202,7 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 /* Markdown render */
 .markdown table { background: var(--bg-soft); border-radius: 8px; margin: 12px 0; }
 .markdown img { max-width: 100%; border-radius: 8px; border: 1px solid var(--line);
-  margin: 12px 0; background: #fff; }
+  margin: 12px 0; background: #fff; /* keep chart backgrounds white for readability */ }
 .markdown h1 { font-size: 26px; }
 .markdown h2 { font-size: 19px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
 .markdown code { background: var(--bg-soft); padding: 2px 6px; border-radius: 4px; }
@@ -180,6 +222,28 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 .studies { margin-top: 10px; }
 details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 details[open] summary { margin-bottom: 8px; }
+
+/* Filter bar on studies list */
+.filter-bar { padding: 14px 16px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.filter-row:last-child { margin-bottom: 0; }
+.filter-row label { margin-top: 0; }
+.filter-actions label { visibility: hidden; }
+
+/* Theme toggle — sun/moon icon button in the top bar */
+.theme-toggle {
+  background: transparent; border: 1px solid var(--line);
+  color: var(--ink); border-radius: 999px;
+  width: 32px; height: 32px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; margin-left: 16px; transition: background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { background: var(--bg-soft); border-color: var(--accent); }
+.theme-toggle svg { width: 16px; height: 16px; }
+:root[data-theme="dark"] .theme-toggle .icon-sun  { display: block; }
+:root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-sun  { display: none; }
+:root[data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
 /* Prompt selection grid on new-study form */
 .prompt-grid {
@@ -212,10 +276,16 @@ details[open] summary { margin-bottom: 8px; }
 /* Banners */
 .banner { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
   border: 1px solid var(--line); }
-.banner-ok { background: rgba(105, 215, 166, 0.12); border-color: rgba(105, 215, 166, 0.35);
-  color: var(--ok); }
-.banner-err { background: rgba(255, 122, 135, 0.12); border-color: rgba(255, 122, 135, 0.35);
-  color: var(--err); }
+.banner-ok {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 35%, transparent);
+  color: var(--ok);
+}
+.banner-err {
+  background: color-mix(in srgb, var(--err) 12%, transparent);
+  border-color: color-mix(in srgb, var(--err) 35%, transparent);
+  color: var(--err);
+}
 
 /* CLI preview in new-study form */
 .cli-preview {

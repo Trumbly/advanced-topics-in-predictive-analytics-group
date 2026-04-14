@@ -1,6 +1,8 @@
 """Study list + detail pages."""
 from __future__ import annotations
 
+import shutil
+
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -12,15 +14,107 @@ from lab.ui import loaders
 router = APIRouter()
 
 
+def _filter_studies(
+    studies: list,
+    *,
+    q: str = "",
+    task: str = "",
+    status: str = "",
+    tag: str = "",
+    min_score: float | None = None,
+    max_score: float | None = None,
+    sort: str = "created_desc",
+):
+    """Apply the query-param filters + sort to a list of StudySummary."""
+    q_norm = q.lower().strip()
+    task = task.strip()
+    status = status.strip()
+    tag = tag.strip()
+
+    out = []
+    for s in studies:
+        if q_norm and q_norm not in s.id.lower() and q_norm not in s.name.lower():
+            continue
+        if task and s.task_name != task:
+            continue
+        if status and s.status != status:
+            continue
+        if tag and tag not in s.tags:
+            continue
+        score = s.best_score if s.best_score is not None else None
+        if min_score is not None:
+            if score is None or score < min_score:
+                continue
+        if max_score is not None:
+            if score is None or score > max_score:
+                continue
+        out.append(s)
+
+    # Sorting
+    if sort == "score_desc":
+        out.sort(key=lambda s: (s.best_score if s.best_score is not None else float("-inf")), reverse=True)
+    elif sort == "score_asc":
+        out.sort(key=lambda s: (s.best_score if s.best_score is not None else float("inf")))
+    elif sort == "name":
+        out.sort(key=lambda s: s.name.lower())
+    elif sort == "experiments_desc":
+        out.sort(key=lambda s: s.experiments_count, reverse=True)
+    elif sort == "created_asc":
+        out.sort(key=lambda s: s.created_at or "")
+    else:  # created_desc (default)
+        out.sort(key=lambda s: s.created_at or "", reverse=True)
+    return out
+
+
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(
+    request: Request,
+    q: str = "",
+    task: str = "",
+    status: str = "",
+    tag: str = "",
+    min_score: str = "",
+    max_score: str = "",
+    sort: str = "created_desc",
+):
     settings = request.app.state.settings
     experiments_dir = settings.abspath(settings.paths.experiments)
-    studies = loaders.iter_studies(experiments_dir)
+    all_studies = loaders.iter_studies(experiments_dir)
+
+    def _maybe_float(raw: str):
+        try:
+            return float(raw) if raw != "" else None
+        except ValueError:
+            return None
+
+    filtered = _filter_studies(
+        all_studies,
+        q=q, task=task, status=status, tag=tag,
+        min_score=_maybe_float(min_score),
+        max_score=_maybe_float(max_score),
+        sort=sort,
+    )
+
+    # Facets for the filter dropdowns: only show values that exist on disk.
+    facets = {
+        "tasks": sorted({s.task_name for s in all_studies if s.task_name}),
+        "statuses": sorted({s.status for s in all_studies if s.status}),
+        "tags": sorted({t for s in all_studies for t in s.tags}),
+    }
+
     return request.app.state.templates.TemplateResponse(
         request,
         "index.html",
-        {"studies": studies, "tasks": list_available_tasks(settings)},
+        {
+            "studies": filtered,
+            "total": len(all_studies),
+            "tasks": list_available_tasks(settings),
+            "facets": facets,
+            "filters": {
+                "q": q, "task": task, "status": status, "tag": tag,
+                "min_score": min_score, "max_score": max_score, "sort": sort,
+            },
+        },
     )
 
 
@@ -58,6 +152,23 @@ async def update_tags(study_id: str, request: Request, tags: str = Form("")):
     study.tags = [t.strip() for t in tags.split(",") if t.strip()]
     loaders.save_study(study, experiments_dir)
     return RedirectResponse(f"/studies/{study_id}", status_code=303)
+
+
+@router.post("/studies/{study_id}/delete")
+async def delete_study(study_id: str, request: Request):
+    """Permanently remove a study directory from disk.
+
+    Only the `experiments/studies/<id>/` tree is removed — sandbox dirs and
+    the prompt registry are untouched. The caller already confirmed in the
+    UI via a JS ``confirm()`` dialog.
+    """
+    settings = request.app.state.settings
+    experiments_dir = settings.abspath(settings.paths.experiments)
+    study_dir = experiments_dir / study_id
+    if not (study_dir / "study.json").exists():
+        raise HTTPException(404, f"No study {study_id}")
+    shutil.rmtree(study_dir, ignore_errors=False)
+    return RedirectResponse("/", status_code=303)
 
 
 @router.get("/new", response_class=HTMLResponse)

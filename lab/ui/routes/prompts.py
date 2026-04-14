@@ -18,7 +18,7 @@ router = APIRouter(prefix="/prompts")
 
 
 @router.get("", response_class=HTMLResponse)
-async def dashboard(request: Request):
+async def dashboard(request: Request, error: str | None = None):
     settings = request.app.state.settings
     registry = PromptRegistry(settings.abspath(settings.paths.prompts_dir))
     experiments_dir = settings.abspath(settings.paths.experiments)
@@ -36,6 +36,7 @@ async def dashboard(request: Request):
             "versions": version_map,
             "active": active_map,
             "scores": scores,
+            "error": error,
         },
     )
 
@@ -85,4 +86,20 @@ async def activate_version(task: str, version: str, request: Request):
         registry.set_active(task, version)
     except KeyError:
         raise HTTPException(404)
+    return RedirectResponse("/prompts", status_code=303)
+
+
+@router.post("/{task}/delete/{version}")
+async def delete_version(task: str, version: str, request: Request):
+    settings = request.app.state.settings
+    registry = PromptRegistry(settings.abspath(settings.paths.prompts_dir))
+    from urllib.parse import quote
+    try:
+        registry.delete_version(task, version)
+    except KeyError:
+        raise HTTPException(404)
+    except ValueError as exc:
+        return RedirectResponse(
+            f"/prompts?error={quote(str(exc))}", status_code=303,
+        )
     return RedirectResponse("/prompts", status_code=303)

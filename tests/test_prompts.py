@@ -62,3 +62,49 @@ def test_cli_rejects_malformed_prompt_overrides():
         _parse_prompt_overrides(["=v1"])
     with pytest.raises(ValueError):
         _parse_prompt_overrides(["task="])
+
+
+# ---------------------------------------------------------------------------
+# Prompt delete
+# ---------------------------------------------------------------------------
+
+
+def _fresh_registry(tmp_path):
+    """Build a minimal two-version registry at tmp_path/prompts/."""
+    import yaml
+    root = tmp_path / "prompts"
+    root.mkdir()
+    (root / "mytask").mkdir()
+    (root / "mytask" / "v1.yaml").write_text("system: a\ntemplate: b\n")
+    (root / "mytask" / "v2.yaml").write_text("system: a\ntemplate: b\n")
+    (root / "_registry.yaml").write_text(yaml.safe_dump({
+        "mytask": {
+            "active": "v2",
+            "versions": {
+                "v1": {"path": "mytask/v1.yaml", "description": "first"},
+                "v2": {"path": "mytask/v2.yaml", "description": "second"},
+            },
+        },
+    }, sort_keys=False))
+    return PromptRegistry(root)
+
+
+def test_delete_version_removes_file_and_pointer(tmp_path):
+    reg = _fresh_registry(tmp_path)
+    reg.delete_version("mytask", "v1")
+    assert not (reg.root / "mytask" / "v1.yaml").exists()
+    assert [v.version for v in reg.list_versions("mytask")] == ["v2"]
+
+
+def test_delete_version_refuses_last_remaining(tmp_path):
+    reg = _fresh_registry(tmp_path)
+    reg.delete_version("mytask", "v1")
+    with pytest.raises(ValueError, match="last remaining"):
+        reg.delete_version("mytask", "v2")
+
+
+def test_delete_version_refuses_active(tmp_path):
+    reg = _fresh_registry(tmp_path)
+    # v2 is active in the fixture — must refuse
+    with pytest.raises(ValueError, match="active"):
+        reg.delete_version("mytask", "v2")

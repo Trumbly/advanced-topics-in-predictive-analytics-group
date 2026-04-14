@@ -7,8 +7,12 @@
     <nav class="crumbs"><a href="/">Studies</a> / <code>{{ study.id }}</code></nav>
     <h1>{{ study.name }}</h1>
   </div>
-  <div class="right">
+  <div class="right row-actions">
     <a href="/studies/{{ study.id }}/report" class="btn">Report</a>
+    <form method="post" action="/studies/{{ study.id }}/delete" class="inline"
+          onsubmit="return confirm('Delete study {{ study.name or study.id }}? This removes the study directory on disk.');">
+      <button class="btn btn-danger" type="submit">Delete</button>
+    </form>
   </div>
 </section>
 

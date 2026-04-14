@@ -90,6 +90,41 @@ class PromptRegistry:
 
     # ---- write --------------------------------------------------------
 
+    def delete_version(self, task: str, version: str) -> None:
+        """Delete a prompt version.
+
+        Refuses if:
+          * The task has only one version left (we never leave a task
+            with zero prompts — the registry would be unusable).
+          * The version being deleted is the active one (must `set_active`
+            to a different version first).
+        """
+        data = self._load_pointer()
+        if task not in data:
+            raise KeyError(task)
+        versions = data[task].get("versions", {})
+        if version not in versions:
+            raise KeyError(version)
+        if len(versions) <= 1:
+            raise ValueError(
+                f"cannot delete the last remaining version of {task!r}"
+            )
+        if data[task].get("active") == version:
+            raise ValueError(
+                f"cannot delete the active version {version!r} of {task!r}; "
+                "activate a different version first"
+            )
+        # Remove the file and the pointer entry.
+        rel = versions[version].get("path")
+        if rel:
+            abs_path = self.root / rel
+            if abs_path.exists():
+                abs_path.unlink()
+        del versions[version]
+        data[task]["versions"] = versions
+        with self.pointer_path.open("w") as fh:
+            yaml.safe_dump(data, fh, sort_keys=False)
+
     def set_active(self, task: str, version: str) -> None:
         data = self._load_pointer()
         if task not in data:

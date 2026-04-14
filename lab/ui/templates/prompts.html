@@ -6,6 +6,10 @@
   <h1>Prompt engineering</h1>
 </section>
 
+{% if error %}
+  <div class="banner banner-err">{{ error }}</div>
+{% endif %}
+
 <p class="muted">
   Prompt files under <code>config/prompts/</code> are immutable once written. The
   active version for each task is tracked in <code>_registry.yaml</code>; draft
@@ -18,21 +22,33 @@
   <p class="muted">Active: <code>{{ active[task] }}</code></p>
 
   <table>
-    <thead><tr><th>Version</th><th>Runs</th><th>Mean</th><th>Best</th><th>Action</th></tr></thead>
+    <thead><tr><th>Version</th><th>Runs</th><th>Mean</th><th>Best</th><th>Actions</th></tr></thead>
     <tbody>
     {% for v in versions[task] %}
       {% set stats = scores.get(task, {}).get(v.version) %}
+      {% set is_active = v.version == active[task] %}
+      {% set can_delete = (versions[task]|length) > 1 and not is_active %}
       <tr>
-        <td><a href="/prompts/{{ task }}/{{ v.version }}"><code>{{ v.version }}</code></a>{% if v.version == active[task] %} <span class="pill pill-ok">active</span>{% endif %}</td>
+        <td><a href="/prompts/{{ task }}/{{ v.version }}"><code>{{ v.version }}</code></a>{% if is_active %} <span class="pill pill-ok">active</span>{% endif %}</td>
         <td class="num">{% if stats %}{{ stats.count }}{% else %}—{% endif %}</td>
         <td class="num">{% if stats %}{{ "%.4f"|format(stats.mean) }}{% else %}—{% endif %}</td>
         <td class="num">{% if stats %}{{ "%.4f"|format(stats.best) }}{% else %}—{% endif %}</td>
         <td>
-          {% if v.version != active[task] %}
-          <form method="post" action="/prompts/{{ task }}/activate/{{ v.version }}" class="inline">
-            <button class="btn small">Activate</button>
-          </form>
-          {% endif %}
+          <div class="row-actions">
+            {% if not is_active %}
+            <form method="post" action="/prompts/{{ task }}/activate/{{ v.version }}" class="inline">
+              <button class="btn small">Activate</button>
+            </form>
+            {% endif %}
+            {% if can_delete %}
+            <form method="post" action="/prompts/{{ task }}/delete/{{ v.version }}" class="inline"
+                  onsubmit="return confirm('Delete {{ task }} / {{ v.version }}? This removes the YAML file permanently.');">
+              <button class="btn small btn-danger">Delete</button>
+            </form>
+            {% else %}
+            <button class="btn small" disabled title="{% if is_active %}Activate a different version first.{% else %}Cannot delete the last remaining version.{% endif %}">Delete</button>
+            {% endif %}
+          </div>
         </td>
       </tr>
     {% endfor %}
