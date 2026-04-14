@@ -31,7 +31,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.templates = Jinja2Templates(directory=templates_dir)
     app.state.settings = settings
 
-    from lab.ui.routes import studies, experiments, prompts, tasks, reports, api, live as live_route
+    from lab.ui.routes import (
+        studies, experiments, prompts, tasks, reports, api,
+        live as live_route, config_editor,
+    )
     app.include_router(studies.router)
     app.include_router(experiments.router)
     app.include_router(prompts.router)
@@ -39,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(reports.router)
     app.include_router(api.router)
     app.include_router(live_route.router)
+    app.include_router(config_editor.router)
 
     return app
 

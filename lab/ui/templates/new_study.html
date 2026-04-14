@@ -6,7 +6,7 @@
   <h1>New study</h1>
 </section>
 
-<form class="card" method="post" action="/api/new-study-command">
+<form class="card" id="new-study-form" onsubmit="return false;">
   <label for="task">Task</label>
   <select id="task" name="task">
     {% for t in tasks %}
@@ -39,16 +39,88 @@
     agent can see what has already been tried.
   </p>
 
-  <div class="actions">
-    <button class="btn btn-primary" type="submit">Show CLI command</button>
-    <a href="/" class="btn">Cancel</a>
-  </div>
+  <label class="inline-check" style="margin-top: 14px;">
+    <input type="checkbox" id="opt-report" checked>
+    Render report when study finishes (adds <code>--report</code>)
+  </label>
 </form>
 
 <section class="card">
-  <h2>CLI equivalent</h2>
-  <p class="muted">The web UI runs the agent in a separate process. Copy-paste:</p>
-  <pre class="code">python -m lab run --task &lt;task&gt; [--name ...] [--tags ...] [--resume &lt;study_id&gt;]</pre>
+  <h2>CLI command</h2>
+  <p class="muted small">
+    The web UI starts the agent in a separate process. This command updates
+    as you edit the form above — click <strong>Copy</strong> and paste it in
+    your terminal.
+  </p>
+  <div class="cli-preview">
+    <pre id="cli-command">python -m lab run</pre>
+    <button type="button" class="copy-btn" id="cli-copy">Copy</button>
+  </div>
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const $task = document.getElementById("task");
+  const $name = document.getElementById("name");
+  const $tags = document.getElementById("tags");
+  const $predecessor = document.getElementById("predecessor");
+  const $report = document.getElementById("opt-report");
+  const $cmd = document.getElementById("cli-command");
+  const $copy = document.getElementById("cli-copy");
+
+  function quote(value) {
+    // Wrap in single quotes when the value has spaces or shell-special
+    // chars; leave it bare otherwise for readability.
+    if (!value) return "";
+    if (/[\s"'$`\\*?&|;<>(){}!#]/.test(value)) {
+      return "'" + value.replace(/'/g, "'\\''") + "'";
+    }
+    return value;
+  }
+
+  function build() {
+    const task = $task.value.trim();
+    const name = $name.value.trim();
+    const tags = $tags.value.trim();
+    const predecessor = $predecessor.value.trim();
+    const report = $report.checked;
+
+    const parts = ["python", "-m", "lab"];
+    if (task) parts.push("--task", task);
+    parts.push("run");
+    if (name) parts.push("--name", quote(name));
+    if (tags) parts.push("--tags", quote(tags));
+    if (predecessor) parts.push("--resume", predecessor);
+    if (report) parts.push("--report");
+    $cmd.textContent = parts.join(" ");
+  }
+
+  [$task, $name, $tags, $predecessor].forEach(el => {
+    el.addEventListener("input", build);
+    el.addEventListener("change", build);
+  });
+  $report.addEventListener("change", build);
+
+  $copy.addEventListener("click", async () => {
+    const text = $cmd.textContent;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (_) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", "");
+      ta.style.position = "absolute"; ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    $copy.classList.add("copied");
+    $copy.textContent = "Copied";
+    setTimeout(() => { $copy.classList.remove("copied"); $copy.textContent = "Copy"; }, 1500);
+  });
+
+  build();
+})();
+</script>
 {% endblock %}

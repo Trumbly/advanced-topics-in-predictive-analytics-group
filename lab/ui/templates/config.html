@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Config — lab{% endblock %}
+{% block content %}
+
+<section class="page-head">
+  <h1>Configuration</h1>
+  <div class="right muted small">
+    <code>config/config.yaml</code> · auto-backup on save as <code>config.yaml.bak</code>
+  </div>
+</section>
+
+{% if saved %}
+  <div class="banner banner-ok">Saved to <code>{{ saved }}</code>. Changes take effect immediately.</div>
+{% endif %}
+{% if error %}
+  <div class="banner banner-err">{{ error }}</div>
+{% endif %}
+
+<div class="tabs" role="tablist">
+  <button class="tab active" data-tab="form">Structured</button>
+  <button class="tab" data-tab="raw">Raw YAML</button>
+</div>
+
+<!-- ============ STRUCTURED FORM ============ -->
+<form class="card tab-pane active" data-pane="form" method="post" action="/config">
+  <input type="hidden" name="mode" value="form">
+
+  <h2>Runtime</h2>
+  <div class="row">
+    <div class="field">
+      <label for="default_task">Default task</label>
+      <select id="default_task" name="default_task">
+        {% for t in tasks %}
+          <option value="{{ t.name }}" {% if t.name == raw.get("default_task") %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="env_prefix">Env-var prefix</label>
+      <input type="text" id="env_prefix" name="env_prefix" value="{{ raw.get('env_prefix', 'AGENT') }}">
+    </div>
+  </div>
+
+  <h2>LLM</h2>
+  <div class="row">
+    <div class="field">
+      <label for="llm_provider">Provider</label>
+      <select id="llm_provider" name="llm_provider">
+        {% set p = raw.get("llm", {}).get("provider", "ollama") %}
+        <option value="ollama" {% if p == "ollama" %}selected{% endif %}>ollama</option>
+        <option value="openai" {% if p == "openai" %}selected{% endif %}>openai</option>
+      </select>
+    </div>
+    <div class="field field-wide">
+      <label for="llm_base_url">Base URL</label>
+      <input type="text" id="llm_base_url" name="llm_base_url"
+             value="{{ raw.get('llm', {}).get('base_url', '') }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field field-wide">
+      <label for="llm_default_model">Default model</label>
+      <input type="text" id="llm_default_model" name="llm_default_model"
+             value="{{ raw.get('llm', {}).get('default_model', '') }}">
+    </div>
+    <div class="field">
+      <label for="llm_temperature">Temperature</label>
+      <input type="number" step="0.05" id="llm_temperature" name="llm_temperature"
+             value="{{ raw.get('llm', {}).get('temperature', '') }}">
+    </div>
+    <div class="field">
+      <label for="llm_max_tokens">Max tokens</label>
+      <input type="number" id="llm_max_tokens" name="llm_max_tokens"
+             value="{{ raw.get('llm', {}).get('max_tokens', '') }}">
+    </div>
+    <div class="field">
+      <label for="llm_timeout_seconds">Timeout (s)</label>
+      <input type="number" step="1" id="llm_timeout_seconds" name="llm_timeout_seconds"
+             value="{{ raw.get('llm', {}).get('timeout_seconds', '') }}">
+    </div>
+  </div>
+
+  <h2>Compute budget</h2>
+  <div class="row">
+    <div class="field">
+      <label for="budget_max_experiments">Max experiments</label>
+      <input type="number" id="budget_max_experiments" name="budget_max_experiments"
+             value="{{ raw.get('compute_budget', {}).get('max_experiments', '') }}">
+    </div>
+    <div class="field">
+      <label for="budget_max_wallclock_minutes">Wallclock (min)</label>
+      <input type="number" id="budget_max_wallclock_minutes" name="budget_max_wallclock_minutes"
+             value="{{ raw.get('compute_budget', {}).get('max_wallclock_minutes', '') }}">
+    </div>
+    <div class="field">
+      <label for="budget_max_experiment_seconds">Experiment timeout (s)</label>
+      <input type="number" id="budget_max_experiment_seconds" name="budget_max_experiment_seconds"
+             value="{{ raw.get('compute_budget', {}).get('max_experiment_seconds', '') }}">
+    </div>
+    <div class="field">
+      <label for="budget_max_epochs_per_run">Max epochs/run</label>
+      <input type="number" id="budget_max_epochs_per_run" name="budget_max_epochs_per_run"
+             value="{{ raw.get('compute_budget', {}).get('max_epochs_per_run', '') }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="budget_max_recovery_attempts">Recovery attempts</label>
+      <input type="number" id="budget_max_recovery_attempts" name="budget_max_recovery_attempts"
+             value="{{ raw.get('compute_budget', {}).get('max_recovery_attempts', '') }}">
+    </div>
+    <div class="field">
+      <label for="budget_max_codegen_retries">Codegen retries</label>
+      <input type="number" id="budget_max_codegen_retries" name="budget_max_codegen_retries"
+             value="{{ raw.get('compute_budget', {}).get('max_codegen_retries', '') }}">
+    </div>
+  </div>
+
+  <h2>Context</h2>
+  <div class="row">
+    <div class="field">
+      <label for="context_max_prompt_tokens">Max prompt tokens</label>
+      <input type="number" id="context_max_prompt_tokens" name="context_max_prompt_tokens"
+             value="{{ raw.get('context', {}).get('max_prompt_tokens', '') }}">
+    </div>
+    <div class="field">
+      <label for="context_memory_top_k">Memory top-K</label>
+      <input type="number" id="context_memory_top_k" name="context_memory_top_k"
+             value="{{ raw.get('context', {}).get('memory_top_k', '') }}">
+    </div>
+  </div>
+
+  <h2>Training</h2>
+  <div class="row">
+    <div class="field">
+      <label for="training_device">Device</label>
+      <select id="training_device" name="training_device">
+        {% set d = raw.get("training", {}).get("device", "auto") %}
+        {% for opt in ["auto", "cpu", "mps", "cuda"] %}
+          <option value="{{ opt }}" {% if d == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="training_batch_size">Batch size</label>
+      <input type="number" id="training_batch_size" name="training_batch_size"
+             value="{{ raw.get('training', {}).get('batch_size', '') }}">
+    </div>
+    <div class="field">
+      <label for="training_num_workers">Num workers</label>
+      <input type="number" id="training_num_workers" name="training_num_workers"
+             value="{{ raw.get('training', {}).get('num_workers', '') }}">
+    </div>
+    <div class="field">
+      <label for="training_prefetch_factor">Prefetch factor</label>
+      <input type="number" id="training_prefetch_factor" name="training_prefetch_factor"
+             value="{{ raw.get('training', {}).get('prefetch_factor', '') }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="training_persistent_workers" value="true"
+               {% if raw.get("training", {}).get("persistent_workers") %}checked{% endif %}>
+        Persistent workers
+      </label>
+    </div>
+  </div>
+
+  <h2>Logging</h2>
+  <div class="row">
+    <div class="field">
+      <label for="logging_level">Level</label>
+      <select id="logging_level" name="logging_level">
+        {% set lv = raw.get("logging", {}).get("level", "INFO") %}
+        {% for opt in ["DEBUG", "INFO", "WARNING", "ERROR"] %}
+          <option value="{{ opt }}" {% if lv == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="logging_console" value="true"
+               {% if raw.get("logging", {}).get("console", True) %}checked{% endif %}>
+        Console
+      </label>
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="logging_structured" value="true"
+               {% if raw.get("logging", {}).get("structured", True) %}checked{% endif %}>
+        Structured (pretty)
+      </label>
+    </div>
+  </div>
+
+  <h2>UI</h2>
+  <div class="row">
+    <div class="field field-wide">
+      <label for="ui_host">Host</label>
+      <input type="text" id="ui_host" name="ui_host" value="{{ raw.get('ui', {}).get('host', '127.0.0.1') }}">
+    </div>
+    <div class="field">
+      <label for="ui_port">Port</label>
+      <input type="number" id="ui_port" name="ui_port" value="{{ raw.get('ui', {}).get('port', '') }}">
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="ui_enable_live_sse" value="true"
+               {% if raw.get("ui", {}).get("enable_live_sse", True) %}checked{% endif %}>
+        Live SSE stdout
+      </label>
+    </div>
+  </div>
+
+  <h2>Publishing</h2>
+  <div class="row">
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="publishing_default_publish" value="true"
+               {% if raw.get("publishing", {}).get("default_publish") %}checked{% endif %}>
+        New studies are published by default
+      </label>
+    </div>
+    <div class="field field-wide">
+      <label for="publishing_default_tags">Default tags (comma-separated)</label>
+      <input type="text" id="publishing_default_tags" name="publishing_default_tags"
+             value="{{ raw.get('publishing', {}).get('default_tags', [])|join(', ') }}">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Save</button>
+    <a class="btn" href="/config">Reset</a>
+  </div>
+</form>
+
+<!-- ============ RAW YAML ============ -->
+<form class="card tab-pane" data-pane="raw" method="post" action="/config">
+  <input type="hidden" name="mode" value="raw">
+  <p class="muted small">
+    Edit the YAML directly. Saves are validated against the <code>Settings</code>
+    pydantic model — an invalid edit is rejected. Comments are not preserved.
+  </p>
+  <textarea name="raw_yaml" rows="32" spellcheck="false">{{ raw_yaml }}</textarea>
+  <div class="actions">
+    <button class="btn btn-primary" type="submit">Save YAML</button>
+    <a class="btn" href="/config">Reset</a>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const tabs = document.querySelectorAll(".tab");
+  const panes = document.querySelectorAll(".tab-pane");
+  tabs.forEach(t => t.addEventListener("click", () => {
+    const name = t.dataset.tab;
+    tabs.forEach(x => x.classList.toggle("active", x === t));
+    panes.forEach(p => p.classList.toggle("active", p.dataset.pane === name));
+  }));
+})();
+</script>
+{% endblock %}

@@ -180,3 +180,52 @@ input[type=checkbox] { vertical-align: middle; margin-right: 6px; }
 .studies { margin-top: 10px; }
 details summary { cursor: pointer; color: var(--accent); margin-top: 8px; }
 details[open] summary { margin-bottom: 8px; }
+
+/* Config page — row of fields */
+.row { display: flex; flex-wrap: wrap; gap: 16px; margin: 0 0 12px; }
+.field { flex: 1 1 150px; min-width: 140px; }
+.field-wide { flex: 2 1 260px; }
+.field label { margin-top: 0; }
+.inline-check { display: inline-flex; align-items: center; gap: 6px;
+  text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--ink);
+  margin-top: 14px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.tab {
+  background: transparent; border: 0; color: var(--ink-dim);
+  padding: 10px 16px; cursor: pointer; font-size: 13px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab.active { color: var(--ink); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* Banners */
+.banner { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+  border: 1px solid var(--line); }
+.banner-ok { background: rgba(105, 215, 166, 0.12); border-color: rgba(105, 215, 166, 0.35);
+  color: var(--ok); }
+.banner-err { background: rgba(255, 122, 135, 0.12); border-color: rgba(255, 122, 135, 0.35);
+  color: var(--err); }
+
+/* CLI preview in new-study form */
+.cli-preview {
+  display: flex; gap: 8px; align-items: stretch;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; margin-top: 12px;
+}
+.cli-preview pre {
+  margin: 0; flex: 1; overflow-x: auto;
+  font-family: "SF Mono", "JetBrains Mono", "Menlo", monospace;
+  color: var(--accent-2);
+  white-space: pre;
+}
+.copy-btn {
+  background: var(--bg-card); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 14px; cursor: pointer; font-size: 12px;
+  align-self: center; transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.copy-btn:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.copy-btn.copied { background: var(--ok); color: var(--bg); border-color: var(--ok); }
