@@ -34,3 +34,5 @@ epoch 3/7 starting (1457 batches)...
   epoch 3 [ 10.0%] batch 145/1457 loss=0.1394
   epoch 3 [ 19.9%] batch 290/1457 loss=0.1441
   epoch 3 [ 29.9%] batch 435/1457 loss=0.1809
+  epoch 3 [ 39.8%] batch 580/1457 loss=0.1479
+  epoch 3 [ 49.8%] batch 725/1457 loss=0.1767
