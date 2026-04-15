@@ -656,10 +656,45 @@ try:
         + " | torch.cuda.is_available=" + str(_have_cuda)
         + " | gpu=" + str(_gpu_name)
     )
-    if _have_cuda and _want != "cuda":
-        print("[lab bootstrap] WARNING: GPU is available but AGENT_DEVICE is '"
-              + _want + "'. Training will run on CPU and be very slow."
-              " Set executor.kaggle.enable_gpu=true and re-push.")
+
+    # Kaggle's P100 kernels ship with a PyTorch that was compiled
+    # WITHOUT sm_60 support — torch.cuda.is_available() says True but
+    # the first real CUDA call dies with
+    # "no kernel image is available for execution on the device".
+    # Detect the mismatch upfront and fall back to CPU so the kernel
+    # still progresses (slowly) instead of failing 10 seconds into
+    # training.
+    if _have_cuda:
+        try:
+            _cap = _torch.cuda.get_device_capability(0)   # e.g. (6, 0)
+            _arch_list = list(_torch.cuda.get_arch_list())  # e.g. ['sm_70', 'sm_75', ...]
+            _supported = set()
+            for _a in _arch_list:
+                if _a.startswith("sm_") and _a[3:].isdigit():
+                    _s = _a[3:]
+                    try:
+                        _supported.add((int(_s[0]), int(_s[1:] or 0)))
+                    except (ValueError, IndexError):
+                        pass
+            if _supported and _cap not in _supported:
+                print("[lab bootstrap] WARNING: " + str(_gpu_name)
+                      + " has CUDA capability sm_" + str(_cap[0]) + str(_cap[1])
+                      + " but the installed PyTorch only supports "
+                      + ", ".join("sm_" + str(m) + str(n) for m, n in sorted(_supported))
+                      + ".")
+                print("[lab bootstrap] Falling back to AGENT_DEVICE=cpu for THIS kernel."
+                      " Training will be slow. To use GPU:")
+                print("[lab bootstrap]   - in the Kaggle notebook settings, pick"
+                      " 'GPU T4 x2' instead of P100, OR")
+                print("[lab bootstrap]   - pip install a CUDA-11.8 build of torch that"
+                      " retains sm_60 before training starts.")
+                _os.environ["AGENT_DEVICE"] = "cpu"
+        except Exception as _e:
+            print("[lab bootstrap] capability check failed: " + repr(_e))
+
+    if _have_cuda and _os.environ.get("AGENT_DEVICE", "") != "cuda":
+        print("[lab bootstrap] NOTE: GPU available but AGENT_DEVICE='"
+              + _os.environ.get("AGENT_DEVICE", "") + "'. See message above.")
 except ImportError:
     pass
 # --- end bootstrap ---------------------------------------------------
