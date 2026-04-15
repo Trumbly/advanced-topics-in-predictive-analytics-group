@@ -1,0 +1,23 @@
+[{"stream_name":"stdout","time":1.340907857,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.3409969689999999,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-ov30xjk2\n"}
+,{"stream_name":"stdout","time":52.184184451,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":66.654643348,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":66.919783472,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 48%|████▊     | 9.88M/20.5M [00:00\u003c00:00, 103MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 148MB/s]\n"}
+,{"stream_name":"stderr","time":22999.135067446,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/metrics/_ranking.py:379: UndefinedMetricWarning: Only one class is present in y_true. ROC AUC score is not defined in that case.\n"}
+,{"stream_name":"stderr","time":22999.135187303,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":22999.176140689,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/metrics/_ranking.py:379: UndefinedMetricWarning: Only one class is present in y_true. ROC AUC score is not defined in that case.\n"}
+,{"stream_name":"stderr","time":22999.176186909,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":22999.188571037,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/metrics/_ranking.py:379: UndefinedMetricWarning: Only one class is present in y_true. ROC AUC score is not defined in that case.\n"}
+,{"stream_name":"stderr","time":22999.188600779,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":22999.201572904,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/metrics/_ranking.py:379: UndefinedMetricWarning: Only one class is present in y_true. ROC AUC score is not defined in that case.\n"}
+,{"stream_name":"stderr","time":22999.201599942,"data":"  warnings.warn(\n"}
+,{"stream_name":"stderr","time":22999.237436429,"data":"/usr/local/lib/python3.12/dist-packages/sklearn/metrics/_ranking.py:379: UndefinedMetricWarning: Only one class is present in y_true. ROC AUC score is not defined in that case.\n"}
+,{"stream_name":"stderr","time":22999.237464308,"data":"  warnings.warn(\n"}
+,{"stream_name":"stdout","time":23000.157126194,"data":"[epoch 1] loss=0.0215 f1_macro=0.3902 roc_auc_macro=nan\n"}
+,{"stream_name":"stderr","time":23006.348848122,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":23006.348889729,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":23006.698707684,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":23006.698746946,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":23008.057220784,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":23009.378508062,"data":"[NbConvertApp] Writing 332695 bytes to __results__.html\n"}
+]

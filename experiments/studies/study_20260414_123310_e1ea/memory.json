@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_17aed7911f",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+      "architecture_family": "efficientnet_b0",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0072118813616045205,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 484.5402912920108,
+      "takeaway": ""
+    }
+  ]
+}

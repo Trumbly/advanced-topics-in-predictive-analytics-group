@@ -225,5 +225,6 @@ async def new_study_form(request: Request):
             "prompt_tasks": prompt_tasks,
             "default_executor": settings.executor.backend,
             "kaggle_configured": bool(settings.executor.kaggle.username),
+            "modal_configured": bool(settings.executor.modal.app_name),
         },
     )

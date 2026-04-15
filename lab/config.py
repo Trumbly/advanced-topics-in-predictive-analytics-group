@@ -97,10 +97,39 @@ class KaggleConfig(BaseModel):
     competition_sources: list[str] = Field(default_factory=list)
 
 
+class ModalConfig(BaseModel):
+    app_name: str = "lab-agent"
+    image_name: str = "debian_slim"
+    pip_packages: list[str] = Field(default_factory=lambda: [
+        "torch",
+        "torchvision",
+        "torchaudio",
+        "scikit-learn>=1.3",
+        "numpy>=1.24",
+        "pandas>=2.0",
+        "pyyaml>=6.0",
+    ])
+    gpu: str = ""
+    cpu: float | None = None
+    memory_mb: int | None = None
+    timeout_seconds: int = 1800
+    retries: int = 0
+    output_volume_name: str = ""
+    output_mount_path: str = "/mnt/output"
+    s3_bucket_name: str = ""
+    s3_secret_name: str = ""
+    s3_endpoint_url: str = ""
+    s3_mount_path: str = "/mnt/data"
+    s3_key_prefix: str = ""
+    set_processed_dir_from_s3: bool = True
+    processed_subpath: str = "processed"
+
+
 class ExecutorConfig(BaseModel):
     """Where the generated training code physically runs."""
-    backend: str = "local"                  # local | kaggle
+    backend: str = "local"                  # local | kaggle | modal
     kaggle: KaggleConfig = Field(default_factory=KaggleConfig)
+    modal: ModalConfig = Field(default_factory=ModalConfig)
 
 
 class Settings(BaseModel):

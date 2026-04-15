@@ -81,7 +81,7 @@ class Experiment(BaseModel):
 
     primary_metric: str = ""
     primary_score: float | None = None
-    metrics: dict[str, float] = Field(default_factory=dict)
+    metrics: dict[str, float|None] = Field(default_factory=dict)
     history: list[dict[str, Any]] = Field(default_factory=list)
 
     error: TaskError | None = None

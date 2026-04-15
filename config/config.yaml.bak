@@ -1,0 +1,69 @@
+# Edited via the lab UI.
+# To edit safely by hand, keep this as a YAML dict and run
+# `python -m lab config` to reprint the merged configuration.
+
+project: lab
+version: 2.0.0
+default_task: track_b
+paths:
+  data_root: data
+  experiments: experiments/studies
+  sandbox: sandbox
+  tasks_dir: config/tasks
+  prompts_dir: config/prompts
+  skeletons_dir: config/skeletons
+  registry_dir: registry
+  reports_dir: reports
+llm:
+  provider: anthropic
+  base_url: https://api.anthropic.com/v1
+  default_model: claude-opus-4-6
+  api_key: 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
+  temperature: 0.7
+  max_tokens: 4096
+  timeout_seconds: 120.0
+  retry_attempts: 3
+  retry_backoff_seconds: 5
+compute_budget:
+  max_experiments: 1
+  max_wallclock_minutes: 240
+  max_experiment_seconds: 1800
+  max_epochs_per_run: 1
+  max_recovery_attempts: 5
+  max_codegen_retries: 5
+context:
+  max_prompt_tokens: 8000
+  memory_top_k: 5
+  memory_format: markdown
+env_prefix: AGENT
+training:
+  device: auto
+  batch_size: 32
+  num_workers: 1
+  persistent_workers: true
+  prefetch_factor: 1
+logging:
+  level: DEBUG
+  console: true
+  file: experiments/agent.log
+  structured: true
+ui:
+  host: 127.0.0.1
+  port: 8765
+  enable_live_sse: true
+publishing:
+  default_publish: false
+  default_tags: []
+executor:
+  backend: kaggle
+  kaggle:
+    username: maxnoellewying
+    kernel_prefix: lab-exp
+    enable_gpu: true
+    enable_internet: true
+    poll_interval_seconds: 30
+    poll_timeout_seconds: 36000
+    dataset_sources:
+    - maxnoellewying/birdclef-2026-preprocessed
+    competition_sources:
+    - birdclef-2026

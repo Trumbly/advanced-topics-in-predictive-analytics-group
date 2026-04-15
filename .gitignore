@@ -9,6 +9,7 @@ venv/
 # Sandbox artifacts are disposable
 sandbox/
 !sandbox/.gitkeep
+*.zip
 
 # Raw data never goes into git (Kaggle terms)
 data/raw/

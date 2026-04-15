@@ -748,6 +748,32 @@ def _build_executor(
             repo_root=settings.repo_root,
             training_env=training_env,
         )
+    if backend == "modal":
+        from lab.core.modal_executor import ModalExecutor
+        m = settings.executor.modal
+        return ModalExecutor(
+            app_name=m.app_name,
+            image_name=m.image_name,
+            pip_packages=list(m.pip_packages),
+            gpu=m.gpu,
+            cpu=m.cpu,
+            memory_mb=m.memory_mb,
+            timeout_seconds=min(m.timeout_seconds, timeout * 10) or timeout,
+            retries=max(0, int(m.retries)),
+            output_volume_name=m.output_volume_name,
+            output_mount_path=m.output_mount_path,
+            s3_bucket_name=m.s3_bucket_name,
+            s3_secret_name=m.s3_secret_name,
+            s3_endpoint_url=m.s3_endpoint_url,
+            s3_mount_path=m.s3_mount_path,
+            s3_key_prefix=m.s3_key_prefix,
+            set_processed_dir_from_s3=m.set_processed_dir_from_s3,
+            processed_subpath=m.processed_subpath,
+            sandbox_root=sandbox_root,
+            repo_root=settings.repo_root,
+            training_env=training_env,
+            env_prefix=settings.env_prefix,
+        )
     if backend != "local":
         logger.warning("Unknown executor backend %r — falling back to local", backend)
     return LocalExecutor(

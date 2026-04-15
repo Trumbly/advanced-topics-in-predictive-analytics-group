@@ -1,0 +1,113 @@
+{
+  "id": "study_20260414_155817_e516",
+  "name": "Test opus with kaggle training",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-14T15:58:17.515343Z",
+  "started_at": "2026-04-14T15:58:17.515362Z",
+  "completed_at": "2026-04-14T16:17:39.205207Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_15ad01dd32",
+      "study_id": "study_20260414_155817_e516",
+      "index": 0,
+      "status": "aborted",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+      "architecture_family": "efficientnet_b0",
+      "architecture_proposal": "{\n  \"architecture_name\": \"[efficientnet_b0] effnet_b0_mixup_heavy_dropout\",\n  \"architecture_family\": \"efficientnet_b0\",\n  \"description\": \"EfficientNet-B0 pretrained on ImageNet with 1\\u21923 channel expansion, input resized to 224\\u00d7224, classifier head replaced with Dropout(0.4)\\u2192Linear(1280,512)\\u2192ReLU\\u2192Dropout(0.3)\\u2192Linear(512,206) with sigmoid output, trained with mixup (alpha=0.5) and BCE loss.\",\n  \"reasoning\": \"As the first experiment, EfficientNet-B0 is a strong baseline for audio spectrograms due to its efficient architecture and ImageNet pretraining providing useful low-level feature detectors. It fits within the CPU inference budget (~5.3M params), and heavy dropout + mixup should help with the long-tail class imbalance. Starting with the highest-quality backbone from the registry establishes an upper performance reference before exploring lighter models.\"\n}",
+      "code": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\nimport torchvision.models as models\n\n\nclass EfficientNetB0BirdClassifier(nn.Module):\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Load pretrained EfficientNet-B0\n        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n\n        # Replace the first conv to accept 1 channel by averaging the pretrained weights\n        original_conv = self.backbone.features[0][0]\n        new_conv = nn.Conv2d(\n            1, original_conv.out_channels,\n            kernel_size=original_conv.kernel_size,\n            stride=original_conv.stride,\n            padding=original_conv.padding,\n            bias=original_conv.bias is not None,\n        )\n        # Average across the 3 input channels to initialize the single-channel conv\n        with torch.no_grad():\n            new_conv.weight.copy_(original_conv.weight.mean(dim=1, keepdim=True))\n            if original_conv.bias is not None:\n                new_conv.bias.copy_(original_conv.bias)\n        self.backbone.features[0][0] = new_conv\n\n        # Replace the classifier head\n        in_features = self.backbone.classifier[1].in_features  # 1280\n        self.backbone.classifier = nn.Sequential(\n            nn.Dropout(p=0.4),\n            nn.Linear(in_features, 512),\n            nn.ReLU(),\n            nn.Dropout(p=0.3),\n            nn.Linear(512, num_classes),\n        )\n\n        # Adaptive pooling to handle variable input sizes - resize to 224x224\n        self.resize = nn.AdaptiveAvgPool2d((224, 224))\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # x: (batch, 1, n_mels, time)\n        x = self.resize(x)\n        x = self.backbone(x)\n        return x\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return EfficientNetB0BirdClassifier(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device, mixup_alpha=0.5):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n\n        # Mixup augmentation\n        if mixup_alpha > 0:\n            lam = torch.distributions.Beta(mixup_alpha, mixup_alpha).sample().item()\n            batch_size = x.size(0)\n            index = torch.randperm(batch_size, device=device)\n            x = lam * x + (1 - lam) * x[index]\n            y = lam * y + (1 - lam) * y[index]\n\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE, mixup_alpha=0.5)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "Aborted",
+        "message": "User requested abort",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+            "architecture_family": "efficientnet_b0",
+            "description": "EfficientNet-B0 pretrained on ImageNet with 1→3 channel expansion, input resized to 224×224, classifier head replaced with Dropout(0.4)→Linear(1280,512)→ReLU→Dropout(0.3)→Linear(512,206) with sigmoid output, trained with mixup (alpha=0.5) and BCE loss.",
+            "reasoning": "As the first experiment, EfficientNet-B0 is a strong baseline for audio spectrograms due to its efficient architecture and ImageNet pretraining providing useful low-level feature detectors. It fits within the CPU inference budget (~5.3M params), and heavy dropout + mixup should help with the long-tail class imbalance. Starting with the highest-quality backbone from the registry establishes an upper performance reference before exploring lighter models."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-14T15:58:17.516484Z",
+          "completed_at": "2026-04-14T15:58:25.516927Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\nimport torchvision.models as models\n\n\nclass EfficientNetB0BirdClassifier(nn.Module):\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Load pretrained EfficientNet-B0\n        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n\n        # Replace the first conv to accept 1 channel by averaging the pretrained weights\n        original_conv = self.backbone.features[0][0]\n        new_conv = nn.Conv2d(\n            1, original_conv.out_channels,\n            kernel_size=original_conv.kernel_size,\n            stride=original_conv.stride,\n            padding=original_conv.padding,\n            bias=original_conv.bias is not None,\n        )\n        # Average across the 3 input channels to initialize the single-channel conv\n        with torch.no_grad():\n            new_conv.weight.copy_(original_conv.weight.mean(dim=1, keepdim=True))\n            if original_conv.bias is not None:\n                new_conv.bias.copy_(original_conv.bias)\n        self.backbone.features[0][0] = new_conv\n\n        # Replace the classifier head\n        in_features = self.backbone.classifier[1].in_features  # 1280\n        self.backbone.classifier = nn.Sequential(\n            nn.Dropout(p=0.4),\n            nn.Linear(in_features, 512),\n            nn.ReLU(),\n            nn.Dropout(p=0.3),\n            nn.Linear(512, num_classes),\n        )\n\n        # Adaptive pooling to handle variable input sizes - resize to 224x224\n        self.resize = nn.AdaptiveAvgPool2d((224, 224))\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # x: (batch, 1, n_mels, time)\n        x = self.resize(x)\n        x = self.backbone(x)\n        return x\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return EfficientNetB0BirdClassifier(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device, mixup_alpha=0.5):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n\n        # Mixup augmentation\n        if mixup_alpha > 0:\n            lam = torch.distributions.Beta(mixup_alpha, mixup_alpha).sample().item()\n            batch_size = x.size(0)\n            index = torch.randperm(batch_size, device=device)\n            x = lam * x + (1 - lam) * x[index]\n            y = lam * y + (1 - lam) * y[index]\n\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE, mixup_alpha=0.5)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+          "error": null,
+          "started_at": "2026-04-14T15:58:25.518039Z",
+          "completed_at": "2026-04-14T15:58:43.719782Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 1089.009839083068,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "Aborted",
+            "message": "User requested abort",
+            "traceback": null
+          },
+          "started_at": "2026-04-14T15:58:43.720093Z",
+          "completed_at": "2026-04-14T16:17:39.203717Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-14T15:58:17.516417Z",
+      "completed_at": "2026-04-14T16:17:39.204327Z",
+      "duration_seconds": 1089.009839083068,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_15ad01dd32"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "opus4.6",
+    "kaggle"
+  ],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

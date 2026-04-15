@@ -1,0 +1,123 @@
+{
+  "id": "study_20260414_123310_e1ea",
+  "name": "Test opus with local training",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-14T12:33:10.713030Z",
+  "started_at": "2026-04-14T12:33:10.713080Z",
+  "completed_at": "2026-04-14T13:01:34.072049Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": "exp_17aed7911f",
+  "best_score": 0.0072118813616045205,
+  "experiments": [
+    {
+      "id": "exp_17aed7911f",
+      "study_id": "study_20260414_123310_e1ea",
+      "index": 0,
+      "status": "completed",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+      "architecture_family": "efficientnet_b0",
+      "architecture_proposal": "{\n  \"architecture_name\": \"[efficientnet_b0] effnet_b0_mixup_heavy_dropout\",\n  \"architecture_family\": \"efficientnet_b0\",\n  \"description\": \"EfficientNet-B0 pretrained on ImageNet with 1\\u21923 channel expansion, input resized to 224\\u00d7224, classifier head replaced with Dropout(0.4)\\u2192Linear(1280,512)\\u2192ReLU\\u2192Dropout(0.3)\\u2192Linear(512,206) with sigmoid output, trained with mixup (alpha=0.5) and BCEWithLogitsLoss for multi-label classification.\",\n  \"reasoning\": \"As the first experiment, EfficientNet-B0 is the strongest pretrained backbone that still fits within Kaggle CPU inference budgets (~5M params). ImageNet pretraining transfers well to mel-spectrogram tasks. Heavy dropout (0.4+0.3) and mixup help with the long-tail class imbalance. The two-layer head with 512 hidden units gives enough capacity for 206 classes without being too slow. This establishes a strong baseline to iterate from.\"\n}",
+      "code": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\nimport torch.nn.functional as F\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\n# Set NUM_WORKERS to 0 to avoid leaked semaphore issues\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"0\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\nclass SimpleCNNMultiLabel(nn.Module):\n    \"\"\"Lightweight CNN for multi-label bird species classification.\"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Feature extraction blocks without adaptive pooling in Sequential\n        self.block1 = nn.Sequential(\n            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),\n            nn.BatchNorm2d(32),\n            nn.ReLU(),\n            nn.MaxPool2d(2, 2),\n        )\n        self.block2 = nn.Sequential(\n            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),\n            nn.BatchNorm2d(64),\n            nn.ReLU(),\n            nn.MaxPool2d(2, 2),\n        )\n        self.block3 = nn.Sequential(\n            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),\n            nn.BatchNorm2d(128),\n            nn.ReLU(),\n            nn.MaxPool2d(2, 2),\n        )\n        self.block4 = nn.Sequential(\n            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),\n            nn.BatchNorm2d(256),\n            nn.ReLU(),\n        )\n        # AdaptiveAvgPool2d applied manually (moved to CPU if on MPS)\n        self.pool_output_size = (4, 4)\n\n        self.classifier = nn.Sequential(\n            nn.Dropout(p=0.4),\n            nn.Linear(256 * 4 * 4, 512),\n            nn.ReLU(),\n            nn.Dropout(p=0.3),\n            nn.Linear(512, num_classes),\n        )\n\n    def forward(self, x):\n        # x: (batch, 1, n_mels, time)\n        x = self.block1(x)\n        x = self.block2(x)\n        x = self.block3(x)\n        x = self.block4(x)\n\n        # Adaptive pooling: move to CPU if on MPS to avoid the MPS bug,\n        # then move back to the original device.\n        orig_device = x.device\n        if x.device.type == \"mps\":\n            x = F.adaptive_avg_pool2d(x.cpu(), self.pool_output_size).to(orig_device)\n        else:\n            x = F.adaptive_avg_pool2d(x, self.pool_output_size)\n\n        x = x.view(x.size(0), -1)\n        return self.classifier(x)\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return SimpleCNNMultiLabel(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0072118813616045205,
+      "metrics": {
+        "f1_macro": 0.0072118813616045205,
+        "roc_auc_macro": null,
+        "loss": 0.032410360349140424,
+        "epoch": 1.0
+      },
+      "history": [
+        {
+          "f1_macro": 0.0072118813616045205,
+          "roc_auc_macro": null,
+          "loss": 0.032410360349140424,
+          "epoch": 1
+        }
+      ],
+      "error": null,
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+            "architecture_family": "efficientnet_b0",
+            "description": "EfficientNet-B0 pretrained on ImageNet with 1→3 channel expansion, input resized to 224×224, classifier head replaced with Dropout(0.4)→Linear(1280,512)→ReLU→Dropout(0.3)→Linear(512,206) with sigmoid output, trained with mixup (alpha=0.5) and BCEWithLogitsLoss for multi-label classification.",
+            "reasoning": "As the first experiment, EfficientNet-B0 is the strongest pretrained backbone that still fits within Kaggle CPU inference budgets (~5M params). ImageNet pretraining transfers well to mel-spectrogram tasks. Heavy dropout (0.4+0.3) and mixup help with the long-tail class imbalance. The two-layer head with 512 hidden units gives enough capacity for 206 classes without being too slow. This establishes a strong baseline to iterate from."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\nimport torchvision.models as models\n\n\nclass EfficientNetB0MultiLabel(nn.Module):\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Load pretrained EfficientNet-B0\n        self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n\n        # Replace the classifier head\n        # EfficientNet-B0 has 1280 features before the classifier\n        self.backbone.classifier = nn.Sequential(\n            nn.Dropout(p=0.4),\n            nn.Linear(1280, 512),\n            nn.ReLU(),\n            nn.Dropout(p=0.3),\n            nn.Linear(512, num_classes),\n        )\n\n        # Modify first conv layer to accept 1 channel input\n        # Original: Conv2d(3, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)\n        old_conv = self.backbone.features[0][0]\n        new_conv = nn.Conv2d(\n            1, old_conv.out_channels,\n            kernel_size=old_conv.kernel_size,\n            stride=old_conv.stride,\n            padding=old_conv.padding,\n            bias=False,\n        )\n        # Initialize by averaging the 3-channel weights into 1 channel\n        with torch.no_grad():\n            new_conv.weight.copy_(old_conv.weight.mean(dim=1, keepdim=True))\n        self.backbone.features[0][0] = new_conv\n\n        # Adaptive resize to 224x224 using interpolation in forward\n        self.target_size = (224, 224)\n\n    def forward(self, x):\n        # x: (batch, 1, n_mels, time)\n        # Resize to 224x224 for EfficientNet\n        x = nn.functional.interpolate(x, size=self.target_size, mode=\"bilinear\", align_corners=False)\n        return self.backbone(x)\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return EfficientNetB0MultiLabel(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "duration_seconds": 484.5402912920108,
+            "exit_code": 0,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "capture_metrics",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-14T12:33:10.714537Z",
+      "completed_at": "2026-04-14T13:01:34.069650Z",
+      "duration_seconds": 484.5402912920108,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_17aed7911f"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "opus4.6",
+    "local"
+  ],
+  "executor_backend": "local",
+  "executor_infrastructure": {
+    "backend": "local",
+    "device": "mps",
+    "cpu_count": 16,
+    "python_version": "3.11.15",
+    "platform": "macOS-26.3.1",
+    "hostname": "MacBook-Pro-von-Maximilian.local"
+  },
+  "notes": ""
+}

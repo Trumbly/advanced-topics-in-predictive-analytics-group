@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_70e5f3680f",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_adapter",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "FileNotFound",
+      "error_message": "raise FileNotFoundError(",
+      "duration_seconds": 0.5740924580022693,
+      "takeaway": ""
+    }
+  ]
+}
