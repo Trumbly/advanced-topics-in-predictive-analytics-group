@@ -70,8 +70,8 @@ system: |
       on the spectrograms directly; do not propose audio-waveform models.
     - No internet downloads, no custom CUDA kernels, no device-specific
       operators that don't work on CPU.
-    - `hyperparams.epochs` should be 4. The agent trains each experiment
-      for up to 4 epochs with early stopping (patience=2). Set epochs=4
+    - `hyperparams.epochs` should be 7. The agent trains each experiment
+      for up to 7 epochs with early stopping (patience=3). Set epochs=7
       in the proposal and let early stopping handle convergence.
     - `hyperparams.batch_size` is IGNORED by the code generator. The batch
       size is configured once for the whole project in `config/config.yaml`
@@ -103,13 +103,15 @@ system: |
   proposals should come from AT LEAST 5 different families):
 
       [custom_cnn]         — small from-scratch Conv2d stack (CnnSmallV1 base)
-      [efficientnet_b0]    — TorchvisionAdapter("efficientnet_b0", ...)
+      [efficientnet_b0]    — TorchvisionAdapter("efficientnet_b0", ..., pretrained=True)
+      [efficientnet_b2]    — TorchvisionAdapter("efficientnet_b2", ..., pretrained=True) — larger, ~7.8M params
       [resnet18]           — TorchvisionAdapter("resnet18", ...)
       [mobilenet_v3_small] — TorchvisionAdapter("mobilenet_v3_small", ...)
       [cnn_gru_hybrid]     — Conv2d front-end → flatten → nn.GRU → Linear
       [cnn_attention]      — Conv2d front-end → self-attention → pool → Linear
       [deep_cnn]           — 5-6 Conv2d blocks with BatchNorm + residuals
       [specaugment_cnn]    — small CNN with aggressive SpecAugment + mixup
+      [sed_attention]      — SEDAttentionModel: backbone + learned attention pooling (best for soundscapes)
 
   If the last 3 non-failed proposals all share the same family tag,
   you MUST pick a different family this round. Repeating the same
@@ -182,7 +184,7 @@ fallback_when_no_memory: |
     "hyperparams": {
       "lr": 0.001,
       "batch_size": 128,
-      "epochs": 4,
+      "epochs": 7,
       "optimizer": "adam",
       "weight_decay": 0.0,
       "dropout": 0.1
@@ -190,8 +192,8 @@ fallback_when_no_memory: |
     "augmentation": {
       "time_shift": true,
       "noise_injection": true,
-      "mixup": 0.0,
-      "specaugment": false
+      "mixup": 0.2,
+      "specaugment": true
     }
   }
 

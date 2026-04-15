@@ -188,4 +188,103 @@ class TorchvisionAdapter(nn.Module):
         return self.head(features)
 
 
-__all__ = ["CnnSmallV1", "TorchvisionAdapter"]
+class SEDAttentionModel(nn.Module):
+    """Sound Event Detection model with attention-based temporal pooling.
+
+    Instead of collapsing the entire spectrogram into a single vector via
+    global average pooling (which loses temporal info), this model:
+
+      1. Uses a torchvision backbone to extract spatial features.
+      2. Removes the backbone's classifier and spatial pooling.
+      3. Applies a learned attention mechanism that weights each spatial
+         position by importance before pooling.
+      4. Produces per-class logits from the attention-weighted features.
+
+    This approach is better for BirdCLEF soundscapes where a bird call
+    may occupy only a small portion of the 5-second window. The attention
+    learns to focus on the frames containing vocalizations.
+
+    Parameters
+    ----------
+    backbone_name:
+        Torchvision model name (e.g. ``"efficientnet_b0"``).
+    num_classes:
+        Number of output logits.
+    pretrained:
+        Whether to load ImageNet pretrained weights.
+    """
+
+    def __init__(
+        self,
+        backbone_name: str,
+        num_classes: int,
+        *,
+        pretrained: bool = False,
+    ) -> None:
+        super().__init__()
+        import torchvision.models as tvm
+
+        weights: Any = None
+        if pretrained:
+            weights_cls_name = "".join(
+                p.capitalize() for p in backbone_name.split("_")
+            ) + "_Weights"
+            weights_cls = getattr(tvm, weights_cls_name, None)
+            if weights_cls is not None:
+                weights = getattr(weights_cls, "DEFAULT", None)
+
+        ctor = getattr(tvm, backbone_name)
+        try:
+            backbone = ctor(weights=weights)
+        except Exception:
+            backbone = ctor(weights=None)
+
+        # Remove classifier head - keep only the feature extractor
+        if hasattr(backbone, "features"):
+            # EfficientNet, MobileNet: .features is the conv stack
+            self.features = backbone.features
+        elif hasattr(backbone, "layer4"):
+            # ResNet: use everything up to layer4
+            self.features = nn.Sequential(
+                backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool,
+                backbone.layer1, backbone.layer2, backbone.layer3, backbone.layer4,
+            )
+        else:
+            raise ValueError(f"Unsupported backbone for SED: {backbone_name}")
+
+        # Attention mechanism: learns which spatial positions matter
+        self.attention = nn.Sequential(
+            nn.LazyLinear(128),
+            nn.Tanh(),
+            nn.Linear(128, 1),
+        )
+        self.head = nn.LazyLinear(num_classes)
+        self.input_size = (224, 224)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # (B, 1, n_mels, T) -> (B, 3, 224, 224)
+        if x.size(1) == 1:
+            x = x.expand(-1, 3, -1, -1)
+        if x.shape[-2:] != self.input_size:
+            x = F.interpolate(
+                x, size=self.input_size, mode="bilinear", align_corners=False
+            )
+
+        # Extract features: (B, C, H, W)
+        features = self.features(x)
+
+        # Reshape to (B, H*W, C) for attention over spatial positions
+        b, c, h, w = features.shape
+        features = features.permute(0, 2, 3, 1).reshape(b, h * w, c)
+
+        # Attention weights: (B, H*W, 1)
+        att_weights = self.attention(features)
+        att_weights = torch.softmax(att_weights, dim=1)
+
+        # Weighted sum: (B, C)
+        pooled = (features * att_weights).sum(dim=1)
+
+        return self.head(pooled)
+
+
+__all__ = ["CnnSmallV1", "TorchvisionAdapter", "SEDAttentionModel"]

@@ -77,3 +77,37 @@ models:
     import_snippet: |
       from pipelines.models import TorchvisionAdapter
       model = TorchvisionAdapter("mobilenet_v3_small", num_classes=num_classes)
+
+  - name: efficientnet_b2
+    family: cnn
+    input_shape: [1, 128, 313]
+    output_dim: num_classes
+    parameters_millions: 7.8
+    pretrained_on: imagenet (optional)
+    suitability_notes: >
+      EfficientNet-B2 via TorchvisionAdapter — larger than B0 with more
+      capacity for fine-grained spectrogram features. ~7.8M parameters.
+      Use pretrained=True for ImageNet transfer learning (requires cached
+      weights or internet during training). A strong upgrade from B0
+      when B0 has plateaued.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("efficientnet_b2", num_classes=num_classes, pretrained=True)
+
+  - name: sed_efficientnet_b0
+    family: sed
+    input_shape: [1, 128, 313]
+    output_dim: num_classes
+    parameters_millions: 4.5
+    pretrained_on: imagenet (optional)
+    suitability_notes: >
+      Sound Event Detection model with attention-based temporal pooling
+      over an EfficientNet-B0 backbone. Instead of global average pooling,
+      it uses a learned attention mechanism that weights each spatial
+      position by importance — critical for BirdCLEF soundscapes where
+      bird calls occupy only part of the 5-second window. ~4.5M params.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import SEDAttentionModel
+      model = SEDAttentionModel("efficientnet_b0", num_classes=num_classes, pretrained=True)

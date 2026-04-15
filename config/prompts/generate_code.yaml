@@ -277,11 +277,11 @@ system: |
     `training_curves`. The `f1_macro` is the PRIMARY metric — the
     agent uses it to rank experiments and decide which is best.
   - EPOCHS must be read from the `BIRDCLEF_EPOCHS` env var with a
-    DEFAULT of `"4"`. Write the EXACT line below:
+    DEFAULT of `"7"`. Write the EXACT line below:
 
-        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))
+        EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
 
-    4 epochs with early stopping (patience=2) is the recommended setup.
+    7 epochs with early stopping (patience=3) is the recommended setup.
     The model will stop earlier if validation F1 stops improving.
   - **Learning rate scheduler** — ALWAYS add a cosine annealing scheduler
     for better convergence:
@@ -296,7 +296,7 @@ system: |
     improved for `patience` consecutive epochs. This saves time when the
     model has already converged:
 
-        PATIENCE = 2
+        PATIENCE = 3
         best_f1 = 0.0
         epochs_no_improve = 0
 
@@ -535,7 +535,18 @@ system: |
       from pipelines.models import TorchvisionAdapter
       model = TorchvisionAdapter("mobilenet_v3_small", num_classes=num_classes)
 
-  Valid backbone names: "efficientnet_b0", "resnet18", "mobilenet_v3_small".
+  Valid backbone names: "efficientnet_b0", "efficientnet_b2", "resnet18",
+  "mobilenet_v3_small".
+
+  To use pretrained ImageNet weights (recommended for better convergence):
+
+      model = TorchvisionAdapter("efficientnet_b0", num_classes=num_classes, pretrained=True)
+
+  For Sound Event Detection with attention pooling (recommended for
+  soundscape classification):
+
+      from pipelines.models import SEDAttentionModel
+      model = SEDAttentionModel("efficientnet_b0", num_classes=num_classes, pretrained=True)
 
   ### 5. Output shape MUST be (batch, num_classes) — ALWAYS flatten
 
@@ -606,10 +617,10 @@ system: |
       # hardcode them here. The data loader picks them up automatically.
       #
       # EPOCHS is read from an env var so the orchestrator can override it.
-      # Default 4 — early stopping (patience=2) handles convergence.
-      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))
+      # Default 7 — early stopping (patience=3) handles convergence.
+      EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))
       LR = 1e-3
-      AUGMENTATION = {"time_shift": True, "noise_injection": True}
+      AUGMENTATION = {"time_shift": True, "noise_injection": True, "specaugment": True, "mixup": 0.2}
 
       # === Model definition at MODULE scope ===
       # If you are using a custom nn.Module, define the CLASS here:
@@ -674,7 +685,7 @@ system: |
               log_every = max(1, n_train_batches // 10)  # ~10 progress lines/epoch
 
               curves = {"loss": [], "f1_macro": [], "roc_auc_macro": [], "cmap_at_5": []}
-              PATIENCE = 2
+              PATIENCE = 3
               best_f1 = 0.0
               epochs_no_improve = 0
               for epoch in range(EPOCHS):

@@ -27,7 +27,7 @@ compute_budget:
   max_experiments: 20
   max_wallclock_minutes: 480
   max_experiment_seconds: 14400           # 4 hours per experiment
-  max_epochs_per_run: 4                   # early stopping (patience=2) handles convergence
+  max_epochs_per_run: 7                   # early stopping (patience=3) handles convergence
   max_recovery_attempts: 5                # retries per experiment when code fails
 
 context:

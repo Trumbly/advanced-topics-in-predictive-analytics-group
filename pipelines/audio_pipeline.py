@@ -72,10 +72,12 @@ class AugmentationConfig:
     time_shift_max: float = 0.2            # fraction of window length
     noise_injection: bool = True
     noise_level: float = 0.005             # stddev of added Gaussian noise
-    mixup: float = 0.0                     # 0.0 = disabled, 0.2 = typical mixup alpha
-    specaugment: bool = False
+    mixup: float = 0.2                     # 0.2 = typical mixup alpha, 0.0 = disabled
+    specaugment: bool = True
     spec_freq_mask: int = 15               # max freq bins to mask
     spec_time_mask: int = 30               # max time frames to mask
+    background_noise: bool = True          # mix pink noise to simulate ambient soundscapes
+    background_noise_snr_db: float = 15.0  # signal-to-noise ratio in dB (lower = more noise)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "AugmentationConfig":
@@ -197,10 +199,48 @@ class AudioPipeline:
             noise = rng.normal(0.0, config.noise_level, size=out.shape).astype(out.dtype)
             out = out + noise
 
+        if config.background_noise:
+            out = self._apply_background_noise(out, config, rng)
+
         if config.specaugment:
             out = self._apply_specaugment(out, config, rng)
 
         # NOTE: mixup is applied at the batch level by the data loader, not here.
+        return out
+
+    def _apply_background_noise(
+        self,
+        spec: np.ndarray,
+        config: AugmentationConfig,
+        rng: np.random.Generator,
+    ) -> np.ndarray:
+        """Mix pink-ish noise into the spectrogram to simulate ambient soundscapes.
+
+        Pink noise has more energy at low frequencies, similar to real
+        environmental recordings (wind, rain, distant traffic). This helps
+        the model generalize from clean focal recordings to noisy test
+        soundscapes.
+
+        The SNR is randomized around the configured value (±5 dB) so the
+        model sees a range of noise conditions.
+        """
+        out = spec.copy()
+        # Randomize SNR around the target (±5 dB)
+        snr_db = config.background_noise_snr_db + rng.uniform(-5.0, 5.0)
+
+        # Generate pink-ish noise: scale white noise by 1/sqrt(freq_bin+1)
+        freq_bins, time_frames = out.shape
+        white = rng.normal(0.0, 1.0, size=out.shape).astype(out.dtype)
+        # Pink noise filter: 1/sqrt(f) scaling per frequency bin
+        freq_scale = 1.0 / np.sqrt(np.arange(1, freq_bins + 1, dtype=out.dtype))
+        pink = white * freq_scale[:, np.newaxis]
+
+        # Scale noise to achieve target SNR relative to signal power
+        signal_power = np.mean(out ** 2) + 1e-10
+        noise_power = np.mean(pink ** 2) + 1e-10
+        snr_linear = 10.0 ** (snr_db / 10.0)
+        scale = np.sqrt(signal_power / (noise_power * snr_linear))
+        out = out + scale * pink
         return out
 
     def _apply_specaugment(

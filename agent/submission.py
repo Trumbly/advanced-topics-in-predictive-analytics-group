@@ -485,17 +485,49 @@ class SubmissionExporter:
             from pathlib import Path
             import glob
 
+            # === TTA (Test-Time Augmentation) config ===
+            TTA_ENABLED = True
+            TTA_N_AUGMENTS = 5  # number of augmented views per window
+
+            def tta_predict(model, spec_tensor, n_augments=TTA_N_AUGMENTS):
+                \"\"\"Average predictions over multiple augmented views of the spectrogram.
+
+                Augmentations: original + random time shifts + small Gaussian noise.
+                This reduces variance from arbitrary window boundaries.
+                \"\"\"
+                if not TTA_ENABLED or n_augments <= 1:
+                    with torch.inference_mode():
+                        logits = model(spec_tensor)
+                        return torch.sigmoid(logits).cpu().numpy()[0]
+
+                all_probs = []
+                spec_np = spec_tensor.cpu().numpy()[0, 0]  # (n_mels, T)
+
+                for i in range(n_augments):
+                    aug = spec_np.copy()
+                    if i > 0:
+                        max_shift = int(aug.shape[1] * 0.2)
+                        shift = np.random.randint(-max_shift, max_shift + 1)
+                        aug = np.roll(aug, shift, axis=1)
+                        aug = aug + np.random.normal(0, 0.005, size=aug.shape).astype(np.float32)
+
+                    t = torch.from_numpy(aug).unsqueeze(0).unsqueeze(0).to(device)
+                    with torch.inference_mode():
+                        logits = model(t)
+                        probs = torch.sigmoid(logits).cpu().numpy()[0]
+                    all_probs.append(probs)
+
+                return np.mean(all_probs, axis=0)
+
             # Full species list for submission (234 species)
             ALL_SPECIES = {all_species_json}
 
             # NOTE: Competition metric is macro-averaged ROC-AUC, so we output
-            # raw probabilities, NOT binary predictions. Thresholds are not needed
-            # for submission but kept for local F1 evaluation.
+            # raw probabilities, NOT binary predictions.
+            print(f"TTA: {{'enabled' if TTA_ENABLED else 'disabled'}} ({{TTA_N_AUGMENTS}} augments)")
             print("Submission mode: outputting raw probabilities (ROC-AUC metric)")
 
             # Map our model's class indices to submission column positions
-            # Our model outputs NUM_CLASSES probabilities in CLASS_IDS order
-            # Submission needs {len(all_species)} columns in ALL_SPECIES order
             model_idx_to_sub_col = {{}}
             for model_idx, cid in enumerate(CLASS_IDS):
                 if cid in ALL_SPECIES:
@@ -523,25 +555,20 @@ class SubmissionExporter:
             start_time = time.time()
 
             for file_idx, audio_path in enumerate(audio_files):
-                filename = Path(audio_path).stem  # e.g. BC2026_Test_0001_S05_20250227_010002
+                filename = Path(audio_path).stem
                 specs = audio_to_spectrograms(audio_path)
 
                 for end_sec, mel_db in specs:
                     row_id = f"{{filename}}_{{end_sec}}"
 
-                    # Only predict for row_ids that are in the sample submission
                     if row_id not in expected_row_ids:
                         continue
 
-                    # Prepare input tensor: (1, 1, n_mels, time)
                     spec_tensor = torch.from_numpy(mel_db).unsqueeze(0).unsqueeze(0).to(device)
 
-                    with torch.inference_mode():
-                        logits = model(spec_tensor)
-                        probs = torch.sigmoid(logits).cpu().numpy()[0]
+                    # Use TTA for more robust predictions
+                    probs = tta_predict(model, spec_tensor)
 
-                    # Output raw probabilities (competition metric is ROC-AUC)
-                    # Species our model was not trained on get 0.0
                     row = np.zeros(len(ALL_SPECIES), dtype=np.float32)
                     for model_idx, sub_col in model_idx_to_sub_col.items():
                         row[sub_col] = float(probs[model_idx])

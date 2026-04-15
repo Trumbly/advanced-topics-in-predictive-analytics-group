@@ -283,7 +283,7 @@ def validate(
                                 error_type="EpochsCapExceeded",
                                 message=(
                                     f"BIRDCLEF_EPOCHS default {env_default} exceeds "
-                                    f"the hard cap of {max_epochs}. Use default '4'."
+                                    f"the hard cap of {max_epochs}. Use default '7'."
                                 ),
                             )
                         continue  # env-var pattern is fine
@@ -299,7 +299,7 @@ def validate(
                             message=(
                                 f"EPOCHS = {node.value.value} exceeds the hard "
                                 f"cap of {max_epochs} (fast-iteration mode). "
-                                f"Use `EPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"4\"))`."
+                                f"Use `EPOCHS = int(os.environ.get(\"BIRDCLEF_EPOCHS\", \"7\"))`."
                             ),
                         )
 

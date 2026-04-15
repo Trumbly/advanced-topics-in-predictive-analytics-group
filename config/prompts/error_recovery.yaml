@@ -38,7 +38,7 @@ system: |
     - Load data via `load_precomputed_dataset(...)` with NO path arguments.
       Batch size / num_workers / persistent_workers / prefetch_factor are
       read from BIRDCLEF_* env vars — do NOT pass them explicitly.
-    - `EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "4"))` — read from env var.
+    - `EPOCHS = int(os.environ.get("BIRDCLEF_EPOCHS", "7"))` — read from env var.
     - Move the model and every batch to `device`:
           model = MyModel(...).to(device)
           x = x.to(device, dtype=torch.float32)

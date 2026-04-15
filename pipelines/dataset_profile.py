@@ -76,6 +76,20 @@ def _infer_spectrogram_shape(processed_dir: Path) -> tuple[int, int, int]:
     )
 
 
+def _recording_id(sample_id: str) -> str:
+    """Extract the recording (audio file) identifier from a sample_id.
+
+    Sample IDs follow the pattern ``<audio_id>_w<NNN>`` when there are
+    multiple windows, or just ``<audio_id>`` for single-window files.
+    Grouping by recording prevents data leakage: all windows from the
+    same field recording stay in the same split.
+    """
+    # Strip the trailing _wNNN suffix if present
+    import re
+    m = re.match(r"^(.+?)(_w\d+)$", sample_id)
+    return m.group(1) if m else sample_id
+
+
 def _stratified_split(
     sample_ids: list[str],
     sample_to_classes: dict[str, set[str]],
@@ -83,15 +97,38 @@ def _stratified_split(
     val_fraction: float,
     seed: int,
 ) -> tuple[list[int], list[int]]:
-    """Deterministic split that ensures every class is represented in val.
+    """Soundscape-aware deterministic split.
 
-    For multi-label data we can't do a true stratified split, so we use a
-    simple heuristic: shuffle with a fixed seed, then assign each sample to
-    val until every class is covered, then split the remainder by ratio.
+    Groups all windows from the same recording into the same split so
+    there is no data leakage between train and val. This is critical
+    for BirdCLEF where the hidden test set contains entirely different
+    soundscapes — a random split inflates validation metrics because
+    the model memorizes recording-specific noise patterns.
+
+    The split operates at the RECORDING level:
+      1. Group sample indices by recording ID.
+      2. Shuffle recordings (not individual samples) with a fixed seed.
+      3. Assign recordings to val until every class is covered AND
+         the target val fraction is reached.
+      4. Remaining recordings go to train.
     """
     rng = np.random.default_rng(seed)
-    indices = list(range(len(sample_ids)))
-    rng.shuffle(indices)
+
+    # Group sample indices by recording
+    rec_to_indices: dict[str, list[int]] = defaultdict(list)
+    for idx, sid in enumerate(sample_ids):
+        rec_to_indices[_recording_id(sid)].append(idx)
+
+    # Collect classes per recording (union of all sample classes)
+    rec_to_classes: dict[str, set[str]] = {}
+    for rec_id, indices in rec_to_indices.items():
+        classes: set[str] = set()
+        for idx in indices:
+            classes |= sample_to_classes.get(sample_ids[idx], set())
+        rec_to_classes[rec_id] = classes
+
+    rec_ids = list(rec_to_indices.keys())
+    rng.shuffle(rec_ids)
 
     all_classes: set[str] = set()
     for classes in sample_to_classes.values():
@@ -101,17 +138,17 @@ def _stratified_split(
     val_indices: list[int] = []
     train_indices: list[int] = []
 
-    target_val_size = max(1, int(len(indices) * val_fraction))
+    total_samples = len(sample_ids)
+    target_val_size = max(1, int(total_samples * val_fraction))
 
-    for idx in indices:
-        sid = sample_ids[idx]
-        sample_classes = sample_to_classes.get(sid, set())
-        needs_coverage = bool(sample_classes - covered)
+    for rec_id in rec_ids:
+        rec_classes = rec_to_classes.get(rec_id, set())
+        needs_coverage = bool(rec_classes - covered)
         if needs_coverage or len(val_indices) < target_val_size:
-            val_indices.append(idx)
-            covered |= sample_classes
+            val_indices.extend(rec_to_indices[rec_id])
+            covered |= rec_classes
         else:
-            train_indices.append(idx)
+            train_indices.extend(rec_to_indices[rec_id])
 
     return sorted(train_indices), sorted(val_indices)
 
@@ -151,6 +188,7 @@ def build_dataset_profile(
     split_seed: int = 42,
     val_fraction: float = 0.2,
     avg_duration_seconds: float = 5.0,
+    all_classes: Iterable[str] | None = None,
 ) -> DatasetProfile:
     """Build a DatasetProfile for a preprocessed BirdCLEF dataset.
 
@@ -162,6 +200,12 @@ def build_dataset_profile(
         split_seed: Seed for deterministic train/val split
         val_fraction: Fraction of samples to assign to validation
         avg_duration_seconds: Nominal per-sample duration to record
+        all_classes: Optional iterable of ALL competition class IDs
+            (e.g. from sample_submission.csv). If provided, the profile
+            will include entries for classes with 0 training samples,
+            ensuring the model outputs predictions for every species.
+            This is critical for BirdCLEF where the submission must
+            cover all 234 species but training data only has ~206.
 
     Returns:
         A fully populated `DatasetProfile` instance.
@@ -177,6 +221,23 @@ def build_dataset_profile(
     class_stats = _compute_class_stats(
         sample_to_classes, avg_duration_seconds=avg_duration_seconds
     )
+
+    # Pad with zero-count entries for any competition classes missing
+    # from the training data so num_classes == full competition count.
+    if all_classes is not None:
+        existing_ids = {c.class_id for c in class_stats}
+        for cid in sorted(all_classes):
+            if cid not in existing_ids:
+                class_stats.append(
+                    ClassStats(
+                        class_id=cid,
+                        sample_count=0,
+                        avg_duration_seconds=avg_duration_seconds,
+                    )
+                )
+        # Re-sort so class order is deterministic
+        class_stats.sort(key=lambda c: c.class_id)
+
     counts = [c.sample_count for c in class_stats]
     if not counts:
         raise ValueError("No classes found in labels file")
