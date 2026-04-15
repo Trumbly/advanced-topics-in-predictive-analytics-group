@@ -265,6 +265,69 @@ def test_run_overrides_agent_device_for_kaggle(monkeypatch, tmp_path):
     )
 
 
+def test_run_passes_accelerator_as_cli_flag(monkeypatch, tmp_path):
+    """executor.kaggle.accelerator must reach `kaggle kernels push` as
+    a CLI flag (`--accelerator NvidiaTeslaT4`). The metadata-file field
+    of the same name is silently ignored by the current Kaggle API, so
+    the flag is the only thing that actually picks the GPU type."""
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    ex = KaggleExecutor(
+        username="u", kernel_prefix="test", enable_gpu=True,
+        accelerator="NvidiaTeslaT4",
+        poll_interval_seconds=0, sandbox_root=tmp_path, repo_root=tmp_path,
+    )
+    captured = {"push_argv": None}
+
+    def fake_run(self, cli, argv, *, timeout):
+        if argv[0:2] == ["kernels", "push"]:
+            captured["push_argv"] = list(argv)
+            return _completed()
+        if argv[0:2] == ["kernels", "status"]:
+            return _completed(stdout='status: complete\n')
+        if argv[0:2] == ["kernels", "output"]:
+            (tmp_path / "exp_acc" / "results.json").write_text(
+                '{"primary_metric":"f1_macro","primary_score":0.1,"history":[],"final":{},"best":{}}'
+            )
+            return _completed()
+        return _completed()
+
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+    ex.run("pass\n", experiment_id="exp_acc")
+    argv = captured["push_argv"]
+    assert argv is not None, "kernels push was never called"
+    assert "--accelerator" in argv, f"missing --accelerator flag: {argv}"
+    i = argv.index("--accelerator")
+    assert argv[i + 1] == "NvidiaTeslaT4", f"wrong value: {argv[i+1]!r}"
+
+
+def test_run_omits_accelerator_flag_when_empty(monkeypatch, tmp_path):
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    ex = KaggleExecutor(
+        username="u", enable_gpu=True, accelerator="",
+        poll_interval_seconds=0, sandbox_root=tmp_path, repo_root=tmp_path,
+    )
+    captured = {"push_argv": None}
+
+    def fake_run(self, cli, argv, *, timeout):
+        if argv[0:2] == ["kernels", "push"]:
+            captured["push_argv"] = list(argv)
+            return _completed()
+        if argv[0:2] == ["kernels", "status"]:
+            return _completed(stdout='status: complete\n')
+        if argv[0:2] == ["kernels", "output"]:
+            (tmp_path / "exp_no_acc" / "results.json").write_text(
+                '{"primary_metric":"f1_macro","primary_score":0.1,"history":[],"final":{},"best":{}}'
+            )
+            return _completed()
+        return _completed()
+
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+    ex.run("pass\n", experiment_id="exp_no_acc")
+    argv = captured["push_argv"]
+    assert argv is not None
+    assert "--accelerator" not in argv
+
+
 def test_run_sets_cpu_when_gpu_disabled(monkeypatch, tmp_path):
     monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
     ex = KaggleExecutor(

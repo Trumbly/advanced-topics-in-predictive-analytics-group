@@ -155,19 +155,21 @@ class KaggleExecutor:
             "competition_sources": list(self.competition_sources),
             "kernel_sources": [],
         }
-        if self.accelerator:
-            # Newer Kaggle kernels support picking the specific
-            # accelerator (e.g. "GPU T4 x2"). Without this, Kaggle
-            # defaults to P100 which is incompatible with the current
-            # PyTorch image.
-            meta["accelerator"] = self.accelerator
+        # Note: we intentionally do NOT put `accelerator` into the JSON
+        # metadata — that field is silently ignored by the current
+        # Kaggle API. The authoritative way is the `--accelerator`
+        # CLI flag on `kernels push`, wired below.
         (kernel_dir / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Push
         logger.info("Pushing kernel %s from %s", slug, kernel_dir)
-        push = self._run_kaggle(
-            cli, ["kernels", "push", "-p", str(kernel_dir)], timeout=300,
-        )
+        push_argv = ["kernels", "push", "-p", str(kernel_dir)]
+        if self.accelerator:
+            # Kaggle CLI >= ~0.18 accepts this flag. Valid IDs:
+            #   NvidiaTeslaT4 / NvidiaTeslaT4X2 / NvidiaTeslaP100 /
+            #   NvidiaTeslaV100 / NvidiaTeslaA100 / TpuV3-8 / TpuV6E8
+            push_argv.extend(["--accelerator", self.accelerator])
+        push = self._run_kaggle(cli, push_argv, timeout=300)
         if push.returncode != 0:
             return self._failed(
                 workdir, start,
