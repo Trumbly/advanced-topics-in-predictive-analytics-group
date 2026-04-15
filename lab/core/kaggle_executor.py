@@ -119,7 +119,7 @@ class KaggleExecutor:
         lab_slug = self._ensure_lab_dataset(cli)
 
         # Write kernel source + metadata
-        full_env = {**self.training_env, **(extra_env or {})}
+        full_env = _kaggle_safe_env({**self.training_env, **(extra_env or {})})
         (kernel_dir / "code.py").write_text(
             _wrap_with_bootstrap(code, full_env, lab_dataset_slug=lab_slug)
         )
@@ -247,15 +247,25 @@ class KaggleExecutor:
         return f"{self.username}/{name}" if self.username else name
 
     def _run_kaggle(self, cli: str, argv: list[str], *, timeout: int) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [cli, *argv], capture_output=True, text=True, timeout=timeout,
-        )
+        try:
+            return subprocess.run(
+                [cli, *argv], capture_output=True, text=True, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            # Shape a synthetic CompletedProcess so callers never have
+            # to branch on timeout — keeps the poll loop alive.
+            return subprocess.CompletedProcess(
+                args=list(exc.cmd or []), returncode=-1,
+                stdout=(exc.stdout or b"").decode("utf-8", "replace") if isinstance(exc.stdout, bytes) else (exc.stdout or ""),
+                stderr=f"kaggle CLI timeout after {timeout}s",
+            )
 
     def _poll_until_done(self, cli: str, slug: str) -> tuple[str, str]:
         """Return (final_status, log_text). ``final_status`` is one of
         'complete', 'error', 'cancelled', 'timeout', 'aborted'."""
         deadline = time.monotonic() + self.poll_timeout_seconds
         last_status = "unknown"
+        poll_count = 0
         while time.monotonic() < deadline:
             if self._aborted:
                 last_status = "aborted"
@@ -263,19 +273,23 @@ class KaggleExecutor:
             status_proc = self._run_kaggle(
                 cli, ["kernels", "status", slug], timeout=60,
             )
-            raw = (status_proc.stdout + "\n" + status_proc.stderr).lower()
-            if "has status \"complete\"" in raw or "status: complete" in raw:
-                last_status = "complete"
-                break
-            if "has status \"error\"" in raw or "status: error" in raw:
-                last_status = "error"
-                break
-            if "has status \"cancelled\"" in raw or "status: cancelled" in raw:
-                last_status = "cancelled"
+            raw = (status_proc.stdout + "\n" + status_proc.stderr)
+            classified = _classify_kaggle_status(raw)
+            poll_count += 1
+            # Log the actual CLI output every ~10 polls so the user can
+            # see what Kaggle said when we're not matching. Always log
+            # the first poll too so there's immediate signal.
+            if poll_count == 1 or poll_count % 10 == 0:
+                sample = raw.strip().splitlines()
+                logger.info(
+                    "Kaggle kernel %s poll #%d → %s. Raw: %s",
+                    slug, poll_count, classified,
+                    " | ".join(sample[-3:]) if sample else "<empty>",
+                )
+            if classified in ("complete", "error", "cancelled"):
+                last_status = classified
                 break
             last_status = "running"
-            logger.info("Kaggle kernel %s status=running (sleeping %ds)",
-                        slug, self.poll_interval_seconds)
             # Sleep in small slices so kill_running() cuts in fast.
             end_sleep = time.monotonic() + self.poll_interval_seconds
             while time.monotonic() < end_sleep:
@@ -620,6 +634,85 @@ if "AGENT_PROCESSED_DIR" not in _os.environ:
         print("[lab bootstrap] no data directory found under " + _input)
 # --- end bootstrap ---------------------------------------------------
 '''
+
+
+def _classify_kaggle_status(raw: str) -> str:
+    """Map raw ``kaggle kernels status`` CLI output to a coarse state.
+
+    Kaggle has shipped several output formats over the years and none
+    are documented as stable — we match substrings liberally rather
+    than hard-coding one specific phrasing, to avoid the "poll forever
+    because we missed ONE character" failure mode.
+
+    Returns: 'complete', 'error', 'cancelled', or 'running'.
+    """
+    t = (raw or "").lower()
+
+    def _word_hit(phrases: tuple[str, ...]) -> bool:
+        return any(p in t for p in phrases)
+
+    # Order matters: check failure states first so "complete" doesn't
+    # win over "completed with error" hypothetical combos.
+    if _word_hit((
+        'has status "error"',
+        'status: error',
+        'status=error',
+        '"error"',
+        'has failed',
+        'failed to run',
+    )):
+        return "error"
+    if _word_hit((
+        'has status "cancelled"',
+        'has status "canceled"',
+        'status: cancelled',
+        'status: canceled',
+        '"cancelled"',
+        '"canceled"',
+    )):
+        return "cancelled"
+    if _word_hit((
+        'has status "complete"',
+        'has status "succeeded"',
+        'status: complete',
+        'status: succeeded',
+        'status=complete',
+        '"complete"',
+        '"succeeded"',
+    )):
+        return "complete"
+    return "running"
+
+
+def _kaggle_safe_env(env: dict[str, str]) -> dict[str, str]:
+    """Strip env vars whose values point at the host filesystem.
+
+    The orchestrator's `_training_env` populates things like
+    ``AGENT_PROCESSED_DIR = /Users/max/.../data/processed`` so local
+    subprocesses find their data. Forwarding those absolute host paths
+    into a Kaggle kernel is worse than useless — the kernel tries to
+    open a non-existent path and fails before the bootstrap's own
+    `/kaggle/input/*`-based AGENT_PROCESSED_DIR mapping can help.
+
+    Heuristic: keep every var whose value is NOT an absolute filesystem
+    path, plus the ones that are already Kaggle-rooted. Drop everything
+    else — the bootstrap re-derives the data paths from /kaggle/input.
+    """
+    safe: dict[str, str] = {}
+    for k, v in env.items():
+        if not isinstance(v, str):
+            continue
+        # Keep POSIX relative paths, flags, numbers, etc.
+        looks_absolute_posix = v.startswith("/") and v != "/"
+        looks_absolute_windows = len(v) >= 3 and v[1:3] == ":\\"
+        if not (looks_absolute_posix or looks_absolute_windows):
+            safe[k] = v
+            continue
+        # Keep Kaggle-rooted absolute paths (shouldn't really occur here
+        # but leaves the door open for explicit /kaggle/working overrides).
+        if v.startswith("/kaggle/"):
+            safe[k] = v
+    return safe
 
 
 def _hash_directory(path: Path) -> str:

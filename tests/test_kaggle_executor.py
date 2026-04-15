@@ -194,6 +194,44 @@ def test_infrastructure_reports_gpu_and_sources(tmp_path):
     assert infra["competition_sources"] == ["birdclef-2026"]
 
 
+def test_classify_kaggle_status_handles_known_phrasings():
+    from lab.core.kaggle_executor import _classify_kaggle_status
+    assert _classify_kaggle_status('Kernel has status "complete"') == "complete"
+    assert _classify_kaggle_status('status: complete') == "complete"
+    assert _classify_kaggle_status('https://… has status "complete"') == "complete"
+    assert _classify_kaggle_status('status: running') == "running"
+    assert _classify_kaggle_status('Kernel has status "error"') == "error"
+    assert _classify_kaggle_status('Kernel has status "cancelled"') == "cancelled"
+    # Americanised spelling too
+    assert _classify_kaggle_status('Kernel has status "canceled"') == "cancelled"
+    # "incomplete" must NOT match complete
+    assert _classify_kaggle_status('status: incomplete (queued)') == "running"
+
+
+def test_kaggle_safe_env_strips_host_filesystem_paths():
+    from lab.core.kaggle_executor import _kaggle_safe_env
+    env = {
+        "AGENT_EPOCHS": "3",
+        "AGENT_BATCH_SIZE": "64",
+        "AGENT_PROCESSED_DIR": "/Users/max/Documents/lab/data/processed",
+        "AGENT_TRAIN_AUDIO": "/home/user/data/train",
+        "AGENT_DEVICE": "cpu",
+        "AGENT_KAGGLE_WORKDIR": "/kaggle/working",   # keep — Kaggle-rooted
+        "AGENT_WINDOWS_LIKE": "C:\\Users\\Max\\data",
+    }
+    safe = _kaggle_safe_env(env)
+    # Numeric + flag-like values survive
+    assert safe["AGENT_EPOCHS"] == "3"
+    assert safe["AGENT_BATCH_SIZE"] == "64"
+    assert safe["AGENT_DEVICE"] == "cpu"
+    # Kaggle-rooted paths survive
+    assert safe["AGENT_KAGGLE_WORKDIR"] == "/kaggle/working"
+    # Host absolute paths are dropped
+    assert "AGENT_PROCESSED_DIR" not in safe
+    assert "AGENT_TRAIN_AUDIO" not in safe
+    assert "AGENT_WINDOWS_LIKE" not in safe
+
+
 def test_kill_running_breaks_poll_loop(monkeypatch, tmp_path):
     """kill_running() sets an abort flag the poll loop checks each tick,
     so the orchestrator can stop waiting on a Kaggle kernel without
