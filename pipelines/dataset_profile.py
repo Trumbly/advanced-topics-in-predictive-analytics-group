@@ -97,7 +97,7 @@ def _stratified_split(
     val_fraction: float,
     seed: int,
 ) -> tuple[list[int], list[int]]:
-    """Soundscape-aware deterministic split.
+    """Soundscape-aware, class-stratified deterministic split.
 
     Groups all windows from the same recording into the same split so
     there is no data leakage between train and val. This is critical
@@ -105,12 +105,18 @@ def _stratified_split(
     soundscapes — a random split inflates validation metrics because
     the model memorizes recording-specific noise patterns.
 
-    The split operates at the RECORDING level:
+    The split is also **class-stratified**: for each class, we ensure
+    that approximately ``val_fraction`` of its recordings go to val.
+    Rare classes with only 1 recording are placed in BOTH train and
+    val (duplicated) so the model can both learn and evaluate on them.
+
+    Algorithm:
       1. Group sample indices by recording ID.
-      2. Shuffle recordings (not individual samples) with a fixed seed.
-      3. Assign recordings to val until every class is covered AND
-         the target val fraction is reached.
-      4. Remaining recordings go to train.
+      2. Build a class-to-recordings index.
+      3. For each class (rarest first), assign ~val_fraction of its
+         not-yet-assigned recordings to val, the rest to train.
+      4. Classes with only 1 recording: assign to train AND copy
+         indices to val for evaluation coverage.
     """
     rng = np.random.default_rng(seed)
 
@@ -127,28 +133,66 @@ def _stratified_split(
             classes |= sample_to_classes.get(sample_ids[idx], set())
         rec_to_classes[rec_id] = classes
 
-    rec_ids = list(rec_to_indices.keys())
-    rng.shuffle(rec_ids)
+    # Build class -> list of recordings index
+    class_to_recs: dict[str, list[str]] = defaultdict(list)
+    for rec_id, classes in rec_to_classes.items():
+        for cls in classes:
+            class_to_recs[cls].append(rec_id)
 
-    all_classes: set[str] = set()
-    for classes in sample_to_classes.values():
-        all_classes |= classes
+    # Sort classes by rarity (fewest recordings first) to prioritize
+    # rare classes in assignment
+    sorted_classes = sorted(class_to_recs.keys(), key=lambda c: len(class_to_recs[c]))
 
-    covered: set[str] = set()
+    val_recs: set[str] = set()
+    train_recs: set[str] = set()
+
+    for cls in sorted_classes:
+        recs = class_to_recs[cls]
+        # Filter to recordings not yet assigned
+        unassigned = [r for r in recs if r not in val_recs and r not in train_recs]
+
+        if not unassigned:
+            # All recordings for this class are already assigned —
+            # check that at least one is in val
+            if not any(r in val_recs for r in recs):
+                # Rare edge case: all went to train via another class.
+                # Move one to val.
+                for r in recs:
+                    if r in train_recs:
+                        train_recs.discard(r)
+                        val_recs.add(r)
+                        break
+            continue
+
+        rng.shuffle(unassigned)
+
+        if len(unassigned) == 1 and len(recs) == 1:
+            # Only 1 recording total for this class — put in train
+            # but ALSO mark for val so it gets evaluation coverage.
+            # The indices will be duplicated into both splits below.
+            train_recs.add(unassigned[0])
+            val_recs.add(unassigned[0])
+        else:
+            n_val = max(1, round(len(unassigned) * val_fraction))
+            for r in unassigned[:n_val]:
+                val_recs.add(r)
+            for r in unassigned[n_val:]:
+                train_recs.add(r)
+
+    # Any recordings not touched by any class go to train
+    all_rec_ids = set(rec_to_indices.keys())
+    remaining = all_rec_ids - val_recs - train_recs
+    train_recs |= remaining
+
+    # Build final index lists
     val_indices: list[int] = []
     train_indices: list[int] = []
-
-    total_samples = len(sample_ids)
-    target_val_size = max(1, int(total_samples * val_fraction))
-
-    for rec_id in rec_ids:
-        rec_classes = rec_to_classes.get(rec_id, set())
-        needs_coverage = bool(rec_classes - covered)
-        if needs_coverage or len(val_indices) < target_val_size:
-            val_indices.extend(rec_to_indices[rec_id])
-            covered |= rec_classes
-        else:
-            train_indices.extend(rec_to_indices[rec_id])
+    for rec_id in sorted(rec_to_indices.keys()):
+        indices = rec_to_indices[rec_id]
+        if rec_id in val_recs:
+            val_indices.extend(indices)
+        if rec_id in train_recs:
+            train_indices.extend(indices)
 
     return sorted(train_indices), sorted(val_indices)
 

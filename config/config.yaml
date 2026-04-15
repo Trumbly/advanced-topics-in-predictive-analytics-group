@@ -16,7 +16,7 @@ paths:
 llm:
   provider: ollama                        # ollama | lmstudio | openai
   base_url: http://localhost:11434/v1
-  default_model: gemma4:e4b
+  default_model: gemma4:26b
   temperature: 0.7
   max_tokens: 8192
   timeout_seconds: 300

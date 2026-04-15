@@ -14,7 +14,7 @@ models:
 
   - name: cnn_small_v1
     family: cnn
-    input_shape: [1, 128, 313]
+    input_shape: [1, 128, 500]
     output_dim: num_classes        # use the variable, NOT a literal
     parameters_millions: 0.04
     pretrained_on: none
@@ -29,7 +29,7 @@ models:
 
   - name: efficientnet_b0
     family: cnn
-    input_shape: [1, 128, 313]    # original spectrogram shape — the adapter resizes
+    input_shape: [1, 128, 500]    # original spectrogram shape — the adapter resizes
     output_dim: num_classes
     parameters_millions: 4.3
     pretrained_on: none            # sandbox has no internet, so pretrained=False
@@ -48,7 +48,7 @@ models:
 
   - name: resnet18
     family: cnn
-    input_shape: [1, 128, 313]
+    input_shape: [1, 128, 500]
     output_dim: num_classes
     parameters_millions: 11.3
     pretrained_on: none
@@ -64,7 +64,7 @@ models:
 
   - name: mobilenet_v3_small
     family: cnn
-    input_shape: [1, 128, 313]
+    input_shape: [1, 128, 500]
     output_dim: num_classes
     parameters_millions: 1.0
     pretrained_on: none
@@ -80,7 +80,7 @@ models:
 
   - name: efficientnet_b2
     family: cnn
-    input_shape: [1, 128, 313]
+    input_shape: [1, 128, 500]
     output_dim: num_classes
     parameters_millions: 7.8
     pretrained_on: imagenet (optional)
@@ -95,9 +95,58 @@ models:
       from pipelines.models import TorchvisionAdapter
       model = TorchvisionAdapter("efficientnet_b2", num_classes=num_classes, pretrained=True)
 
+  - name: convnext_tiny
+    family: cnn
+    input_shape: [1, 128, 500]
+    output_dim: num_classes
+    parameters_millions: 28.6
+    pretrained_on: imagenet
+    suitability_notes: >
+      ConvNeXt-Tiny via TorchvisionAdapter — a modern pure-CNN architecture
+      that matches vision transformer performance. Fundamentally different
+      from EfficientNet (uses depthwise convolutions, LayerNorm, GELU).
+      Excellent for ensemble diversity. ~28.6M params. Use pretrained=True.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("convnext_tiny", num_classes=num_classes, pretrained=True)
+
+  - name: efficientnet_v2_s
+    family: cnn
+    input_shape: [1, 128, 500]
+    output_dim: num_classes
+    parameters_millions: 21.5
+    pretrained_on: imagenet
+    suitability_notes: >
+      EfficientNet-V2-Small via TorchvisionAdapter — successor to EfficientNet
+      with faster training and better accuracy. Uses progressive learning and
+      Fused-MBConv blocks. Strong standalone model and excellent ensemble
+      member with B0/B2. ~21.5M params. Use pretrained=True.
+    framework: torch
+    import_snippet: |
+      from pipelines.models import TorchvisionAdapter
+      model = TorchvisionAdapter("efficientnet_v2_s", num_classes=num_classes, pretrained=True)
+
+  - name: tf_efficientnet_b3
+    family: cnn
+    input_shape: [1, 128, 500]
+    output_dim: num_classes
+    parameters_millions: 12.0
+    pretrained_on: imagenet (via timm)
+    suitability_notes: >
+      EfficientNet-B3 from the timm library (TensorFlow-ported weights).
+      A BirdCLEF competition favorite — top solutions frequently use B3
+      as the sweet spot between accuracy and speed. Requires the `timm`
+      package. ~12M params. Use pretrained=True for ImageNet transfer.
+    framework: torch
+    import_snippet: |
+      import timm
+      backbone = timm.create_model("tf_efficientnet_b3", pretrained=True, num_classes=0)
+      model = nn.Sequential(backbone, nn.LazyLinear(num_classes))
+
   - name: sed_efficientnet_b0
     family: sed
-    input_shape: [1, 128, 313]
+    input_shape: [1, 128, 500]
     output_dim: num_classes
     parameters_millions: 4.5
     pretrained_on: imagenet (optional)

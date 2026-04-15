@@ -70,7 +70,7 @@ system: |
         weight is uninitialized until data flows through it. Fix:
             model = MyModel(num_classes=num_classes).to(device)
             with torch.no_grad():
-                dummy = torch.zeros(1, 1, 128, 313, device=device)
+                dummy = torch.zeros(1, 1, 128, 500, device=device)
                 model(dummy)
             n_params = sum(p.numel() for p in model.parameters())
         The dummy forward pass materializes all lazy parameters.

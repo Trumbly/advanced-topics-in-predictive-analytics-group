@@ -312,10 +312,12 @@ class SubmissionExporter:
             SAMPLE_RATE = 32000
             N_MELS = 128
             N_FFT = 2048
-            HOP_LENGTH = 512
+            HOP_LENGTH = 320           # finer temporal resolution (500 frames per 5s)
             FMIN = 20.0
+            FMAX = 14000.0             # 14 kHz covers virtually all bird vocalizations
             WINDOW_SECONDS = 5.0
             TOP_DB = 80.0
+            NORMALIZE = True           # normalize spectrograms to [0, 1]
 
             # === Model config ===
             NUM_CLASSES = {num_classes}
@@ -401,8 +403,9 @@ class SubmissionExporter:
             model = model.to(device)
 
             # Initialize lazy layers with a dummy forward pass
+            _SPEC_TIME_FRAMES = int(SAMPLE_RATE * WINDOW_SECONDS) // HOP_LENGTH + 1
             with torch.no_grad():
-                dummy = torch.zeros(1, 1, N_MELS, 313, device=device)
+                dummy = torch.zeros(1, 1, N_MELS, _SPEC_TIME_FRAMES, device=device)
                 model(dummy)
 
             # Load trained weights
@@ -440,15 +443,23 @@ class SubmissionExporter:
                 start = 0
                 window_idx = 0
 
-                while start + window_samples <= len(y):
-                    chunk = y[start : start + window_samples]
+                def _make_mel(chunk, sr):
                     mel = librosa.feature.melspectrogram(
                         y=chunk, sr=sr, n_fft=N_FFT, hop_length=HOP_LENGTH,
-                        n_mels=N_MELS, fmin=FMIN, fmax=sr / 2, power=2.0,
+                        n_mels=N_MELS, fmin=FMIN, fmax=FMAX, power=2.0,
                     )
                     mel_db = librosa.power_to_db(mel, top_db=TOP_DB).astype(np.float32)
-                    end_seconds = (start + window_samples) // sr * WINDOW_SECONDS
-                    # BirdCLEF row_id uses end time: 5, 10, 15, ...
+                    if NORMALIZE:
+                        s_min, s_max = mel_db.min(), mel_db.max()
+                        if s_max - s_min > 1e-6:
+                            mel_db = (mel_db - s_min) / (s_max - s_min)
+                        else:
+                            mel_db = np.zeros_like(mel_db)
+                    return mel_db
+
+                while start + window_samples <= len(y):
+                    chunk = y[start : start + window_samples]
+                    mel_db = _make_mel(chunk, sr)
                     end_sec = int((window_idx + 1) * WINDOW_SECONDS)
                     specs.append((end_sec, mel_db))
                     start += window_samples
@@ -459,11 +470,7 @@ class SubmissionExporter:
                     chunk = np.zeros(window_samples, dtype=np.float32)
                     remaining = y[start:]
                     chunk[:len(remaining)] = remaining
-                    mel = librosa.feature.melspectrogram(
-                        y=chunk, sr=sr, n_fft=N_FFT, hop_length=HOP_LENGTH,
-                        n_mels=N_MELS, fmin=FMIN, fmax=sr / 2, power=2.0,
-                    )
-                    mel_db = librosa.power_to_db(mel, top_db=TOP_DB).astype(np.float32)
+                    mel_db = _make_mel(chunk, sr)
                     end_sec = int((window_idx + 1) * WINDOW_SECONDS)
                     specs.append((end_sec, mel_db))
 

@@ -71,7 +71,7 @@ class TorchvisionAdapter(nn.Module):
     """Wrap a torchvision image classifier for single-channel spectrograms.
 
     Input tensors coming from our data loader have shape
-    ``(batch, 1, n_mels, time_frames)`` — typically ``(B, 1, 128, 313)``.
+    ``(batch, 1, n_mels, time_frames)`` — typically ``(B, 1, 128, 500)``.
     Torchvision models expect ``(batch, 3, 224, 224)``. This adapter:
 
       1. Resizes the spatial dims to ``(224, 224)`` using bilinear

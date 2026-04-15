@@ -46,9 +46,10 @@ class AudioPipelineConfig:
     sample_rate: int = 32_000
     n_mels: int = 128
     n_fft: int = 2048
-    hop_length: int = 512
+    hop_length: int = 320                  # 320 -> 500 time frames per 5s (finer than 512 -> 313)
     fmin: float = 20.0
-    fmax: float | None = None              # None -> sample_rate / 2
+    fmax: float | None = 14_000.0           # 14 kHz covers virtually all bird vocalizations
+    normalize: bool = True                  # normalize spectrogram to [0, 1]
     window_seconds: float = 5.0
     window_overlap: float = 0.0            # 0.0 = no overlap, 0.5 = 50% overlap
     power: float = 2.0                     # 2.0 = power spectrogram, 1.0 = amplitude
@@ -140,6 +141,14 @@ class AudioPipeline:
         )
         if cfg.to_db:
             spec = librosa.power_to_db(spec, top_db=cfg.top_db)
+        if cfg.normalize:
+            # Normalize to [0, 1] for stable training across recordings
+            s_min = spec.min()
+            s_max = spec.max()
+            if s_max - s_min > 1e-6:
+                spec = (spec - s_min) / (s_max - s_min)
+            else:
+                spec = np.zeros_like(spec)
         return spec.astype(np.float32)
 
     # -- windowing ----------------------------------------------------------

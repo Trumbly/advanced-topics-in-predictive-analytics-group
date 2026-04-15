@@ -9,7 +9,7 @@ system: |
   ## Input tensor shape — READ THIS FIRST
 
   The data loader produces tensors of shape **(batch, 1, n_mels, time_frames)** —
-  a 4-dimensional tensor, image-like. Typical values: (32, 1, 128, 313).
+  a 4-dimensional tensor, image-like. Typical values: (32, 1, 128, 500).
   This means:
     - Use `nn.Conv2d`, NOT `nn.Conv1d`. Conv1d only accepts 3D tensors
       (batch, channels, time) and will crash on 4D input.
@@ -504,7 +504,7 @@ system: |
           model = MyModel(num_classes=num_classes).to(device)
           # Initialize lazy modules with a dummy forward pass
           with torch.no_grad():
-              dummy = torch.zeros(1, 1, 128, 313, device=device)
+              dummy = torch.zeros(1, 1, 128, 500, device=device)
               model(dummy)
           n_params = sum(p.numel() for p in model.parameters())
     - Do NOT pass `in_features` to LazyLinear — it has no such arg.
@@ -667,7 +667,7 @@ system: |
               # Initialize lazy modules (nn.LazyLinear) with a dummy forward pass.
               # Without this, p.numel() crashes on uninitialized parameters.
               with torch.no_grad():
-                  dummy = torch.zeros(1, 1, 128, 313, device=device)
+                  dummy = torch.zeros(1, 1, 128, 500, device=device)
                   model(dummy)
               n_params = sum(p.numel() for p in model.parameters())
               print(f"model built: {n_params:,} parameters", flush=True)
