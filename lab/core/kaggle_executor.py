@@ -71,10 +71,9 @@ class KaggleExecutor:
     kernel_prefix: str = "lab-exp"
     enable_gpu: bool = True
     enable_internet: bool = False
-    # Accelerator name (e.g. "GPU T4 x2", "GPU P100", "TPU VM v3-8").
-    # Empty string = let Kaggle pick whatever's default, which is
-    # historically P100 and currently incompatible with Kaggle's own
-    # PyTorch image. Strongly recommended: "GPU T4 x2".
+    # Accelerator ID passed as `--accelerator <X>` to `kaggle kernels
+    # push`. Valid IDs: NvidiaTeslaT4, NvidiaTeslaP100, TpuV6E8.
+    # Empty = Kaggle picks (currently P100).
     accelerator: str = ""
     poll_interval_seconds: int = 30
     poll_timeout_seconds: int = 36_000       # 10 h safety net
@@ -165,9 +164,8 @@ class KaggleExecutor:
         logger.info("Pushing kernel %s from %s", slug, kernel_dir)
         push_argv = ["kernels", "push", "-p", str(kernel_dir)]
         if self.accelerator:
-            # Kaggle CLI >= ~0.18 accepts this flag. Valid IDs:
-            #   NvidiaTeslaT4 / NvidiaTeslaP100 / NvidiaTeslaV100 /
-            #   NvidiaTeslaA100 / TpuV6E8  (per `kaggle kernels push --help`)
+            # Valid IDs per `kaggle kernels push --help`:
+            #   NvidiaTeslaT4 · NvidiaTeslaP100 · TpuV6E8
             push_argv.extend(["--accelerator", self.accelerator])
         logger.info("push argv: %s", " ".join(push_argv))
         push = self._run_kaggle(cli, push_argv, timeout=300)

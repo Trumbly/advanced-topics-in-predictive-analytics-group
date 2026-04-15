@@ -97,8 +97,8 @@ class KaggleConfig(BaseModel):
     # Empty string = no flag → Kaggle's fallback, currently P100. The
     # bootstrap installs a sm_60 torch on P100 but that adds ~60 s to
     # every cold start; picking T4 explicitly avoids that.
-    # Other valid IDs: NvidiaTeslaT4X2, NvidiaTeslaP100,
-    # NvidiaTeslaV100, NvidiaTeslaA100, TpuV3-8, TpuV6E8.
+    # Valid IDs per `kaggle kernels push --help`:
+    #   NvidiaTeslaT4 · NvidiaTeslaP100 · TpuV6E8
     accelerator: str = "NvidiaTeslaT4"
     poll_interval_seconds: int = 30
     poll_timeout_seconds: int = 36_000

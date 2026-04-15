@@ -413,11 +413,7 @@
       <select id="kaggle_accelerator" name="kaggle_accelerator">
         <option value="" {% if accel == "" %}selected{% endif %}>— Kaggle default (P100) —</option>
         <option value="NvidiaTeslaT4" {% if accel == "NvidiaTeslaT4" %}selected{% endif %}>NvidiaTeslaT4 (recommended)</option>
-        <option value="NvidiaTeslaT4X2" {% if accel == "NvidiaTeslaT4X2" %}selected{% endif %}>NvidiaTeslaT4X2 (2× T4)</option>
         <option value="NvidiaTeslaP100" {% if accel == "NvidiaTeslaP100" %}selected{% endif %}>NvidiaTeslaP100 (sm_60, bootstrap downgrades torch)</option>
-        <option value="NvidiaTeslaV100" {% if accel == "NvidiaTeslaV100" %}selected{% endif %}>NvidiaTeslaV100</option>
-        <option value="NvidiaTeslaA100" {% if accel == "NvidiaTeslaA100" %}selected{% endif %}>NvidiaTeslaA100</option>
-        <option value="TpuV3-8" {% if accel == "TpuV3-8" %}selected{% endif %}>TpuV3-8</option>
         <option value="TpuV6E8" {% if accel == "TpuV6E8" %}selected{% endif %}>TpuV6E8</option>
       </select>
     </div>
