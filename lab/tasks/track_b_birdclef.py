@@ -184,13 +184,20 @@ def load_audio_dataset(
     gen = torch.Generator().manual_seed(seed)
     train_ds, val_ds = random_split(ds, [train_len, val_len], generator=gen)
 
+    # pin_memory pairs with `.to(device, non_blocking=True)` in the
+    # training loop for faster host→GPU transfer; only worth setting
+    # when cuda is available (otherwise it's a waste of pinned RAM).
+    pin = bool(torch.cuda.is_available())
+    prefetch_factor = 4 if num_workers else None
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
         num_workers=num_workers, persistent_workers=bool(num_workers),
+        pin_memory=pin, prefetch_factor=prefetch_factor,
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
         num_workers=num_workers, persistent_workers=bool(num_workers),
+        pin_memory=pin, prefetch_factor=prefetch_factor,
     )
     return train_loader, val_loader, len(class_list)
 

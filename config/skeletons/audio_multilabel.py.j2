@@ -16,9 +16,16 @@ from lab.tasks.track_b_birdclef import load_audio_dataset
 
 
 EPOCHS = int(os.environ.get("AGENT_EPOCHS", "1"))
-BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
+BASE_BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
 NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "4"))
 DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+
+# Scale batch size when multiple GPUs are visible so DataParallel
+# actually has work to shard across them. Override via AGENT_BATCH_SIZE
+# if you want a fixed total batch.
+_gpu_count = torch.cuda.device_count() if (DEVICE != "cpu" and torch.cuda.is_available()) else 0
+MULTI_GPU = _gpu_count > 1
+BATCH_SIZE = BASE_BATCH_SIZE * max(_gpu_count, 1) if MULTI_GPU else BASE_BATCH_SIZE
 
 
 ### MODEL ###
@@ -30,8 +37,8 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device):
     model.train()
     total, n = 0.0, 0
     for x, y in loader:
-        x, y = x.to(device), y.to(device).float()
-        optimizer.zero_grad()
+        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True).float()
+        optimizer.zero_grad(set_to_none=True)
         logits = model(x)
         loss = loss_fn(logits, y)
         loss.backward()
@@ -48,7 +55,7 @@ def evaluate(model, loader, device):
     model.eval()
     ys, ps = [], []
     for x, y in loader:
-        x = x.to(device)
+        x = x.to(device, non_blocking=True)
         probs = torch.sigmoid(model(x)).cpu().numpy()
         ys.append(y.numpy())
         ps.append(probs)
@@ -71,6 +78,19 @@ def main():
         batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
     )
     model = build_model(num_classes).to(DEVICE)
+    # DataParallel replicates the module across all visible GPUs and
+    # splits each batch along dim 0. Each GPU therefore sees
+    # ``BASE_BATCH_SIZE`` samples even though the DataLoader yields
+    # ``BATCH_SIZE = BASE_BATCH_SIZE * N_GPUs``. No code change needed
+    # downstream — DataParallel forwards + gathers transparently.
+    if MULTI_GPU:
+        model = nn.DataParallel(model)
+        print(f"[skeleton] DataParallel across {_gpu_count} GPUs. "
+              f"effective BATCH_SIZE={BATCH_SIZE} (per-GPU={BASE_BATCH_SIZE})",
+              flush=True)
+    else:
+        print(f"[skeleton] device={DEVICE} BATCH_SIZE={BATCH_SIZE} "
+              f"NUM_WORKERS={NUM_WORKERS}", flush=True)
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
