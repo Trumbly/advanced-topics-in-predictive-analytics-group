@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_9f08f59c8e",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "SpawnError",
+      "error_message": "kaggle CLI not found on PATH. Install with `pip install kaggle` and place credentials in ~/.kaggle/kaggle.json.",
+      "duration_seconds": 0.00047491700388491154,
+      "takeaway": ""
+    }
+  ]
+}

@@ -122,7 +122,13 @@
   {% set eb = study.executor_backend or "local" %}
   <p>
     <span class="pill pill-backend pill-backend-{{ eb }}">
-      {% if eb == "kaggle" %}☁ kaggle{% else %}◼ local{% endif %}
+      {% if eb == "kaggle" %}
+        ☁ kaggle
+      {% elif eb == "modal" %}
+        ◉ modal
+      {% else %}
+        ◼ local
+      {% endif %}
     </span>
     <span class="muted">backend frozen at study start</span>
   </p>
@@ -180,4 +186,3 @@
 </script>
 {% endif %}
 {% endblock %}
-

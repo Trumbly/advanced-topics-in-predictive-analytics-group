@@ -250,6 +250,7 @@
         {% set eb = raw.get("executor", {}).get("backend", "local") %}
         <option value="local" {% if eb == "local" %}selected{% endif %}>local</option>
         <option value="kaggle" {% if eb == "kaggle" %}selected{% endif %}>kaggle</option>
+        <option value="modal" {% if eb == "modal" %}selected{% endif %}>modal</option>
       </select>
     </div>
     <div class="field field-wide">
@@ -257,7 +258,8 @@
         Where the generated training code runs by default. You can still pick
         per-study in the New Study form. <strong>kaggle</strong> requires the
         <code>kaggle</code> CLI on PATH plus credentials in
-        <code>~/.kaggle/kaggle.json</code>.
+        <code>~/.kaggle/kaggle.json</code>. <strong>modal</strong> requires the
+        <code>modal</code> SDK/CLI and, for S3 mounts, a configured Modal Secret.
       </p>
     </div>
   </div>
@@ -290,6 +292,114 @@
         <input type="checkbox" name="kaggle_enable_internet" value="true"
                {% if raw.get("executor", {}).get("kaggle", {}).get("enable_internet") %}checked{% endif %}>
         Enable internet
+      </label>
+    </div>
+  </div>
+
+  <h3 class="muted" style="margin-top: 14px;">Modal</h3>
+  <div class="row">
+    <div class="field">
+      <label for="modal_app_name">App name</label>
+      <input type="text" id="modal_app_name" name="modal_app_name"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('app_name', 'lab-agent') }}">
+    </div>
+    <div class="field">
+      <label for="modal_image_name">Image</label>
+      <input type="text" id="modal_image_name" name="modal_image_name"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('image_name', 'debian_slim') }}"
+             placeholder="debian_slim or ghcr.io/your/image:tag">
+    </div>
+    <div class="field">
+      <label for="modal_gpu">GPU (optional)</label>
+      <input type="text" id="modal_gpu" name="modal_gpu"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('gpu', '') }}"
+             placeholder="e.g. L4, A10G, T4">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="modal_cpu">CPU (optional)</label>
+      <input type="number" step="0.1" id="modal_cpu" name="modal_cpu"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('cpu', '') }}">
+    </div>
+    <div class="field">
+      <label for="modal_memory_mb">Memory MB (optional)</label>
+      <input type="number" id="modal_memory_mb" name="modal_memory_mb"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('memory_mb', '') }}">
+    </div>
+    <div class="field">
+      <label for="modal_timeout_seconds">Timeout (s)</label>
+      <input type="number" id="modal_timeout_seconds" name="modal_timeout_seconds"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('timeout_seconds', 1800) }}">
+    </div>
+    <div class="field">
+      <label for="modal_retries">Retries</label>
+      <input type="number" id="modal_retries" name="modal_retries"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('retries', 0) }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field field-wide">
+      <label for="modal_pip_packages">Pip packages (comma-separated)</label>
+      <input type="text" id="modal_pip_packages" name="modal_pip_packages"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('pip_packages', [])|join(', ') }}"
+             placeholder="torch, torchvision, torchaudio, scikit-learn>=1.3">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="modal_output_volume_name">Output volume name (optional)</label>
+      <input type="text" id="modal_output_volume_name" name="modal_output_volume_name"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('output_volume_name', '') }}">
+    </div>
+    <div class="field">
+      <label for="modal_output_mount_path">Output mount path</label>
+      <input type="text" id="modal_output_mount_path" name="modal_output_mount_path"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('output_mount_path', '/mnt/output') }}">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="modal_s3_bucket_name">S3 bucket name (Hetzner)</label>
+      <input type="text" id="modal_s3_bucket_name" name="modal_s3_bucket_name"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('s3_bucket_name', '') }}">
+    </div>
+    <div class="field">
+      <label for="modal_s3_secret_name">Modal Secret name</label>
+      <input type="text" id="modal_s3_secret_name" name="modal_s3_secret_name"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('s3_secret_name', '') }}"
+             placeholder="e.g. hetzner-s3">
+    </div>
+    <div class="field">
+      <label for="modal_s3_endpoint_url">S3 endpoint URL</label>
+      <input type="text" id="modal_s3_endpoint_url" name="modal_s3_endpoint_url"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('s3_endpoint_url', '') }}"
+             placeholder="https://fsn1.your-objectstorage.com">
+    </div>
+  </div>
+  <div class="row">
+    <div class="field">
+      <label for="modal_s3_mount_path">S3 mount path</label>
+      <input type="text" id="modal_s3_mount_path" name="modal_s3_mount_path"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('s3_mount_path', '/mnt/data') }}">
+    </div>
+    <div class="field">
+      <label for="modal_s3_key_prefix">S3 key prefix (optional)</label>
+      <input type="text" id="modal_s3_key_prefix" name="modal_s3_key_prefix"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('s3_key_prefix', '') }}"
+             placeholder="birdclef-2026-preprocessed">
+    </div>
+    <div class="field">
+      <label for="modal_processed_subpath">Processed subpath</label>
+      <input type="text" id="modal_processed_subpath" name="modal_processed_subpath"
+             value="{{ raw.get('executor', {}).get('modal', {}).get('processed_subpath', 'processed') }}"
+             placeholder="processed">
+    </div>
+    <div class="field">
+      <label class="inline-check">
+        <input type="checkbox" name="modal_set_processed_dir_from_s3" value="true"
+               {% if raw.get("executor", {}).get("modal", {}).get("set_processed_dir_from_s3", True) %}checked{% endif %}>
+        Auto-set AGENT_PROCESSED_DIR from S3 mount
       </label>
     </div>
   </div>

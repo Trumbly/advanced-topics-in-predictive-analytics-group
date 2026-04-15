@@ -1,0 +1,18 @@
+[{"stream_name":"stdout","time":1.187258679,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.187296979,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-1j5mreh1\n"}
+,{"stream_name":"stderr","time":14.546616103,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":14.546671502,"data":"  File \"/kaggle/src/script.py\", line 359, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":14.546898116,"data":"    main()\n"}
+,{"stream_name":"stderr","time":14.546914266,"data":"  File \"/kaggle/src/script.py\", line 329, in main\n"}
+,{"stream_name":"stderr","time":14.547242994,"data":"    train_loader, val_loader, num_classes = load_audio_dataset(\n"}
+,{"stream_name":"stderr","time":14.547363477,"data":"                                            ^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":14.547372345,"data":"  File \"/tmp/lab-staged-1j5mreh1/lab/tasks/track_b_birdclef.py\", line 137, in load_audio_dataset\n"}
+,{"stream_name":"stderr","time":14.547626344,"data":"    raise FileNotFoundError(\n"}
+,{"stream_name":"stderr","time":14.547636296,"data":"FileNotFoundError: No labels.csv at /Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/labels.csv. Run `python scripts/build_profile.py --task track_b` to preprocess the audio first.\n"}
+,{"stream_name":"stderr","time":19.570650625,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":19.570687258,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":19.881771327,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":19.881818897,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":20.779897006,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":22.423535461,"data":"[NbConvertApp] Writing 332785 bytes to __results__.html\n"}
+]

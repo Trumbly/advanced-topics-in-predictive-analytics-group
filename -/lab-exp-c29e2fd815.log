@@ -1,0 +1,35 @@
+[{"stream_name":"stdout","time":0.884545889,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":0.884615204,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-ssmxs5bj\n"}
+,{"stream_name":"stdout","time":41.395131399,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":53.508022692,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":53.742292437,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 85%|████████▍ | 17.4M/20.5M [00:00\u003c00:00, 181MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 187MB/s]\n"}
+,{"stream_name":"stderr","time":53.840263688,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":53.840302782,"data":"  File \"/kaggle/src/script.py\", line 350, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":53.840500619,"data":"    main()\n"}
+,{"stream_name":"stderr","time":53.840676733,"data":"  File \"/kaggle/src/script.py\", line 323, in main\n"}
+,{"stream_name":"stderr","time":53.840746253,"data":"    model = build_model(num_classes).to(DEVICE)\n"}
+,{"stream_name":"stderr","time":53.840870232,"data":"            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":53.840914248,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1381, in to\n"}
+,{"stream_name":"stderr","time":53.842527224,"data":"    return self._apply(convert)\n"}
+,{"stream_name":"stderr","time":53.842544543,"data":"           ^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":53.842550058,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 933, in _apply\n"}
+,{"stream_name":"stderr","time":53.842887645,"data":"    module._apply(fn)\n"}
+,{"stream_name":"stderr","time":53.842906768,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 933, in _apply\n"}
+,{"stream_name":"stderr","time":53.843232322,"data":"    module._apply(fn)\n"}
+,{"stream_name":"stderr","time":53.843249897,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 933, in _apply\n"}
+,{"stream_name":"stderr","time":53.843580087,"data":"    module._apply(fn)\n"}
+,{"stream_name":"stderr","time":53.843598262,"data":"  [Previous line repeated 1 more time]\n"}
+,{"stream_name":"stderr","time":53.84360484,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 964, in _apply\n"}
+,{"stream_name":"stderr","time":53.843944697,"data":"    param_applied = fn(param)\n"}
+,{"stream_name":"stderr","time":53.843966975,"data":"                    ^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":53.843992693,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1367, in convert\n"}
+,{"stream_name":"stderr","time":53.844374004,"data":"    return t.to(\n"}
+,{"stream_name":"stderr","time":53.844392181,"data":"           ^^^^^\n"}
+,{"stream_name":"stderr","time":53.844397367,"data":"RuntimeError: PyTorch is not linked with support for mps devices\n"}
+,{"stream_name":"stderr","time":57.948235929,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":57.948273143,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":58.17976151,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":58.179811303,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":58.807200419,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":60.008807399,"data":"[NbConvertApp] Writing 330696 bytes to __results__.html\n"}
+]

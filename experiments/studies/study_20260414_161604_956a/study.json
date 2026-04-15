@@ -1,0 +1,79 @@
+{
+  "id": "study_20260414_161604_956a",
+  "name": "retry-kaggle-env-path-fix",
+  "task_name": "track_b",
+  "status": "failed",
+  "created_at": "2026-04-14T16:16:04.080495Z",
+  "started_at": "2026-04-14T16:16:04.080515Z",
+  "completed_at": "2026-04-14T16:16:19.120582Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_3668433b10",
+      "study_id": "study_20260414_161604_956a",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-14T16:16:04.081815Z",
+          "completed_at": "2026-04-14T16:16:19.119244Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-14T16:16:04.081636Z",
+      "completed_at": "2026-04-14T16:16:19.119686Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

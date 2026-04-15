@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_625fc54fef",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_adapter",
+      "architecture_family": "efficientnet_b0",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 1.0598913748981431,
+      "takeaway": ""
+    }
+  ]
+}

@@ -1,0 +1,1453 @@
+[{"stream_name":"stdout","time":385.545960292,"data":"[lab bootstrap] could not find lab/ under /kaggle/input. Dumping input tree for diagnosis:\n"}
+,{"stream_name":"stdout","time":385.546083516,"data":"input/\n"}
+,{"stream_name":"stdout","time":385.546115468,"data":"  competitions/\n"}
+,{"stream_name":"stdout","time":385.547308279,"data":"    birdclef-2026/\n"}
+,{"stream_name":"stdout","time":385.547356618,"data":"      recording_location.txt\n"}
+,{"stream_name":"stdout","time":385.547362774,"data":"      sample_submission.csv\n"}
+,{"stream_name":"stdout","time":385.547366861,"data":"      taxonomy.csv\n"}
+,{"stream_name":"stdout","time":385.547370736,"data":"      train.csv\n"}
+,{"stream_name":"stdout","time":385.547374899,"data":"      train_soundscapes_labels.csv\n"}
+,{"stream_name":"stdout","time":385.641459595,"data":"      train_audio/\n"}
+,{"stream_name":"stdout","time":385.730827059,"data":"        rufgna3/\n"}
+,{"stream_name":"stdout","time":385.73087232,"data":"          XC1002596.ogg\n"}
+,{"stream_name":"stdout","time":385.730878173,"data":"          XC1013591.ogg\n"}
+,{"stream_name":"stdout","time":385.730882453,"data":"          XC1018307.ogg\n"}
+,{"stream_name":"stdout","time":385.730893386,"data":"          XC113478.ogg\n"}
+,{"stream_name":"stdout","time":385.730896364,"data":"          XC113854.ogg\n"}
+,{"stream_name":"stdout","time":385.730915637,"data":"          ... (154 more)\n"}
+,{"stream_name":"stdout","time":385.784465023,"data":"        greani1/\n"}
+,{"stream_name":"stdout","time":385.784527274,"data":"          XC1019099.ogg\n"}
+,{"stream_name":"stdout","time":385.784533652,"data":"          XC1023357.ogg\n"}
+,{"stream_name":"stdout","time":385.7845382,"data":"          XC118850.ogg\n"}
+,{"stream_name":"stdout","time":385.78454266,"data":"          XC127353.ogg\n"}
+,{"stream_name":"stdout","time":385.784547518,"data":"          XC131064.ogg\n"}
+,{"stream_name":"stdout","time":385.78455244,"data":"          ... (122 more)\n"}
+,{"stream_name":"stdout","time":385.809837371,"data":"        blttit1/\n"}
+,{"stream_name":"stdout","time":385.8098938,"data":"          XC1056515.ogg\n"}
+,{"stream_name":"stdout","time":385.809898647,"data":"          XC119153.ogg\n"}
+,{"stream_name":"stdout","time":385.809901537,"data":"          XC123447.ogg\n"}
+,{"stream_name":"stdout","time":385.80990464,"data":"          XC130074.ogg\n"}
+,{"stream_name":"stdout","time":385.809907343,"data":"          XC130076.ogg\n"}
+,{"stream_name":"stdout","time":385.809910203,"data":"          ... (66 more)\n"}
+,{"stream_name":"stdout","time":385.821923225,"data":"        65377/\n"}
+,{"stream_name":"stdout","time":385.82196717,"data":"          XC1004237.ogg\n"}
+,{"stream_name":"stdout","time":385.821971325,"data":"          XC1006275.ogg\n"}
+,{"stream_name":"stdout","time":385.821974102,"data":"          XC1008740.ogg\n"}
+,{"stream_name":"stdout","time":385.821977463,"data":"          XC1043284.ogg\n"}
+,{"stream_name":"stdout","time":385.821995095,"data":"          XC883499.ogg\n"}
+,{"stream_name":"stdout","time":385.822000207,"data":"          ... (41 more)\n"}
+,{"stream_name":"stdout","time":385.981531794,"data":"        linwoo1/\n"}
+,{"stream_name":"stdout","time":385.981586508,"data":"          XC1008341.ogg\n"}
+,{"stream_name":"stdout","time":385.981591085,"data":"          XC1008501.ogg\n"}
+,{"stream_name":"stdout","time":385.981593856,"data":"          XC1009662.ogg\n"}
+,{"stream_name":"stdout","time":385.981596904,"data":"          XC1017640.ogg\n"}
+,{"stream_name":"stdout","time":385.981708636,"data":"          XC1018872.ogg\n"}
+,{"stream_name":"stdout","time":385.981748733,"data":"          ... (351 more)\n"}
+,{"stream_name":"stdout","time":386.053800276,"data":"        blheag1/\n"}
+,{"stream_name":"stdout","time":386.053847384,"data":"          XC1015272.ogg\n"}
+,{"stream_name":"stdout","time":386.053851711,"data":"          XC1018652.ogg\n"}
+,{"stream_name":"stdout","time":386.053855071,"data":"          XC1053927.ogg\n"}
+,{"stream_name":"stdout","time":386.053858005,"data":"          XC1053928.ogg\n"}
+,{"stream_name":"stdout","time":386.053860619,"data":"          XC1053933.ogg\n"}
+,{"stream_name":"stdout","time":386.0538635,"data":"          ... (164 more)\n"}
+,{"stream_name":"stdout","time":386.054335431,"data":"        22930/\n"}
+,{"stream_name":"stdout","time":386.054356841,"data":"          XC940773.ogg\n"}
+,{"stream_name":"stdout","time":386.054362114,"data":"          iNat1248662.ogg\n"}
+,{"stream_name":"stdout","time":386.054368621,"data":"          iNat317238.ogg\n"}
+,{"stream_name":"stdout","time":386.054372819,"data":"          iNat330099.ogg\n"}
+,{"stream_name":"stdout","time":386.054378886,"data":"          iNat897105.ogg\n"}
+,{"stream_name":"stdout","time":386.054383377,"data":"          ... (1 more)\n"}
+,{"stream_name":"stdout","time":386.092473974,"data":"        scther1/\n"}
+,{"stream_name":"stdout","time":386.092517335,"data":"          XC113217.ogg\n"}
+,{"stream_name":"stdout","time":386.092521479,"data":"          XC118511.ogg\n"}
+,{"stream_name":"stdout","time":386.092524478,"data":"          XC134199.ogg\n"}
+,{"stream_name":"stdout","time":386.092527165,"data":"          XC138555.ogg\n"}
+,{"stream_name":"stdout","time":386.092529816,"data":"          XC141592.ogg\n"}
+,{"stream_name":"stdout","time":386.092532511,"data":"          ... (98 more)\n"}
+,{"stream_name":"stdout","time":386.257635894,"data":"        grasal3/\n"}
+,{"stream_name":"stdout","time":386.257676402,"data":"          XC1017390.ogg\n"}
+,{"stream_name":"stdout","time":386.257683031,"data":"          XC1017665.ogg\n"}
+,{"stream_name":"stdout","time":386.257688024,"data":"          XC1017666.ogg\n"}
+,{"stream_name":"stdout","time":386.257692591,"data":"          XC1030202.ogg\n"}
+,{"stream_name":"stdout","time":386.257697221,"data":"          XC1030206.ogg\n"}
+,{"stream_name":"stdout","time":386.257705308,"data":"          ... (357 more)\n"}
+,{"stream_name":"stdout","time":386.337577965,"data":"        strowl1/\n"}
+,{"stream_name":"stdout","time":386.33762698,"data":"          XC1006635.ogg\n"}
+,{"stream_name":"stdout","time":386.337634762,"data":"          XC1006636.ogg\n"}
+,{"stream_name":"stdout","time":386.33764294,"data":"          XC1006637.ogg\n"}
+,{"stream_name":"stdout","time":386.337646161,"data":"          XC1011094.ogg\n"}
+,{"stream_name":"stdout","time":386.33764957,"data":"          XC1040539.ogg\n"}
+,{"stream_name":"stdout","time":386.337652171,"data":"          ... (179 more)\n"}
+,{"stream_name":"stdout","time":386.449616551,"data":"        rufnig1/\n"}
+,{"stream_name":"stdout","time":386.449665368,"data":"          XC1006020.ogg\n"}
+,{"stream_name":"stdout","time":386.449677064,"data":"          XC1018884.ogg\n"}
+,{"stream_name":"stdout","time":386.449695893,"data":"          XC1019622.ogg\n"}
+,{"stream_name":"stdout","time":386.449700953,"data":"          XC1019623.ogg\n"}
+,{"stream_name":"stdout","time":386.449706026,"data":"          XC1033118.ogg\n"}
+,{"stream_name":"stdout","time":386.449710885,"data":"          ... (251 more)\n"}
+,{"stream_name":"stdout","time":386.540446811,"data":"        spbant3/\n"}
+,{"stream_name":"stdout","time":386.540506672,"data":"          XC1015274.ogg\n"}
+,{"stream_name":"stdout","time":386.540511428,"data":"          XC1047393.ogg\n"}
+,{"stream_name":"stdout","time":386.540514685,"data":"          XC1047887.ogg\n"}
+,{"stream_name":"stdout","time":386.540517408,"data":"          XC1049833.ogg\n"}
+,{"stream_name":"stdout","time":386.540520151,"data":"          XC1049838.ogg\n"}
+,{"stream_name":"stdout","time":386.540522776,"data":"          ... (200 more)\n"}
+,{"stream_name":"stdout","time":386.541096469,"data":"        74113/\n"}
+,{"stream_name":"stdout","time":386.541110082,"data":"          XC1039325.ogg\n"}
+,{"stream_name":"stdout","time":386.541114763,"data":"          XC1066320.ogg\n"}
+,{"stream_name":"stdout","time":386.541120277,"data":"          XC1067099.ogg\n"}
+,{"stream_name":"stdout","time":386.541124442,"data":"          XC1067100.ogg\n"}
+,{"stream_name":"stdout","time":386.541129203,"data":"          XC1067101.ogg\n"}
+,{"stream_name":"stdout","time":386.541133711,"data":"          ... (5 more)\n"}
+,{"stream_name":"stdout","time":386.62290388,"data":"        rebscy1/\n"}
+,{"stream_name":"stdout","time":386.622950554,"data":"          XC1053610.ogg\n"}
+,{"stream_name":"stdout","time":386.622956457,"data":"          XC1053611.ogg\n"}
+,{"stream_name":"stdout","time":386.622961527,"data":"          XC115523.ogg\n"}
+,{"stream_name":"stdout","time":386.622966568,"data":"          XC115524.ogg\n"}
+,{"stream_name":"stdout","time":386.62297154,"data":"          XC118708.ogg\n"}
+,{"stream_name":"stdout","time":386.622976357,"data":"          ... (177 more)\n"}
+,{"stream_name":"stdout","time":386.623608097,"data":"        ocecra1/\n"}
+,{"stream_name":"stdout","time":386.623637029,"data":"          iNat1005718.ogg\n"}
+,{"stream_name":"stdout","time":386.623643011,"data":"          iNat1163875.ogg\n"}
+,{"stream_name":"stdout","time":386.623647529,"data":"          iNat1163877.ogg\n"}
+,{"stream_name":"stdout","time":386.623652149,"data":"          iNat1252779.ogg\n"}
+,{"stream_name":"stdout","time":386.623656203,"data":"          iNat217632.ogg\n"}
+,{"stream_name":"stdout","time":386.62366014,"data":"          ... (10 more)\n"}
+,{"stream_name":"stdout","time":386.639299291,"data":"        cibspi1/\n"}
+,{"stream_name":"stdout","time":386.639358923,"data":"          XC1009465.ogg\n"}
+,{"stream_name":"stdout","time":386.639365562,"data":"          XC10780.ogg\n"}
+,{"stream_name":"stdout","time":386.639370335,"data":"          XC131982.ogg\n"}
+,{"stream_name":"stdout","time":386.63937471,"data":"          XC195191.ogg\n"}
+,{"stream_name":"stdout","time":386.639379274,"data":"          XC195192.ogg\n"}
+,{"stream_name":"stdout","time":386.639383668,"data":"          ... (36 more)\n"}
+,{"stream_name":"stdout","time":386.639810276,"data":"        23724/\n"}
+,{"stream_name":"stdout","time":386.639840637,"data":"          iNat249321.ogg\n"}
+,{"stream_name":"stdout","time":386.93013571,"data":"        rubthr1/\n"}
+,{"stream_name":"stdout","time":386.930266677,"data":"          XC1003072.ogg\n"}
+,{"stream_name":"stdout","time":386.930283176,"data":"          XC1006659.ogg\n"}
+,{"stream_name":"stdout","time":386.930286832,"data":"          XC1011087.ogg\n"}
+,{"stream_name":"stdout","time":386.930289714,"data":"          XC1032057.ogg\n"}
+,{"stream_name":"stdout","time":386.930292332,"data":"          XC1048627.ogg\n"}
+,{"stream_name":"stdout","time":386.930295022,"data":"          ... (494 more)\n"}
+,{"stream_name":"stdout","time":386.930890658,"data":"        476521/\n"}
+,{"stream_name":"stdout","time":386.930937059,"data":"          iNat1648597.ogg\n"}
+,{"stream_name":"stdout","time":386.930943287,"data":"          iNat304839.ogg\n"}
+,{"stream_name":"stdout","time":386.930947539,"data":"          iNat330833.ogg\n"}
+,{"stream_name":"stdout","time":386.965214144,"data":"        whbant2/\n"}
+,{"stream_name":"stdout","time":386.965249415,"data":"          XC112701.ogg\n"}
+,{"stream_name":"stdout","time":386.965253738,"data":"          XC120010.ogg\n"}
+,{"stream_name":"stdout","time":386.965256611,"data":"          XC121864.ogg\n"}
+,{"stream_name":"stdout","time":386.965260395,"data":"          XC174775.ogg\n"}
+,{"stream_name":"stdout","time":386.965282598,"data":"          XC179702.ogg\n"}
+,{"stream_name":"stdout","time":386.965287864,"data":"          ... (70 more)\n"}
+,{"stream_name":"stdout","time":386.989940816,"data":"        hyamac1/\n"}
+,{"stream_name":"stdout","time":386.989981125,"data":"          XC115382.ogg\n"}
+,{"stream_name":"stdout","time":386.989985446,"data":"          XC115383.ogg\n"}
+,{"stream_name":"stdout","time":386.989988841,"data":"          XC115384.ogg\n"}
+,{"stream_name":"stdout","time":386.990007602,"data":"          XC115385.ogg\n"}
+,{"stream_name":"stdout","time":386.99001355,"data":"          XC115386.ogg\n"}
+,{"stream_name":"stdout","time":386.99001816,"data":"          ... (60 more)\n"}
+,{"stream_name":"stdout","time":386.990470598,"data":"        24285/\n"}
+,{"stream_name":"stdout","time":386.990501107,"data":"          XC1004236.ogg\n"}
+,{"stream_name":"stdout","time":386.990507874,"data":"          XC1063445.ogg\n"}
+,{"stream_name":"stdout","time":386.990512238,"data":"          iNat1208638.ogg\n"}
+,{"stream_name":"stdout","time":386.990528244,"data":"          iNat1277043.ogg\n"}
+,{"stream_name":"stdout","time":386.99053352,"data":"          iNat158068.ogg\n"}
+,{"stream_name":"stdout","time":386.990537478,"data":"          ... (14 more)\n"}
+,{"stream_name":"stdout","time":386.992310363,"data":"        dwatin1/\n"}
+,{"stream_name":"stdout","time":386.992353346,"data":"          XC1030286.ogg\n"}
+,{"stream_name":"stdout","time":386.992359454,"data":"          XC1030287.ogg\n"}
+,{"stream_name":"stdout","time":386.992364006,"data":"          XC1030291.ogg\n"}
+,{"stream_name":"stdout","time":386.992368396,"data":"          XC1045639.ogg\n"}
+,{"stream_name":"stdout","time":386.992372386,"data":"          XC1049271.ogg\n"}
+,{"stream_name":"stdout","time":386.992376334,"data":"          ... (18 more)\n"}
+,{"stream_name":"stdout","time":387.10452266,"data":"        burowl/\n"}
+,{"stream_name":"stdout","time":387.104604347,"data":"          XC1007847.ogg\n"}
+,{"stream_name":"stdout","time":387.10461267,"data":"          XC1016000.ogg\n"}
+,{"stream_name":"stdout","time":387.104617067,"data":"          XC1016001.ogg\n"}
+,{"stream_name":"stdout","time":387.104622133,"data":"          XC114726.ogg\n"}
+,{"stream_name":"stdout","time":387.104627258,"data":"          XC119020.ogg\n"}
+,{"stream_name":"stdout","time":387.104632282,"data":"          ... (233 more)\n"}
+,{"stream_name":"stdout","time":387.172833423,"data":"        shtnig1/\n"}
+,{"stream_name":"stdout","time":387.172886653,"data":"          XC1015391.ogg\n"}
+,{"stream_name":"stdout","time":387.17290011,"data":"          XC1027562.ogg\n"}
+,{"stream_name":"stdout","time":387.172905379,"data":"          XC1032112.ogg\n"}
+,{"stream_name":"stdout","time":387.172910453,"data":"          XC1034577.ogg\n"}
+,{"stream_name":"stdout","time":387.172915045,"data":"          XC1035664.ogg\n"}
+,{"stream_name":"stdout","time":387.172920269,"data":"          ... (158 more)\n"}
+,{"stream_name":"stdout","time":387.28981914,"data":"        rutjac1/\n"}
+,{"stream_name":"stdout","time":387.289932034,"data":"          XC1006656.ogg\n"}
+,{"stream_name":"stdout","time":387.289939389,"data":"          XC1006657.ogg\n"}
+,{"stream_name":"stdout","time":387.289946839,"data":"          XC1039073.ogg\n"}
+,{"stream_name":"stdout","time":387.289949929,"data":"          XC1044943.ogg\n"}
+,{"stream_name":"stdout","time":387.28995294,"data":"          XC118855.ogg\n"}
+,{"stream_name":"stdout","time":387.289955966,"data":"          ... (260 more)\n"}
+,{"stream_name":"stdout","time":387.320538608,"data":"        yehcar1/\n"}
+,{"stream_name":"stdout","time":387.320617585,"data":"          iNat1042340.ogg\n"}
+,{"stream_name":"stdout","time":387.320624748,"data":"          iNat1198781.ogg\n"}
+,{"stream_name":"stdout","time":387.320629391,"data":"          iNat1199580.ogg\n"}
+,{"stream_name":"stdout","time":387.320633854,"data":"          iNat1199581.ogg\n"}
+,{"stream_name":"stdout","time":387.320638642,"data":"          iNat1199582.ogg\n"}
+,{"stream_name":"stdout","time":387.320642454,"data":"          ... (77 more)\n"}
+,{"stream_name":"stdout","time":387.336803642,"data":"        bafcur1/\n"}
+,{"stream_name":"stdout","time":387.336841524,"data":"          XC1018568.ogg\n"}
+,{"stream_name":"stdout","time":387.336845888,"data":"          XC1018708.ogg\n"}
+,{"stream_name":"stdout","time":387.336848889,"data":"          XC1062332.ogg\n"}
+,{"stream_name":"stdout","time":387.336851723,"data":"          XC108668.ogg\n"}
+,{"stream_name":"stdout","time":387.336855211,"data":"          XC118849.ogg\n"}
+,{"stream_name":"stdout","time":387.336876295,"data":"          ... (46 more)\n"}
+,{"stream_name":"stdout","time":387.494649562,"data":"        baffal1/\n"}
+,{"stream_name":"stdout","time":387.49469902,"data":"          XC1003366.ogg\n"}
+,{"stream_name":"stdout","time":387.494703657,"data":"          XC1003367.ogg\n"}
+,{"stream_name":"stdout","time":387.494706577,"data":"          XC1009881.ogg\n"}
+,{"stream_name":"stdout","time":387.494709186,"data":"          XC1012380.ogg\n"}
+,{"stream_name":"stdout","time":387.4947118,"data":"          XC1012407.ogg\n"}
+,{"stream_name":"stdout","time":387.494714391,"data":"          ... (332 more)\n"}
+,{"stream_name":"stdout","time":387.60537879,"data":"        yecpar/\n"}
+,{"stream_name":"stdout","time":387.605407729,"data":"          XC1003149.ogg\n"}
+,{"stream_name":"stdout","time":387.605411754,"data":"          XC1006640.ogg\n"}
+,{"stream_name":"stdout","time":387.605455636,"data":"          XC1019092.ogg\n"}
+,{"stream_name":"stdout","time":387.605463864,"data":"          XC1023137.ogg\n"}
+,{"stream_name":"stdout","time":387.605468472,"data":"          XC1025097.ogg\n"}
+,{"stream_name":"stdout","time":387.605473368,"data":"          ... (238 more)\n"}
+,{"stream_name":"stdout","time":387.682976242,"data":"        souant1/\n"}
+,{"stream_name":"stdout","time":387.683026643,"data":"          XC1006653.ogg\n"}
+,{"stream_name":"stdout","time":387.683031506,"data":"          XC1008487.ogg\n"}
+,{"stream_name":"stdout","time":387.683034363,"data":"          XC1010378.ogg\n"}
+,{"stream_name":"stdout","time":387.68303702,"data":"          XC1018425.ogg\n"}
+,{"stream_name":"stdout","time":387.683039699,"data":"          XC1027572.ogg\n"}
+,{"stream_name":"stdout","time":387.683042285,"data":"          ... (154 more)\n"}
+,{"stream_name":"stdout","time":387.730977565,"data":"        camfli1/\n"}
+,{"stream_name":"stdout","time":387.731024737,"data":"          XC1008363.ogg\n"}
+,{"stream_name":"stdout","time":387.731053977,"data":"          XC1015999.ogg\n"}
+,{"stream_name":"stdout","time":387.731059633,"data":"          XC1041423.ogg\n"}
+,{"stream_name":"stdout","time":387.731063757,"data":"          XC1053971.ogg\n"}
+,{"stream_name":"stdout","time":387.731067595,"data":"          XC1067266.ogg\n"}
+,{"stream_name":"stdout","time":387.731071216,"data":"          ... (117 more)\n"}
+,{"stream_name":"stdout","time":387.793244926,"data":"        gretho2/\n"}
+,{"stream_name":"stdout","time":387.79329189,"data":"          XC1001795.ogg\n"}
+,{"stream_name":"stdout","time":387.793300038,"data":"          XC1015992.ogg\n"}
+,{"stream_name":"stdout","time":387.793304998,"data":"          XC1030210.ogg\n"}
+,{"stream_name":"stdout","time":387.793309743,"data":"          XC1030211.ogg\n"}
+,{"stream_name":"stdout","time":387.793314984,"data":"          XC1030212.ogg\n"}
+,{"stream_name":"stdout","time":387.793319549,"data":"          ... (148 more)\n"}
+,{"stream_name":"stdout","time":387.793809486,"data":"        74580/\n"}
+,{"stream_name":"stdout","time":387.793846652,"data":"          XC991442.ogg\n"}
+,{"stream_name":"stdout","time":387.793853167,"data":"          iNat1152501.ogg\n"}
+,{"stream_name":"stdout","time":387.793857744,"data":"          iNat717618.ogg\n"}
+,{"stream_name":"stdout","time":387.805799817,"data":"        yecmac/\n"}
+,{"stream_name":"stdout","time":387.805864376,"data":"          XC115388.ogg\n"}
+,{"stream_name":"stdout","time":387.805869982,"data":"          XC148967.ogg\n"}
+,{"stream_name":"stdout","time":387.80587406,"data":"          XC148970.ogg\n"}
+,{"stream_name":"stdout","time":387.805878114,"data":"          XC148972.ogg\n"}
+,{"stream_name":"stdout","time":387.805882333,"data":"          XC148973.ogg\n"}
+,{"stream_name":"stdout","time":387.805886394,"data":"          ... (41 more)\n"}
+,{"stream_name":"stdout","time":388.00034616,"data":"        squcuc1/\n"}
+,{"stream_name":"stdout","time":388.000385834,"data":"          XC1009364.ogg\n"}
+,{"stream_name":"stdout","time":388.000392133,"data":"          XC1009365.ogg\n"}
+,{"stream_name":"stdout","time":388.000397223,"data":"          XC1017591.ogg\n"}
+,{"stream_name":"stdout","time":388.000401903,"data":"          XC1027574.ogg\n"}
+,{"stream_name":"stdout","time":388.000406685,"data":"          XC1034673.ogg\n"}
+,{"stream_name":"stdout","time":388.000414475,"data":"          ... (427 more)\n"}
+,{"stream_name":"stdout","time":388.228352367,"data":"        strcuc1/\n"}
+,{"stream_name":"stdout","time":388.22840544,"data":"          XC1001099.ogg\n"}
+,{"stream_name":"stdout","time":388.22841247,"data":"          XC1001101.ogg\n"}
+,{"stream_name":"stdout","time":388.228417425,"data":"          XC1011409.ogg\n"}
+,{"stream_name":"stdout","time":388.228422434,"data":"          XC1017618.ogg\n"}
+,{"stream_name":"stdout","time":388.228445256,"data":"          XC1017619.ogg\n"}
+,{"stream_name":"stdout","time":388.228460985,"data":"          ... (480 more)\n"}
+,{"stream_name":"stdout","time":388.237493022,"data":"        platyr1/\n"}
+,{"stream_name":"stdout","time":388.237546351,"data":"          XC1045256.ogg\n"}
+,{"stream_name":"stdout","time":388.237552295,"data":"          XC144951.ogg\n"}
+,{"stream_name":"stdout","time":388.237557053,"data":"          XC148931.ogg\n"}
+,{"stream_name":"stdout","time":388.237561719,"data":"          XC149917.ogg\n"}
+,{"stream_name":"stdout","time":388.237566092,"data":"          XC195746.ogg\n"}
+,{"stream_name":"stdout","time":388.237571182,"data":"          ... (31 more)\n"}
+,{"stream_name":"stdout","time":388.277920306,"data":"        pluibi1/\n"}
+,{"stream_name":"stdout","time":388.277967359,"data":"          XC119764.ogg\n"}
+,{"stream_name":"stdout","time":388.277973493,"data":"          XC119765.ogg\n"}
+,{"stream_name":"stdout","time":388.277977715,"data":"          XC123642.ogg\n"}
+,{"stream_name":"stdout","time":388.277983962,"data":"          XC123646.ogg\n"}
+,{"stream_name":"stdout","time":388.277991573,"data":"          XC167278.ogg\n"}
+,{"stream_name":"stdout","time":388.277994266,"data":"          ... (63 more)\n"}
+,{"stream_name":"stdout","time":388.522683566,"data":"        bobfly1/\n"}
+,{"stream_name":"stdout","time":388.52276037,"data":"          XC1009426.ogg\n"}
+,{"stream_name":"stdout","time":388.522778661,"data":"          XC1017638.ogg\n"}
+,{"stream_name":"stdout","time":388.522783728,"data":"          XC1031644.ogg\n"}
+,{"stream_name":"stdout","time":388.522789651,"data":"          XC1031649.ogg\n"}
+,{"stream_name":"stdout","time":388.522797891,"data":"          XC1035146.ogg\n"}
+,{"stream_name":"stdout","time":388.52280054,"data":"          ... (487 more)\n"}
+,{"stream_name":"stdout","time":388.765470176,"data":"        trsowl/\n"}
+,{"stream_name":"stdout","time":388.76565291,"data":"          XC1006047.ogg\n"}
+,{"stream_name":"stdout","time":388.765684512,"data":"          XC1006634.ogg\n"}
+,{"stream_name":"stdout","time":388.765688871,"data":"          XC1016874.ogg\n"}
+,{"stream_name":"stdout","time":388.765691696,"data":"          XC1026252.ogg\n"}
+,{"stream_name":"stdout","time":388.765694338,"data":"          XC1030243.ogg\n"}
+,{"stream_name":"stdout","time":388.765701442,"data":"          ... (486 more)\n"}
+,{"stream_name":"stdout","time":389.001645369,"data":"        yeofly1/\n"}
+,{"stream_name":"stdout","time":389.00172171,"data":"          XC1006082.ogg\n"}
+,{"stream_name":"stdout","time":389.001740158,"data":"          XC1006639.ogg\n"}
+,{"stream_name":"stdout","time":389.001745446,"data":"          XC1008495.ogg\n"}
+,{"stream_name":"stdout","time":389.001749855,"data":"          XC1008497.ogg\n"}
+,{"stream_name":"stdout","time":389.00175428,"data":"          XC1017635.ogg\n"}
+,{"stream_name":"stdout","time":389.001771762,"data":"          ... (488 more)\n"}
+,{"stream_name":"stdout","time":389.002337721,"data":"        22985/\n"}
+,{"stream_name":"stdout","time":389.002355621,"data":"          XC929102.ogg\n"}
+,{"stream_name":"stdout","time":389.002360595,"data":"          iNat1421747.ogg\n"}
+,{"stream_name":"stdout","time":389.00236491,"data":"          iNat1560301.ogg\n"}
+,{"stream_name":"stdout","time":389.002369421,"data":"          iNat51963.ogg\n"}
+,{"stream_name":"stdout","time":389.00237399,"data":"          iNat989398.ogg\n"}
+,{"stream_name":"stdout","time":389.0023781,"data":"          ... (1 more)\n"}
+,{"stream_name":"stdout","time":389.17538089,"data":"        compot1/\n"}
+,{"stream_name":"stdout","time":389.175473941,"data":"          XC1001793.ogg\n"}
+,{"stream_name":"stdout","time":389.175496836,"data":"          XC1001794.ogg\n"}
+,{"stream_name":"stdout","time":389.17550066,"data":"          XC1002856.ogg\n"}
+,{"stream_name":"stdout","time":389.175503489,"data":"          XC1002857.ogg\n"}
+,{"stream_name":"stdout","time":389.175506127,"data":"          XC1004238.ogg\n"}
+,{"stream_name":"stdout","time":389.175508789,"data":"          ... (363 more)\n"}
+,{"stream_name":"stdout","time":389.179073056,"data":"        25092/\n"}
+,{"stream_name":"stdout","time":389.179108989,"data":"          XC1062318.ogg\n"}
+,{"stream_name":"stdout","time":389.179133766,"data":"          XC1068709.ogg\n"}
+,{"stream_name":"stdout","time":389.179137147,"data":"          XC999247.ogg\n"}
+,{"stream_name":"stdout","time":389.179155656,"data":"          iNat1264634.ogg\n"}
+,{"stream_name":"stdout","time":389.179160587,"data":"          iNat1288388.ogg\n"}
+,{"stream_name":"stdout","time":389.179164666,"data":"          ... (21 more)\n"}
+,{"stream_name":"stdout","time":389.214359197,"data":"        smbtin1/\n"}
+,{"stream_name":"stdout","time":389.214405919,"data":"          XC1009533.ogg\n"}
+,{"stream_name":"stdout","time":389.214410082,"data":"          XC1027577.ogg\n"}
+,{"stream_name":"stdout","time":389.214412804,"data":"          XC114957.ogg\n"}
+,{"stream_name":"stdout","time":389.214452945,"data":"          XC114958.ogg\n"}
+,{"stream_name":"stdout","time":389.214458076,"data":"          XC114959.ogg\n"}
+,{"stream_name":"stdout","time":389.214462623,"data":"          ... (89 more)\n"}
+,{"stream_name":"stdout","time":389.214879185,"data":"        1595929/\n"}
+,{"stream_name":"stdout","time":389.214903129,"data":"          XC999239.ogg\n"}
+,{"stream_name":"stdout","time":389.214906716,"data":"          iNat1242529.ogg\n"}
+,{"stream_name":"stdout","time":389.21490952,"data":"          iNat1242532.ogg\n"}
+,{"stream_name":"stdout","time":389.214912297,"data":"          iNat1308166.ogg\n"}
+,{"stream_name":"stdout","time":389.214914985,"data":"          iNat1679888.ogg\n"}
+,{"stream_name":"stdout","time":389.295699335,"data":"        sobcac1/\n"}
+,{"stream_name":"stdout","time":389.295742725,"data":"          XC1030219.ogg\n"}
+,{"stream_name":"stdout","time":389.295746912,"data":"          XC10832.ogg\n"}
+,{"stream_name":"stdout","time":389.295749795,"data":"          XC124530.ogg\n"}
+,{"stream_name":"stdout","time":389.29575259,"data":"          XC128803.ogg\n"}
+,{"stream_name":"stdout","time":389.295770563,"data":"          XC134124.ogg\n"}
+,{"stream_name":"stdout","time":389.295775251,"data":"          ... (178 more)\n"}
+,{"stream_name":"stdout","time":389.337811287,"data":"        gilhum1/\n"}
+,{"stream_name":"stdout","time":389.337868856,"data":"          XC1008478.ogg\n"}
+,{"stream_name":"stdout","time":389.337876315,"data":"          XC1019653.ogg\n"}
+,{"stream_name":"stdout","time":389.337880689,"data":"          XC1039699.ogg\n"}
+,{"stream_name":"stdout","time":389.337884855,"data":"          XC1047878.ogg\n"}
+,{"stream_name":"stdout","time":389.337890878,"data":"          XC1048328.ogg\n"}
+,{"stream_name":"stdout","time":389.337895292,"data":"          ... (112 more)\n"}
+,{"stream_name":"stdout","time":389.338118953,"data":"        555145/\n"}
+,{"stream_name":"stdout","time":389.338136852,"data":"          XC903862.ogg\n"}
+,{"stream_name":"stdout","time":389.338142395,"data":"          XC929078.ogg\n"}
+,{"stream_name":"stdout","time":389.338152064,"data":"          iNat1242826.ogg\n"}
+,{"stream_name":"stdout","time":389.33815705,"data":"          iNat139216.ogg\n"}
+,{"stream_name":"stdout","time":389.338172059,"data":"          iNat1421758.ogg\n"}
+,{"stream_name":"stdout","time":389.338181066,"data":"          ... (4 more)\n"}
+,{"stream_name":"stdout","time":389.563847901,"data":"        osprey/\n"}
+,{"stream_name":"stdout","time":389.563881592,"data":"          XC1013321.ogg\n"}
+,{"stream_name":"stdout","time":389.563887265,"data":"          XC1018235.ogg\n"}
+,{"stream_name":"stdout","time":389.56389133,"data":"          XC1027115.ogg\n"}
+,{"stream_name":"stdout","time":389.563895267,"data":"          XC1034309.ogg\n"}
+,{"stream_name":"stdout","time":389.563920575,"data":"          XC1049040.ogg\n"}
+,{"stream_name":"stdout","time":389.563923636,"data":"          ... (490 more)\n"}
+,{"stream_name":"stdout","time":389.713424156,"data":"        eulfly1/\n"}
+,{"stream_name":"stdout","time":389.713514614,"data":"          XC1002598.ogg\n"}
+,{"stream_name":"stdout","time":389.713527455,"data":"          XC1003102.ogg\n"}
+,{"stream_name":"stdout","time":389.713532378,"data":"          XC1004116.ogg\n"}
+,{"stream_name":"stdout","time":389.713536986,"data":"          XC1006642.ogg\n"}
+,{"stream_name":"stdout","time":389.713541483,"data":"          XC1008476.ogg\n"}
+,{"stream_name":"stdout","time":389.713545998,"data":"          ... (350 more)\n"}
+,{"stream_name":"stdout","time":389.745661512,"data":"        magant1/\n"}
+,{"stream_name":"stdout","time":389.745707619,"data":"          XC116257.ogg\n"}
+,{"stream_name":"stdout","time":389.745713332,"data":"          XC116258.ogg\n"}
+,{"stream_name":"stdout","time":389.745717417,"data":"          XC116272.ogg\n"}
+,{"stream_name":"stdout","time":389.745721558,"data":"          XC116273.ogg\n"}
+,{"stream_name":"stdout","time":389.745726404,"data":"          XC119762.ogg\n"}
+,{"stream_name":"stdout","time":389.745732321,"data":"          ... (58 more)\n"}
+,{"stream_name":"stdout","time":389.903524088,"data":"        chbmoc1/\n"}
+,{"stream_name":"stdout","time":389.903594855,"data":"          XC1001557.ogg\n"}
+,{"stream_name":"stdout","time":389.903602471,"data":"          XC1008356.ogg\n"}
+,{"stream_name":"stdout","time":389.903606898,"data":"          XC1018631.ogg\n"}
+,{"stream_name":"stdout","time":389.90361171,"data":"          XC1030253.ogg\n"}
+,{"stream_name":"stdout","time":389.903616419,"data":"          XC1031989.ogg\n"}
+,{"stream_name":"stdout","time":389.903623738,"data":"          ... (265 more)\n"}
+,{"stream_name":"stdout","time":389.992953588,"data":"        wfwduc1/\n"}
+,{"stream_name":"stdout","time":389.992999992,"data":"          XC1000720.ogg\n"}
+,{"stream_name":"stdout","time":389.993012824,"data":"          XC1042891.ogg\n"}
+,{"stream_name":"stdout","time":389.993016092,"data":"          XC1042902.ogg\n"}
+,{"stream_name":"stdout","time":389.993018692,"data":"          XC1042903.ogg\n"}
+,{"stream_name":"stdout","time":389.993021371,"data":"          XC1042904.ogg\n"}
+,{"stream_name":"stdout","time":389.993023971,"data":"          ... (128 more)\n"}
+,{"stream_name":"stdout","time":390.264512103,"data":"        roahaw/\n"}
+,{"stream_name":"stdout","time":390.26462911,"data":"          XC1009385.ogg\n"}
+,{"stream_name":"stdout","time":390.264649062,"data":"          XC1009799.ogg\n"}
+,{"stream_name":"stdout","time":390.264655145,"data":"          XC1012392.ogg\n"}
+,{"stream_name":"stdout","time":390.26466136,"data":"          XC1031747.ogg\n"}
+,{"stream_name":"stdout","time":390.264665601,"data":"          XC1035746.ogg\n"}
+,{"stream_name":"stdout","time":390.264670065,"data":"          ... (484 more)\n"}
+,{"stream_name":"stdout","time":390.308904818,"data":"        chvcon1/\n"}
+,{"stream_name":"stdout","time":390.308951858,"data":"          XC1000943.ogg\n"}
+,{"stream_name":"stdout","time":390.308957404,"data":"          XC1000950.ogg\n"}
+,{"stream_name":"stdout","time":390.30896157,"data":"          XC1012397.ogg\n"}
+,{"stream_name":"stdout","time":390.308965537,"data":"          XC1012402.ogg\n"}
+,{"stream_name":"stdout","time":390.308969522,"data":"          XC1017293.ogg\n"}
+,{"stream_name":"stdout","time":390.308973698,"data":"          ... (115 more)\n"}
+,{"stream_name":"stdout","time":390.56134737,"data":"        saffin/\n"}
+,{"stream_name":"stdout","time":390.561561529,"data":"          XC1000551.ogg\n"}
+,{"stream_name":"stdout","time":390.562246807,"data":"          XC1006617.ogg\n"}
+,{"stream_name":"stdout","time":390.562257481,"data":"          XC1017275.ogg\n"}
+,{"stream_name":"stdout","time":390.562261815,"data":"          XC1018580.ogg\n"}
+,{"stream_name":"stdout","time":390.562266324,"data":"          XC1019732.ogg\n"}
+,{"stream_name":"stdout","time":390.562271233,"data":"          ... (474 more)\n"}
+,{"stream_name":"stdout","time":390.657776574,"data":"        batbel1/\n"}
+,{"stream_name":"stdout","time":390.657817159,"data":"          XC1006063.ogg\n"}
+,{"stream_name":"stdout","time":390.657824344,"data":"          XC1015271.ogg\n"}
+,{"stream_name":"stdout","time":390.657831741,"data":"          XC1027107.ogg\n"}
+,{"stream_name":"stdout","time":390.657840211,"data":"          XC1030248.ogg\n"}
+,{"stream_name":"stdout","time":390.657843223,"data":"          XC1064335.ogg\n"}
+,{"stream_name":"stdout","time":390.657845862,"data":"          ... (224 more)\n"}
+,{"stream_name":"stdout","time":390.684703929,"data":"        crebec1/\n"}
+,{"stream_name":"stdout","time":390.684741468,"data":"          XC1008490.ogg\n"}
+,{"stream_name":"stdout","time":390.684745495,"data":"          XC1016162.ogg\n"}
+,{"stream_name":"stdout","time":390.684748336,"data":"          XC115179.ogg\n"}
+,{"stream_name":"stdout","time":390.684773442,"data":"          XC119358.ogg\n"}
+,{"stream_name":"stdout","time":390.684778453,"data":"          XC176871.ogg\n"}
+,{"stream_name":"stdout","time":390.684783788,"data":"          ... (76 more)\n"}
+,{"stream_name":"stdout","time":390.685287073,"data":"        24321/\n"}
+,{"stream_name":"stdout","time":390.685326902,"data":"          iNat1657916.ogg\n"}
+,{"stream_name":"stdout","time":390.685332569,"data":"          iNat251887.ogg\n"}
+,{"stream_name":"stdout","time":390.68572097,"data":"        67252/\n"}
+,{"stream_name":"stdout","time":390.685747139,"data":"          XC1000114.ogg\n"}
+,{"stream_name":"stdout","time":390.685752338,"data":"          XC929104.ogg\n"}
+,{"stream_name":"stdout","time":390.685756429,"data":"          XC952184.ogg\n"}
+,{"stream_name":"stdout","time":390.685761104,"data":"          iNat1257838.ogg\n"}
+,{"stream_name":"stdout","time":390.685765653,"data":"          iNat1451488.ogg\n"}
+,{"stream_name":"stdout","time":390.685770596,"data":"          ... (1 more)\n"}
+,{"stream_name":"stdout","time":390.691031791,"data":"        lesgrf1/\n"}
+,{"stream_name":"stdout","time":390.691075631,"data":"          XC174655.ogg\n"}
+,{"stream_name":"stdout","time":390.691084585,"data":"          XC174706.ogg\n"}
+,{"stream_name":"stdout","time":390.691087489,"data":"          XC308346.ogg\n"}
+,{"stream_name":"stdout","time":390.69109009,"data":"          XC332753.ogg\n"}
+,{"stream_name":"stdout","time":390.691092711,"data":"          XC358961.ogg\n"}
+,{"stream_name":"stdout","time":390.691095274,"data":"          ... (25 more)\n"}
+,{"stream_name":"stdout","time":390.902405642,"data":"        barant1/\n"}
+,{"stream_name":"stdout","time":390.902464962,"data":"          XC1000937.ogg\n"}
+,{"stream_name":"stdout","time":390.902474271,"data":"          XC1004605.ogg\n"}
+,{"stream_name":"stdout","time":390.902479627,"data":"          XC1030226.ogg\n"}
+,{"stream_name":"stdout","time":390.902484349,"data":"          XC1032319.ogg\n"}
+,{"stream_name":"stdout","time":390.90248842,"data":"          XC1046922.ogg\n"}
+,{"stream_name":"stdout","time":390.902507955,"data":"          ... (449 more)\n"}
+,{"stream_name":"stdout","time":390.98409844,"data":"        y00678/\n"}
+,{"stream_name":"stdout","time":390.984142898,"data":"          XC1006633.ogg\n"}
+,{"stream_name":"stdout","time":390.984149223,"data":"          XC1008556.ogg\n"}
+,{"stream_name":"stdout","time":390.984154193,"data":"          XC1012391.ogg\n"}
+,{"stream_name":"stdout","time":390.984160259,"data":"          XC1017284.ogg\n"}
+,{"stream_name":"stdout","time":390.984164318,"data":"          XC1041427.ogg\n"}
+,{"stream_name":"stdout","time":390.984168218,"data":"          ... (183 more)\n"}
+,{"stream_name":"stdout","time":391.228508921,"data":"        houspa/\n"}
+,{"stream_name":"stdout","time":391.228568857,"data":"          XC1047601.ogg\n"}
+,{"stream_name":"stdout","time":391.228574464,"data":"          XC1070372.ogg\n"}
+,{"stream_name":"stdout","time":391.228577367,"data":"          XC122553.ogg\n"}
+,{"stream_name":"stdout","time":391.228579975,"data":"          XC129573.ogg\n"}
+,{"stream_name":"stdout","time":391.228582577,"data":"          XC133262.ogg\n"}
+,{"stream_name":"stdout","time":391.228585145,"data":"          ... (491 more)\n"}
+,{"stream_name":"stdout","time":391.320723142,"data":"        bufpar/\n"}
+,{"stream_name":"stdout","time":391.320770177,"data":"          XC1000968.ogg\n"}
+,{"stream_name":"stdout","time":391.320779458,"data":"          XC1018779.ogg\n"}
+,{"stream_name":"stdout","time":391.320783583,"data":"          XC1023532.ogg\n"}
+,{"stream_name":"stdout","time":391.320786265,"data":"          XC1023533.ogg\n"}
+,{"stream_name":"stdout","time":391.320788908,"data":"          XC1043456.ogg\n"}
+,{"stream_name":"stdout","time":391.320791576,"data":"          ... (201 more)\n"}
+,{"stream_name":"stdout","time":391.515901767,"data":"        limpki/\n"}
+,{"stream_name":"stdout","time":391.515948093,"data":"          XC1001807.ogg\n"}
+,{"stream_name":"stdout","time":391.515952627,"data":"          XC1001813.ogg\n"}
+,{"stream_name":"stdout","time":391.515955393,"data":"          XC1005799.ogg\n"}
+,{"stream_name":"stdout","time":391.515958138,"data":"          XC1012157.ogg\n"}
+,{"stream_name":"stdout","time":391.515960838,"data":"          XC1061034.ogg\n"}
+,{"stream_name":"stdout","time":391.515963457,"data":"          ... (400 more)\n"}
+,{"stream_name":"stdout","time":391.573091033,"data":"        larela1/\n"}
+,{"stream_name":"stdout","time":391.57313844,"data":"          XC1003085.ogg\n"}
+,{"stream_name":"stdout","time":391.573144582,"data":"          XC1035239.ogg\n"}
+,{"stream_name":"stdout","time":391.573148959,"data":"          XC1065687.ogg\n"}
+,{"stream_name":"stdout","time":391.573153079,"data":"          XC1070606.ogg\n"}
+,{"stream_name":"stdout","time":391.573157128,"data":"          XC11548.ogg\n"}
+,{"stream_name":"stdout","time":391.573161915,"data":"          ... (139 more)\n"}
+,{"stream_name":"stdout","time":391.573477845,"data":"        555123/\n"}
+,{"stream_name":"stdout","time":391.573528788,"data":"          iNat1370876.ogg\n"}
+,{"stream_name":"stdout","time":391.573535313,"data":"          iNat336366.ogg\n"}
+,{"stream_name":"stdout","time":391.573540176,"data":"          iNat859875.ogg\n"}
+,{"stream_name":"stdout","time":391.702742001,"data":"        saytan1/\n"}
+,{"stream_name":"stdout","time":391.702797175,"data":"          XC1018761.ogg\n"}
+,{"stream_name":"stdout","time":391.702804182,"data":"          XC1053972.ogg\n"}
+,{"stream_name":"stdout","time":391.702808607,"data":"          XC1063370.ogg\n"}
+,{"stream_name":"stdout","time":391.702835819,"data":"          XC110417.ogg\n"}
+,{"stream_name":"stdout","time":391.702839219,"data":"          XC113593.ogg\n"}
+,{"stream_name":"stdout","time":391.702842074,"data":"          ... (273 more)\n"}
+,{"stream_name":"stdout","time":391.782772098,"data":"        244024/\n"}
+,{"stream_name":"stdout","time":391.782814963,"data":"          iNat103300.ogg\n"}
+,{"stream_name":"stdout","time":391.782824288,"data":"          iNat1111996.ogg\n"}
+,{"stream_name":"stdout","time":391.782827348,"data":"          iNat1112016.ogg\n"}
+,{"stream_name":"stdout","time":391.782830406,"data":"          iNat1113920.ogg\n"}
+,{"stream_name":"stdout","time":391.782834007,"data":"          iNat1117205.ogg\n"}
+,{"stream_name":"stdout","time":391.782838047,"data":"          ... (176 more)\n"}
+,{"stream_name":"stdout","time":391.797827239,"data":"        24279/\n"}
+,{"stream_name":"stdout","time":391.797865299,"data":"          XC1039625.ogg\n"}
+,{"stream_name":"stdout","time":391.797869834,"data":"          XC1039627.ogg\n"}
+,{"stream_name":"stdout","time":391.797895951,"data":"          XC1039628.ogg\n"}
+,{"stream_name":"stdout","time":391.79790121999997,"data":"          iNat1229050.ogg\n"}
+,{"stream_name":"stdout","time":391.797906148,"data":"          iNat1243256.ogg\n"}
+,{"stream_name":"stdout","time":391.797910793,"data":"          ... (41 more)\n"}
+,{"stream_name":"stdout","time":391.829759912,"data":"        magtan2/\n"}
+,{"stream_name":"stdout","time":391.829807046,"data":"          XC1003119.ogg\n"}
+,{"stream_name":"stdout","time":391.829812266,"data":"          XC1017207.ogg\n"}
+,{"stream_name":"stdout","time":391.829834826,"data":"          XC1034551.ogg\n"}
+,{"stream_name":"stdout","time":391.829840395,"data":"          XC1035256.ogg\n"}
+,{"stream_name":"stdout","time":391.829844998,"data":"          XC1048815.ogg\n"}
+,{"stream_name":"stdout","time":391.82984938,"data":"          ... (69 more)\n"}
+,{"stream_name":"stdout","time":391.830257719,"data":"        43435/\n"}
+,{"stream_name":"stdout","time":391.830279861,"data":"          XC960448.ogg\n"}
+,{"stream_name":"stdout","time":391.830284745,"data":"          XC960449.ogg\n"}
+,{"stream_name":"stdout","time":391.830289048,"data":"          XC962291.ogg\n"}
+,{"stream_name":"stdout","time":391.830293629,"data":"          iNat1054872.ogg\n"}
+,{"stream_name":"stdout","time":391.830297768,"data":"          iNat1243479.ogg\n"}
+,{"stream_name":"stdout","time":391.8303028,"data":"          ... (9 more)\n"}
+,{"stream_name":"stdout","time":391.833400607,"data":"        23158/\n"}
+,{"stream_name":"stdout","time":391.833470157,"data":"          XC1064073.ogg\n"}
+,{"stream_name":"stdout","time":391.83347933699997,"data":"          XC900620.ogg\n"}
+,{"stream_name":"stdout","time":391.833483696,"data":"          XC926454.ogg\n"}
+,{"stream_name":"stdout","time":391.833488559,"data":"          iNat1261183.ogg\n"}
+,{"stream_name":"stdout","time":391.833493933,"data":"          iNat1263350.ogg\n"}
+,{"stream_name":"stdout","time":391.833498775,"data":"          ... (20 more)\n"}
+,{"stream_name":"stdout","time":391.833904858,"data":"        22961/\n"}
+,{"stream_name":"stdout","time":391.833921868,"data":"          XC1062603.ogg\n"}
+,{"stream_name":"stdout","time":391.833927903,"data":"          iNat1657948.ogg\n"}
+,{"stream_name":"stdout","time":391.833933138,"data":"          iNat1662496.ogg\n"}
+,{"stream_name":"stdout","time":391.833937204,"data":"          iNat512578.ogg\n"}
+,{"stream_name":"stdout","time":391.833941375,"data":"          iNat839121.ogg\n"}
+,{"stream_name":"stdout","time":391.833965899,"data":"          ... (1 more)\n"}
+,{"stream_name":"stdout","time":391.967893988,"data":"        paltan1/\n"}
+,{"stream_name":"stdout","time":391.967946865,"data":"          XC1016506.ogg\n"}
+,{"stream_name":"stdout","time":391.967953362,"data":"          XC1016507.ogg\n"}
+,{"stream_name":"stdout","time":391.967957857,"data":"          XC1032532.ogg\n"}
+,{"stream_name":"stdout","time":391.967962884,"data":"          XC1032533.ogg\n"}
+,{"stream_name":"stdout","time":391.967967365,"data":"          XC1034548.ogg\n"}
+,{"stream_name":"stdout","time":391.967971888,"data":"          ... (242 more)\n"}
+,{"stream_name":"stdout","time":392.091794485,"data":"        rinkin1/\n"}
+,{"stream_name":"stdout","time":392.091946309,"data":"          XC1006046.ogg\n"}
+,{"stream_name":"stdout","time":392.091958639,"data":"          XC1008359.ogg\n"}
+,{"stream_name":"stdout","time":392.091963279,"data":"          XC1053041.ogg\n"}
+,{"stream_name":"stdout","time":392.091967745,"data":"          XC1059974.ogg\n"}
+,{"stream_name":"stdout","time":392.091975465,"data":"          XC1063639.ogg\n"}
+,{"stream_name":"stdout","time":392.091978145,"data":"          ... (230 more)\n"}
+,{"stream_name":"stdout","time":392.114606224,"data":"        22973/\n"}
+,{"stream_name":"stdout","time":392.114644409,"data":"          XC1062605.ogg\n"}
+,{"stream_name":"stdout","time":392.114650808,"data":"          XC1065541.ogg\n"}
+,{"stream_name":"stdout","time":392.114655041,"data":"          XC167037.ogg\n"}
+,{"stream_name":"stdout","time":392.114659281,"data":"          XC892927.ogg\n"}
+,{"stream_name":"stdout","time":392.114663197,"data":"          XC892932.ogg\n"}
+,{"stream_name":"stdout","time":392.114667187,"data":"          ... (58 more)\n"}
+,{"stream_name":"stdout","time":392.118318916,"data":"        yebcar/\n"}
+,{"stream_name":"stdout","time":392.118376421,"data":"          XC116256.ogg\n"}
+,{"stream_name":"stdout","time":392.118382681,"data":"          XC148700.ogg\n"}
+,{"stream_name":"stdout","time":392.118386964,"data":"          XC171670.ogg\n"}
+,{"stream_name":"stdout","time":392.118391298,"data":"          XC360591.ogg\n"}
+,{"stream_name":"stdout","time":392.118395414,"data":"          XC381804.ogg\n"}
+,{"stream_name":"stdout","time":392.118403389,"data":"          ... (22 more)\n"}
+,{"stream_name":"stdout","time":392.129811638,"data":"        47144/\n"}
+,{"stream_name":"stdout","time":392.129846945,"data":"          XC1045485.ogg\n"}
+,{"stream_name":"stdout","time":392.129852831,"data":"          XC679837.ogg\n"}
+,{"stream_name":"stdout","time":392.1298577,"data":"          XC993966.ogg\n"}
+,{"stream_name":"stdout","time":392.1298627,"data":"          iNat101837.ogg\n"}
+,{"stream_name":"stdout","time":392.129866798,"data":"          iNat101838.ogg\n"}
+,{"stream_name":"stdout","time":392.129871126,"data":"          ... (38 more)\n"}
+,{"stream_name":"stdout","time":392.375643843,"data":"        soulap1/\n"}
+,{"stream_name":"stdout","time":392.375752574,"data":"          XC1000536.ogg\n"}
+,{"stream_name":"stdout","time":392.375772783,"data":"          XC1005801.ogg\n"}
+,{"stream_name":"stdout","time":392.375777863,"data":"          XC1012156.ogg\n"}
+,{"stream_name":"stdout","time":392.375784024,"data":"          XC1023404.ogg\n"}
+,{"stream_name":"stdout","time":392.375788079,"data":"          XC1034704.ogg\n"}
+,{"stream_name":"stdout","time":392.375792233,"data":"          ... (492 more)\n"}
+,{"stream_name":"stdout","time":392.51419948,"data":"        varant1/\n"}
+,{"stream_name":"stdout","time":392.514247693,"data":"          XC1006079.ogg\n"}
+,{"stream_name":"stdout","time":392.514265761,"data":"          XC1009447.ogg\n"}
+,{"stream_name":"stdout","time":392.5142691,"data":"          XC1041381.ogg\n"}
+,{"stream_name":"stdout","time":392.514271761,"data":"          XC1049893.ogg\n"}
+,{"stream_name":"stdout","time":392.514294544,"data":"          XC1064765.ogg\n"}
+,{"stream_name":"stdout","time":392.514299421,"data":"          ... (286 more)\n"}
+,{"stream_name":"stdout","time":392.516587475,"data":"        516975/\n"}
+,{"stream_name":"stdout","time":392.516626347,"data":"          iNat22239.ogg\n"}
+,{"stream_name":"stdout","time":392.573658963,"data":"        recfin1/\n"}
+,{"stream_name":"stdout","time":392.573688246,"data":"          XC1012408.ogg\n"}
+,{"stream_name":"stdout","time":392.573691949,"data":"          XC1027464.ogg\n"}
+,{"stream_name":"stdout","time":392.573694781,"data":"          XC1041443.ogg\n"}
+,{"stream_name":"stdout","time":392.573697436,"data":"          XC1058936.ogg\n"}
+,{"stream_name":"stdout","time":392.573700015,"data":"          XC1064615.ogg\n"}
+,{"stream_name":"stdout","time":392.573702598,"data":"          ... (121 more)\n"}
+,{"stream_name":"stdout","time":392.600820332,"data":"        palhor3/\n"}
+,{"stream_name":"stdout","time":392.600889082,"data":"          XC1009303.ogg\n"}
+,{"stream_name":"stdout","time":392.600896141,"data":"          XC1017659.ogg\n"}
+,{"stream_name":"stdout","time":392.600900662,"data":"          XC1031750.ogg\n"}
+,{"stream_name":"stdout","time":392.60090517,"data":"          XC128812.ogg\n"}
+,{"stream_name":"stdout","time":392.600909233,"data":"          XC129028.ogg\n"}
+,{"stream_name":"stdout","time":392.600913227,"data":"          ... (64 more)\n"}
+,{"stream_name":"stdout","time":392.629735089,"data":"        fabwre1/\n"}
+,{"stream_name":"stdout","time":392.629776765,"data":"          XC1064079.ogg\n"}
+,{"stream_name":"stdout","time":392.629781305,"data":"          XC144952.ogg\n"}
+,{"stream_name":"stdout","time":392.629784148,"data":"          XC145497.ogg\n"}
+,{"stream_name":"stdout","time":392.629803913,"data":"          XC148841.ogg\n"}
+,{"stream_name":"stdout","time":392.62980899,"data":"          XC149533.ogg\n"}
+,{"stream_name":"stdout","time":392.629813237,"data":"          ... (74 more)\n"}
+,{"stream_name":"stdout","time":392.738555684,"data":"        thlwre1/\n"}
+,{"stream_name":"stdout","time":392.738624548,"data":"          XC1003400.ogg\n"}
+,{"stream_name":"stdout","time":392.73862971,"data":"          XC1009587.ogg\n"}
+,{"stream_name":"stdout","time":392.738632477,"data":"          XC1009593.ogg\n"}
+,{"stream_name":"stdout","time":392.73863513,"data":"          XC1034570.ogg\n"}
+,{"stream_name":"stdout","time":392.738637666,"data":"          XC1050924.ogg\n"}
+,{"stream_name":"stdout","time":392.738640184,"data":"          ... (208 more)\n"}
+,{"stream_name":"stdout","time":392.864317028,"data":"        stbwoo2/\n"}
+,{"stream_name":"stdout","time":392.864364749,"data":"          XC10040.ogg\n"}
+,{"stream_name":"stdout","time":392.864372046,"data":"          XC10041.ogg\n"}
+,{"stream_name":"stdout","time":392.864377305,"data":"          XC1033509.ogg\n"}
+,{"stream_name":"stdout","time":392.864381816,"data":"          XC1034700.ogg\n"}
+,{"stream_name":"stdout","time":392.864386056,"data":"          XC1034728.ogg\n"}
+,{"stream_name":"stdout","time":392.86439032,"data":"          ... (214 more)\n"}
+,{"stream_name":"stdout","time":392.974633016,"data":"        sibtan2/\n"}
+,{"stream_name":"stdout","time":392.974685472,"data":"          XC1008486.ogg\n"}
+,{"stream_name":"stdout","time":392.974730695,"data":"          XC1033426.ogg\n"}
+,{"stream_name":"stdout","time":392.974735476,"data":"          XC1034690.ogg\n"}
+,{"stream_name":"stdout","time":392.974739463,"data":"          XC1035588.ogg\n"}
+,{"stream_name":"stdout","time":392.974743509,"data":"          XC1035905.ogg\n"}
+,{"stream_name":"stdout","time":392.974747459,"data":"          ... (221 more)\n"}
+,{"stream_name":"stdout","time":393.016656493,"data":"        souscr1/\n"}
+,{"stream_name":"stdout","time":393.016722909,"data":"          XC1045165.ogg\n"}
+,{"stream_name":"stdout","time":393.016729158,"data":"          XC117056.ogg\n"}
+,{"stream_name":"stdout","time":393.016733291,"data":"          XC117057.ogg\n"}
+,{"stream_name":"stdout","time":393.01673739,"data":"          XC119766.ogg\n"}
+,{"stream_name":"stdout","time":393.016742096,"data":"          XC119767.ogg\n"}
+,{"stream_name":"stdout","time":393.016746881,"data":"          ... (98 more)\n"}
+,{"stream_name":"stdout","time":393.033487949,"data":"        bcwfin2/\n"}
+,{"stream_name":"stdout","time":393.03354154,"data":"          XC1017391.ogg\n"}
+,{"stream_name":"stdout","time":393.033546569,"data":"          XC1046850.ogg\n"}
+,{"stream_name":"stdout","time":393.033549429,"data":"          XC147223.ogg\n"}
+,{"stream_name":"stdout","time":393.033552005,"data":"          XC15972.ogg\n"}
+,{"stream_name":"stdout","time":393.033554643,"data":"          XC16127.ogg\n"}
+,{"stream_name":"stdout","time":393.033557205,"data":"          ... (51 more)\n"}
+,{"stream_name":"stdout","time":393.033964395,"data":"        1161364/\n"}
+,{"stream_name":"stdout","time":393.033981634,"data":"          iNat1114648.ogg\n"}
+,{"stream_name":"stdout","time":393.033986967,"data":"          iNat1216197.ogg\n"}
+,{"stream_name":"stdout","time":393.03399113,"data":"          iNat1264238.ogg\n"}
+,{"stream_name":"stdout","time":393.033995234,"data":"          iNat547199.ogg\n"}
+,{"stream_name":"stdout","time":393.034000244,"data":"          iNat556514.ogg\n"}
+,{"stream_name":"stdout","time":393.034005189,"data":"          ... (6 more)\n"}
+,{"stream_name":"stdout","time":393.224369479,"data":"        pirfly1/\n"}
+,{"stream_name":"stdout","time":393.224411334,"data":"          XC1015864.ogg\n"}
+,{"stream_name":"stdout","time":393.224442856,"data":"          XC1017616.ogg\n"}
+,{"stream_name":"stdout","time":393.224447887,"data":"          XC1034568.ogg\n"}
+,{"stream_name":"stdout","time":393.22445203,"data":"          XC1034586.ogg\n"}
+,{"stream_name":"stdout","time":393.224456003,"data":"          XC1034722.ogg\n"}
+,{"stream_name":"stdout","time":393.224464736,"data":"          ... (340 more)\n"}
+,{"stream_name":"stdout","time":393.266015577,"data":"        shshaw/\n"}
+,{"stream_name":"stdout","time":393.266053664,"data":"          XC1014684.ogg\n"}
+,{"stream_name":"stdout","time":393.26605803,"data":"          XC1014685.ogg\n"}
+,{"stream_name":"stdout","time":393.266060856,"data":"          XC1039650.ogg\n"}
+,{"stream_name":"stdout","time":393.266063428,"data":"          XC139841.ogg\n"}
+,{"stream_name":"stdout","time":393.266067313,"data":"          XC141871.ogg\n"}
+,{"stream_name":"stdout","time":393.26607127,"data":"          ... (96 more)\n"}
+,{"stream_name":"stdout","time":393.27489353,"data":"        326272/\n"}
+,{"stream_name":"stdout","time":393.274938953,"data":"          XC1039609.ogg\n"}
+,{"stream_name":"stdout","time":393.274945688,"data":"          XC1039610.ogg\n"}
+,{"stream_name":"stdout","time":393.274950299,"data":"          XC1039612.ogg\n"}
+,{"stream_name":"stdout","time":393.274974079,"data":"          iNat1239246.ogg\n"}
+,{"stream_name":"stdout","time":393.274979536,"data":"          iNat1247082.ogg\n"}
+,{"stream_name":"stdout","time":393.274984134,"data":"          ... (23 more)\n"}
+,{"stream_name":"stdout","time":393.436099825,"data":"        yebela1/\n"}
+,{"stream_name":"stdout","time":393.436254943,"data":"          XC1007764.ogg\n"}
+,{"stream_name":"stdout","time":393.436306378,"data":"          XC1015198.ogg\n"}
+,{"stream_name":"stdout","time":393.436313554,"data":"          XC1015991.ogg\n"}
+,{"stream_name":"stdout","time":393.436317667,"data":"          XC1015996.ogg\n"}
+,{"stream_name":"stdout","time":393.436321755,"data":"          XC1017593.ogg\n"}
+,{"stream_name":"stdout","time":393.436325463,"data":"          ... (292 more)\n"}
+,{"stream_name":"stdout","time":393.475545833,"data":"        swthum1/\n"}
+,{"stream_name":"stdout","time":393.475628895,"data":"          XC1023351.ogg\n"}
+,{"stream_name":"stdout","time":393.475636029,"data":"          XC1044484.ogg\n"}
+,{"stream_name":"stdout","time":393.475639941,"data":"          XC1063973.ogg\n"}
+,{"stream_name":"stdout","time":393.475644064,"data":"          XC1063974.ogg\n"}
+,{"stream_name":"stdout","time":393.475648794,"data":"          XC115187.ogg\n"}
+,{"stream_name":"stdout","time":393.475652892,"data":"          ... (93 more)\n"}
+,{"stream_name":"stdout","time":393.529523658,"data":"        ragmac1/\n"}
+,{"stream_name":"stdout","time":393.529604883,"data":"          XC1031769.ogg\n"}
+,{"stream_name":"stdout","time":393.529616108,"data":"          XC1035445.ogg\n"}
+,{"stream_name":"stdout","time":393.529619298,"data":"          XC1035594.ogg\n"}
+,{"stream_name":"stdout","time":393.529622037,"data":"          XC112655.ogg\n"}
+,{"stream_name":"stdout","time":393.529624761,"data":"          XC119018.ogg\n"}
+,{"stream_name":"stdout","time":393.529627452,"data":"          ... (97 more)\n"}
+,{"stream_name":"stdout","time":393.570770169,"data":"        horscr1/\n"}
+,{"stream_name":"stdout","time":393.570818836,"data":"          XC1005733.ogg\n"}
+,{"stream_name":"stdout","time":393.570825872,"data":"          XC1005734.ogg\n"}
+,{"stream_name":"stdout","time":393.570830855,"data":"          XC1008340.ogg\n"}
+,{"stream_name":"stdout","time":393.570835644,"data":"          XC1032493.ogg\n"}
+,{"stream_name":"stdout","time":393.570840242,"data":"          XC1034546.ogg\n"}
+,{"stream_name":"stdout","time":393.570844613,"data":"          ... (97 more)\n"}
+,{"stream_name":"stdout","time":393.648856663,"data":"        bucmot4/\n"}
+,{"stream_name":"stdout","time":393.648895143,"data":"          XC103.ogg\n"}
+,{"stream_name":"stdout","time":393.648900833,"data":"          XC1035101.ogg\n"}
+,{"stream_name":"stdout","time":393.648905076,"data":"          XC1035710.ogg\n"}
+,{"stream_name":"stdout","time":393.64890919,"data":"          XC1037348.ogg\n"}
+,{"stream_name":"stdout","time":393.648913323,"data":"          XC1037350.ogg\n"}
+,{"stream_name":"stdout","time":393.648917223,"data":"          ... (164 more)\n"}
+,{"stream_name":"stdout","time":393.708543792,"data":"        toctou1/\n"}
+,{"stream_name":"stdout","time":393.708577743,"data":"          XC1018328.ogg\n"}
+,{"stream_name":"stdout","time":393.708584168,"data":"          XC1034552.ogg\n"}
+,{"stream_name":"stdout","time":393.708589296,"data":"          XC1044399.ogg\n"}
+,{"stream_name":"stdout","time":393.708594187,"data":"          XC1064767.ogg\n"}
+,{"stream_name":"stdout","time":393.708598405,"data":"          XC114717.ogg\n"}
+,{"stream_name":"stdout","time":393.708618964,"data":"          ... (143 more)\n"}
+,{"stream_name":"stdout","time":393.709105498,"data":"        738183/\n"}
+,{"stream_name":"stdout","time":393.709119934,"data":"          XC999131.ogg\n"}
+,{"stream_name":"stdout","time":393.7091287,"data":"          iNat1468130.ogg\n"}
+,{"stream_name":"stdout","time":393.709133189,"data":"          iNat492616.ogg\n"}
+,{"stream_name":"stdout","time":393.709137088,"data":"          iNat507314.ogg\n"}
+,{"stream_name":"stdout","time":393.709141389,"data":"          iNat507316.ogg\n"}
+,{"stream_name":"stdout","time":393.713927493,"data":"        rufcac2/\n"}
+,{"stream_name":"stdout","time":393.713949423,"data":"          XC1024876.ogg\n"}
+,{"stream_name":"stdout","time":393.713954186,"data":"          XC1061044.ogg\n"}
+,{"stream_name":"stdout","time":393.713958143,"data":"          XC1063886.ogg\n"}
+,{"stream_name":"stdout","time":393.713962072,"data":"          XC1063975.ogg\n"}
+,{"stream_name":"stdout","time":393.713966003,"data":"          XC111518.ogg\n"}
+,{"stream_name":"stdout","time":393.713969788,"data":"          ... (23 more)\n"}
+,{"stream_name":"stdout","time":393.797473001,"data":"        epaori4/\n"}
+,{"stream_name":"stdout","time":393.797519232,"data":"          XC1018084.ogg\n"}
+,{"stream_name":"stdout","time":393.797523748,"data":"          XC1019651.ogg\n"}
+,{"stream_name":"stdout","time":393.797526869,"data":"          XC119077.ogg\n"}
+,{"stream_name":"stdout","time":393.797529627,"data":"          XC121511.ogg\n"}
+,{"stream_name":"stdout","time":393.797532398,"data":"          XC121512.ogg\n"}
+,{"stream_name":"stdout","time":393.797535118,"data":"          ... (183 more)\n"}
+,{"stream_name":"stdout","time":393.841363755,"data":"        glteme1/\n"}
+,{"stream_name":"stdout","time":393.841410207,"data":"          XC1016006.ogg\n"}
+,{"stream_name":"stdout","time":393.84143179,"data":"          XC1017181.ogg\n"}
+,{"stream_name":"stdout","time":393.841437018,"data":"          XC1051817.ogg\n"}
+,{"stream_name":"stdout","time":393.841441424,"data":"          XC1067316.ogg\n"}
+,{"stream_name":"stdout","time":393.841446622,"data":"          XC118623.ogg\n"}
+,{"stream_name":"stdout","time":393.841453036,"data":"          ... (104 more)\n"}
+,{"stream_name":"stdout","time":394.08262355,"data":"        bncfly/\n"}
+,{"stream_name":"stdout","time":394.082674824,"data":"          XC1000276.ogg\n"}
+,{"stream_name":"stdout","time":394.082682672,"data":"          XC1000940.ogg\n"}
+,{"stream_name":"stdout","time":394.082687806,"data":"          XC1006622.ogg\n"}
+,{"stream_name":"stdout","time":394.082691932,"data":"          XC1006651.ogg\n"}
+,{"stream_name":"stdout","time":394.082696409,"data":"          XC1011573.ogg\n"}
+,{"stream_name":"stdout","time":394.082700351,"data":"          ... (487 more)\n"}
+,{"stream_name":"stdout","time":394.120937573,"data":"        ruftho1/\n"}
+,{"stream_name":"stdout","time":394.120984948,"data":"          XC1017636.ogg\n"}
+,{"stream_name":"stdout","time":394.120989464,"data":"          XC1017689.ogg\n"}
+,{"stream_name":"stdout","time":394.121028154,"data":"          XC1019052.ogg\n"}
+,{"stream_name":"stdout","time":394.121033577,"data":"          XC1030251.ogg\n"}
+,{"stream_name":"stdout","time":394.121038565,"data":"          XC1067276.ogg\n"}
+,{"stream_name":"stdout","time":394.121043291,"data":"          ... (93 more)\n"}
+,{"stream_name":"stdout","time":394.171126257,"data":"        ruftof1/\n"}
+,{"stream_name":"stdout","time":394.171189227,"data":"          XC1000942.ogg\n"}
+,{"stream_name":"stdout","time":394.171215464,"data":"          XC1011713.ogg\n"}
+,{"stream_name":"stdout","time":394.171220589,"data":"          XC1011798.ogg\n"}
+,{"stream_name":"stdout","time":394.171224708,"data":"          XC1064100.ogg\n"}
+,{"stream_name":"stdout","time":394.17122878,"data":"          XC1064618.ogg\n"}
+,{"stream_name":"stdout","time":394.17123222,"data":"          ... (93 more)\n"}
+,{"stream_name":"stdout","time":394.423368818,"data":"        trokin/\n"}
+,{"stream_name":"stdout","time":394.423520601,"data":"          XC1021970.ogg\n"}
+,{"stream_name":"stdout","time":394.423579531,"data":"          XC1028834.ogg\n"}
+,{"stream_name":"stdout","time":394.42358648,"data":"          XC1031812.ogg\n"}
+,{"stream_name":"stdout","time":394.423591042,"data":"          XC1035215.ogg\n"}
+,{"stream_name":"stdout","time":394.423595131,"data":"          XC1035572.ogg\n"}
+,{"stream_name":"stdout","time":394.423599248,"data":"          ... (478 more)\n"}
+,{"stream_name":"stdout","time":394.424241725,"data":"        66971/\n"}
+,{"stream_name":"stdout","time":394.424256849,"data":"          iNat1241669.ogg\n"}
+,{"stream_name":"stdout","time":394.424261788,"data":"          iNat1337447.ogg\n"}
+,{"stream_name":"stdout","time":394.424266024,"data":"          iNat163939.ogg\n"}
+,{"stream_name":"stdout","time":394.424269979,"data":"          iNat163948.ogg\n"}
+,{"stream_name":"stdout","time":394.424273963,"data":"          iNat330584.ogg\n"}
+,{"stream_name":"stdout","time":394.424817095,"data":"        67107/\n"}
+,{"stream_name":"stdout","time":394.424848135,"data":"          XC1003088.ogg\n"}
+,{"stream_name":"stdout","time":394.424853968,"data":"          XC1039651.ogg\n"}
+,{"stream_name":"stdout","time":394.424859821,"data":"          XC897239.ogg\n"}
+,{"stream_name":"stdout","time":394.424864513,"data":"          XC952975.ogg\n"}
+,{"stream_name":"stdout","time":394.424868182,"data":"          iNat1200164.ogg\n"}
+,{"stream_name":"stdout","time":394.424871935,"data":"          ... (9 more)\n"}
+,{"stream_name":"stdout","time":394.730930355,"data":"        grekis/\n"}
+,{"stream_name":"stdout","time":394.731045887,"data":"          XC1000546.ogg\n"}
+,{"stream_name":"stdout","time":394.731063416,"data":"          XC1028832.ogg\n"}
+,{"stream_name":"stdout","time":394.731068365,"data":"          XC1031764.ogg\n"}
+,{"stream_name":"stdout","time":394.731072944,"data":"          XC1035148.ogg\n"}
+,{"stream_name":"stdout","time":394.731077199,"data":"          XC1045613.ogg\n"}
+,{"stream_name":"stdout","time":394.731081464,"data":"          ... (477 more)\n"}
+,{"stream_name":"stdout","time":394.783902001,"data":"        giwrai1/\n"}
+,{"stream_name":"stdout","time":394.783932139,"data":"          XC1012422.ogg\n"}
+,{"stream_name":"stdout","time":394.783936321,"data":"          XC1023371.ogg\n"}
+,{"stream_name":"stdout","time":394.783939213,"data":"          XC114217.ogg\n"}
+,{"stream_name":"stdout","time":394.783941868,"data":"          XC115888.ogg\n"}
+,{"stream_name":"stdout","time":394.783944711,"data":"          XC118839.ogg\n"}
+,{"stream_name":"stdout","time":394.783947301,"data":"          ... (106 more)\n"}
+,{"stream_name":"stdout","time":394.838772187,"data":"        tattin1/\n"}
+,{"stream_name":"stdout","time":394.838841281,"data":"          XC1032298.ogg\n"}
+,{"stream_name":"stdout","time":394.838847996,"data":"          XC1037361.ogg\n"}
+,{"stream_name":"stdout","time":394.838853638,"data":"          XC1069067.ogg\n"}
+,{"stream_name":"stdout","time":394.838858279,"data":"          XC118921.ogg\n"}
+,{"stream_name":"stdout","time":394.838882294,"data":"          XC121187.ogg\n"}
+,{"stream_name":"stdout","time":394.838886208,"data":"          ... (133 more)\n"}
+,{"stream_name":"stdout","time":394.871921644,"data":"        ruther1/\n"}
+,{"stream_name":"stdout","time":394.871971803,"data":"          XC1064538.ogg\n"}
+,{"stream_name":"stdout","time":394.871978058,"data":"          XC1064547.ogg\n"}
+,{"stream_name":"stdout","time":394.871982277,"data":"          XC1064549.ogg\n"}
+,{"stream_name":"stdout","time":394.871986378,"data":"          XC116097.ogg\n"}
+,{"stream_name":"stdout","time":394.871991121,"data":"          XC117947.ogg\n"}
+,{"stream_name":"stdout","time":394.871996138,"data":"          ... (81 more)\n"}
+,{"stream_name":"stdout","time":394.920466132,"data":"        chacha1/\n"}
+,{"stream_name":"stdout","time":394.920512164,"data":"          XC115879.ogg\n"}
+,{"stream_name":"stdout","time":394.920516802,"data":"          XC123600.ogg\n"}
+,{"stream_name":"stdout","time":394.920519665,"data":"          XC123603.ogg\n"}
+,{"stream_name":"stdout","time":394.920522332,"data":"          XC123628.ogg\n"}
+,{"stream_name":"stdout","time":394.920525031,"data":"          XC123676.ogg\n"}
+,{"stream_name":"stdout","time":394.920527651,"data":"          ... (94 more)\n"}
+,{"stream_name":"stdout","time":394.921196058,"data":"        64898/\n"}
+,{"stream_name":"stdout","time":394.921221069,"data":"          XC1065545.ogg\n"}
+,{"stream_name":"stdout","time":394.921226289,"data":"          iNat16952.ogg\n"}
+,{"stream_name":"stdout","time":394.921230601,"data":"          iNat897991.ogg\n"}
+,{"stream_name":"stdout","time":395.149815377,"data":"        gycwor1/\n"}
+,{"stream_name":"stdout","time":395.149855434,"data":"          XC100.ogg\n"}
+,{"stream_name":"stdout","time":395.149862209,"data":"          XC1005731.ogg\n"}
+,{"stream_name":"stdout","time":395.149876776,"data":"          XC1005824.ogg\n"}
+,{"stream_name":"stdout","time":395.149881845,"data":"          XC1012395.ogg\n"}
+,{"stream_name":"stdout","time":395.149885937,"data":"          XC1017627.ogg\n"}
+,{"stream_name":"stdout","time":395.14988994,"data":"          ... (431 more)\n"}
+,{"stream_name":"stdout","time":395.201397966,"data":"        bkhpar/\n"}
+,{"stream_name":"stdout","time":395.201485645,"data":"          XC1016212.ogg\n"}
+,{"stream_name":"stdout","time":395.201495158,"data":"          XC1045522.ogg\n"}
+,{"stream_name":"stdout","time":395.201503893,"data":"          XC1045523.ogg\n"}
+,{"stream_name":"stdout","time":395.201508191,"data":"          XC1045524.ogg\n"}
+,{"stream_name":"stdout","time":395.20151315,"data":"          XC145413.ogg\n"}
+,{"stream_name":"stdout","time":395.201517653,"data":"          ... (104 more)\n"}
+,{"stream_name":"stdout","time":395.251778248,"data":"        lesela1/\n"}
+,{"stream_name":"stdout","time":395.251843432,"data":"          XC1015981.ogg\n"}
+,{"stream_name":"stdout","time":395.251851311,"data":"          XC1015983.ogg\n"}
+,{"stream_name":"stdout","time":395.251855945,"data":"          XC1017586.ogg\n"}
+,{"stream_name":"stdout","time":395.251860214,"data":"          XC1017681.ogg\n"}
+,{"stream_name":"stdout","time":395.251864997,"data":"          XC1031470.ogg\n"}
+,{"stream_name":"stdout","time":395.251868646,"data":"          ... (116 more)\n"}
+,{"stream_name":"stdout","time":395.308987799,"data":"        grhtan1/\n"}
+,{"stream_name":"stdout","time":395.309030791,"data":"          XC1007455.ogg\n"}
+,{"stream_name":"stdout","time":395.309036473,"data":"          XC1019668.ogg\n"}
+,{"stream_name":"stdout","time":395.309040338,"data":"          XC1045586.ogg\n"}
+,{"stream_name":"stdout","time":395.309058727,"data":"          XC1051822.ogg\n"}
+,{"stream_name":"stdout","time":395.30906331,"data":"          XC113037.ogg\n"}
+,{"stream_name":"stdout","time":395.309067114,"data":"          ... (89 more)\n"}
+,{"stream_name":"stdout","time":395.406726492,"data":"        shcfly1/\n"}
+,{"stream_name":"stdout","time":395.406764184,"data":"          XC1017192.ogg\n"}
+,{"stream_name":"stdout","time":395.40677023,"data":"          XC1017623.ogg\n"}
+,{"stream_name":"stdout","time":395.406774564,"data":"          XC1035147.ogg\n"}
+,{"stream_name":"stdout","time":395.406782583,"data":"          XC1035921.ogg\n"}
+,{"stream_name":"stdout","time":395.406786286,"data":"          XC1045337.ogg\n"}
+,{"stream_name":"stdout","time":395.406789112,"data":"          ... (218 more)\n"}
+,{"stream_name":"stdout","time":395.754166969,"data":"        sofspi1/\n"}
+,{"stream_name":"stdout","time":395.754219939,"data":"          XC1003075.ogg\n"}
+,{"stream_name":"stdout","time":395.754227485,"data":"          XC1003077.ogg\n"}
+,{"stream_name":"stdout","time":395.754232247,"data":"          XC1017669.ogg\n"}
+,{"stream_name":"stdout","time":395.754236212,"data":"          XC1018927.ogg\n"}
+,{"stream_name":"stdout","time":395.754241018,"data":"          XC1019082.ogg\n"}
+,{"stream_name":"stdout","time":395.754245486,"data":"          ... (432 more)\n"}
+,{"stream_name":"stdout","time":395.9306889,"data":"        crbthr1/\n"}
+,{"stream_name":"stdout","time":395.9307364,"data":"          XC1006083.ogg\n"}
+,{"stream_name":"stdout","time":395.930741534,"data":"          XC1030209.ogg\n"}
+,{"stream_name":"stdout","time":395.930744342,"data":"          XC1035086.ogg\n"}
+,{"stream_name":"stdout","time":395.930746964,"data":"          XC1053491.ogg\n"}
+,{"stream_name":"stdout","time":395.930749606,"data":"          XC1053493.ogg\n"}
+,{"stream_name":"stdout","time":395.930752233,"data":"          ... (264 more)\n"}
+,{"stream_name":"stdout","time":396.195083175,"data":"        rumfly1/\n"}
+,{"stream_name":"stdout","time":396.195143818,"data":"          XC1001088.ogg\n"}
+,{"stream_name":"stdout","time":396.195152204,"data":"          XC1031658.ogg\n"}
+,{"stream_name":"stdout","time":396.195157309,"data":"          XC1035624.ogg\n"}
+,{"stream_name":"stdout","time":396.195161627,"data":"          XC1035625.ogg\n"}
+,{"stream_name":"stdout","time":396.195166356,"data":"          XC1035660.ogg\n"}
+,{"stream_name":"stdout","time":396.195170806,"data":"          ... (242 more)\n"}
+,{"stream_name":"stdout","time":396.26733039,"data":"        strher2/\n"}
+,{"stream_name":"stdout","time":396.26737089,"data":"          XC1000521.ogg\n"}
+,{"stream_name":"stdout","time":396.267402566,"data":"          XC1002436.ogg\n"}
+,{"stream_name":"stdout","time":396.267435288,"data":"          XC1002992.ogg\n"}
+,{"stream_name":"stdout","time":396.267441625,"data":"          XC1003696.ogg\n"}
+,{"stream_name":"stdout","time":396.267446038,"data":"          XC1003866.ogg\n"}
+,{"stream_name":"stdout","time":396.267450328,"data":"          ... (159 more)\n"}
+,{"stream_name":"stdout","time":396.273193849,"data":"        22956/\n"}
+,{"stream_name":"stdout","time":396.273262727,"data":"          XC900618.ogg\n"}
+,{"stream_name":"stdout","time":396.273269015,"data":"          iNat1245289.ogg\n"}
+,{"stream_name":"stdout","time":396.273273785,"data":"          iNat1257825.ogg\n"}
+,{"stream_name":"stdout","time":396.273277808,"data":"          iNat1261831.ogg\n"}
+,{"stream_name":"stdout","time":396.273281724,"data":"          iNat1282546.ogg\n"}
+,{"stream_name":"stdout","time":396.273306499,"data":"          ... (27 more)\n"}
+,{"stream_name":"stdout","time":396.32689038,"data":"        whnjay1/\n"}
+,{"stream_name":"stdout","time":396.326938859,"data":"          XC1018569.ogg\n"}
+,{"stream_name":"stdout","time":396.326944957,"data":"          XC113192.ogg\n"}
+,{"stream_name":"stdout","time":396.326949344,"data":"          XC114952.ogg\n"}
+,{"stream_name":"stdout","time":396.326953335,"data":"          XC11587.ogg\n"}
+,{"stream_name":"stdout","time":396.326957976,"data":"          XC119091.ogg\n"}
+,{"stream_name":"stdout","time":396.326962473,"data":"          ... (100 more)\n"}
+,{"stream_name":"stdout","time":396.41371315,"data":"        scadov1/\n"}
+,{"stream_name":"stdout","time":396.413763425,"data":"          XC1000544.ogg\n"}
+,{"stream_name":"stdout","time":396.413787303,"data":"          XC1007454.ogg\n"}
+,{"stream_name":"stdout","time":396.413791462,"data":"          XC1018907.ogg\n"}
+,{"stream_name":"stdout","time":396.413795967,"data":"          XC1030195.ogg\n"}
+,{"stream_name":"stdout","time":396.413800423,"data":"          XC1035368.ogg\n"}
+,{"stream_name":"stdout","time":396.413805192,"data":"          ... (159 more)\n"}
+,{"stream_name":"stdout","time":396.524829687,"data":"        greela/\n"}
+,{"stream_name":"stdout","time":396.524870448,"data":"          XC1013697.ogg\n"}
+,{"stream_name":"stdout","time":396.52487507,"data":"          XC1050395.ogg\n"}
+,{"stream_name":"stdout","time":396.524878012,"data":"          XC1059175.ogg\n"}
+,{"stream_name":"stdout","time":396.524880805,"data":"          XC115308.ogg\n"}
+,{"stream_name":"stdout","time":396.524883551,"data":"          XC115309.ogg\n"}
+,{"stream_name":"stdout","time":396.524886354,"data":"          ... (219 more)\n"}
+,{"stream_name":"stdout","time":396.624193629,"data":"        plcjay1/\n"}
+,{"stream_name":"stdout","time":396.624257679,"data":"          XC1009591.ogg\n"}
+,{"stream_name":"stdout","time":396.624264328,"data":"          XC1010409.ogg\n"}
+,{"stream_name":"stdout","time":396.624268932,"data":"          XC1018384.ogg\n"}
+,{"stream_name":"stdout","time":396.62427337,"data":"          XC122405.ogg\n"}
+,{"stream_name":"stdout","time":396.624277649,"data":"          XC133623.ogg\n"}
+,{"stream_name":"stdout","time":396.62428223,"data":"          ... (181 more)\n"}
+,{"stream_name":"stdout","time":396.644826975,"data":"        whlspi1/\n"}
+,{"stream_name":"stdout","time":396.644877314,"data":"          XC116275.ogg\n"}
+,{"stream_name":"stdout","time":396.644883184,"data":"          XC118886.ogg\n"}
+,{"stream_name":"stdout","time":396.644886096,"data":"          XC123684.ogg\n"}
+,{"stream_name":"stdout","time":396.644888737,"data":"          XC128569.ogg\n"}
+,{"stream_name":"stdout","time":396.644891325,"data":"          XC128626.ogg\n"}
+,{"stream_name":"stdout","time":396.644893893,"data":"          ... (54 more)\n"}
+,{"stream_name":"stdout","time":396.745538878,"data":"        orwpar/\n"}
+,{"stream_name":"stdout","time":396.745583566,"data":"          XC1003079.ogg\n"}
+,{"stream_name":"stdout","time":396.745589635,"data":"          XC1019628.ogg\n"}
+,{"stream_name":"stdout","time":396.745594064,"data":"          XC1032337.ogg\n"}
+,{"stream_name":"stdout","time":396.745598281,"data":"          XC1034669.ogg\n"}
+,{"stream_name":"stdout","time":396.745602328,"data":"          XC1035447.ogg\n"}
+,{"stream_name":"stdout","time":396.745606288,"data":"          ... (190 more)\n"}
+,{"stream_name":"stdout","time":396.78431757,"data":"        mabpar/\n"}
+,{"stream_name":"stdout","time":396.784371454,"data":"          XC1050305.ogg\n"}
+,{"stream_name":"stdout","time":396.784375641,"data":"          XC1053014.ogg\n"}
+,{"stream_name":"stdout","time":396.784379557,"data":"          XC1059982.ogg\n"}
+,{"stream_name":"stdout","time":396.78440147,"data":"          XC114470.ogg\n"}
+,{"stream_name":"stdout","time":396.784406397,"data":"          XC118587.ogg\n"}
+,{"stream_name":"stdout","time":396.784411237,"data":"          ... (100 more)\n"}
+,{"stream_name":"stdout","time":397.132835346,"data":"        coffal1/\n"}
+,{"stream_name":"stdout","time":397.13289769,"data":"          XC1000366.ogg\n"}
+,{"stream_name":"stdout","time":397.132904778,"data":"          XC1011212.ogg\n"}
+,{"stream_name":"stdout","time":397.132910241,"data":"          XC1012428.ogg\n"}
+,{"stream_name":"stdout","time":397.132915529,"data":"          XC1016511.ogg\n"}
+,{"stream_name":"stdout","time":397.132919762,"data":"          XC1032406.ogg\n"}
+,{"stream_name":"stdout","time":397.132926482,"data":"          ... (490 more)\n"}
+,{"stream_name":"stdout","time":397.237783167,"data":"        fusfly1/\n"}
+,{"stream_name":"stdout","time":397.237843416,"data":"          XC1003098.ogg\n"}
+,{"stream_name":"stdout","time":397.237851206,"data":"          XC1004133.ogg\n"}
+,{"stream_name":"stdout","time":397.237856229,"data":"          XC1004135.ogg\n"}
+,{"stream_name":"stdout","time":397.237861092,"data":"          XC1006647.ogg\n"}
+,{"stream_name":"stdout","time":397.237865894,"data":"          XC1006648.ogg\n"}
+,{"stream_name":"stdout","time":397.237870506,"data":"          ... (243 more)\n"}
+,{"stream_name":"stdout","time":397.238510764,"data":"        22983/\n"}
+,{"stream_name":"stdout","time":397.238544988,"data":"          iNat1212830.ogg\n"}
+,{"stream_name":"stdout","time":397.238554957,"data":"          iNat1243038.ogg\n"}
+,{"stream_name":"stdout","time":397.238558705,"data":"          iNat1243068.ogg\n"}
+,{"stream_name":"stdout","time":397.238561339,"data":"          iNat193774.ogg\n"}
+,{"stream_name":"stdout","time":397.238563921,"data":"          iNat347848.ogg\n"}
+,{"stream_name":"stdout","time":397.23856652,"data":"          ... (5 more)\n"}
+,{"stream_name":"stdout","time":397.514873293,"data":"        socfly1/\n"}
+,{"stream_name":"stdout","time":397.514971611,"data":"          XC1004111.ogg\n"}
+,{"stream_name":"stdout","time":397.514991272,"data":"          XC1008903.ogg\n"}
+,{"stream_name":"stdout","time":397.514996754,"data":"          XC1016008.ogg\n"}
+,{"stream_name":"stdout","time":397.515003931,"data":"          XC1016009.ogg\n"}
+,{"stream_name":"stdout","time":397.515061705,"data":"          XC1035571.ogg\n"}
+,{"stream_name":"stdout","time":397.515070597,"data":"          ... (489 more)\n"}
+,{"stream_name":"stdout","time":397.779597309,"data":"        compau/\n"}
+,{"stream_name":"stdout","time":397.779667266,"data":"          XC1006052.ogg\n"}
+,{"stream_name":"stdout","time":397.779678967,"data":"          XC1006053.ogg\n"}
+,{"stream_name":"stdout","time":397.779683501,"data":"          XC1009656.ogg\n"}
+,{"stream_name":"stdout","time":397.779687187,"data":"          XC1032426.ogg\n"}
+,{"stream_name":"stdout","time":397.77969113,"data":"          XC1032427.ogg\n"}
+,{"stream_name":"stdout","time":397.779695204,"data":"          ... (488 more)\n"}
+,{"stream_name":"stdout","time":397.892136558,"data":"        redjun/\n"}
+,{"stream_name":"stdout","time":397.892182927,"data":"          XC1048461.ogg\n"}
+,{"stream_name":"stdout","time":397.8921913,"data":"          XC1048462.ogg\n"}
+,{"stream_name":"stdout","time":397.892206795,"data":"          XC1063875.ogg\n"}
+,{"stream_name":"stdout","time":397.892209548,"data":"          XC1065950.ogg\n"}
+,{"stream_name":"stdout","time":397.892212128,"data":"          XC1067263.ogg\n"}
+,{"stream_name":"stdout","time":397.892214862,"data":"          ... (203 more)\n"}
+,{"stream_name":"stdout","time":397.892660158,"data":"        22967/\n"}
+,{"stream_name":"stdout","time":397.892701404,"data":"          iNat1448422.ogg\n"}
+,{"stream_name":"stdout","time":397.892707388,"data":"          iNat1697350.ogg\n"}
+,{"stream_name":"stdout","time":397.892711511,"data":"          iNat1698104.ogg\n"}
+,{"stream_name":"stdout","time":397.892715961,"data":"          iNat1698105.ogg\n"}
+,{"stream_name":"stdout","time":397.892720286,"data":"          iNat1698107.ogg\n"}
+,{"stream_name":"stdout","time":397.892724408,"data":"          ... (3 more)\n"}
+,{"stream_name":"stdout","time":397.893251476,"data":"        555146/\n"}
+,{"stream_name":"stdout","time":397.893290528,"data":"          XC1062610.ogg\n"}
+,{"stream_name":"stdout","time":397.893294134,"data":"          XC949664.ogg\n"}
+,{"stream_name":"stdout","time":397.893297216,"data":"          XC950136.ogg\n"}
+,{"stream_name":"stdout","time":397.893299873,"data":"          iNat1263318.ogg\n"}
+,{"stream_name":"stdout","time":397.893302482,"data":"          iNat1263319.ogg\n"}
+,{"stream_name":"stdout","time":397.893305428,"data":"          ... (13 more)\n"}
+,{"stream_name":"stdout","time":398.062721995,"data":"        masgna1/\n"}
+,{"stream_name":"stdout","time":398.062769855,"data":"          XC1019625.ogg\n"}
+,{"stream_name":"stdout","time":398.06277554,"data":"          XC1019643.ogg\n"}
+,{"stream_name":"stdout","time":398.062779668,"data":"          XC1042946.ogg\n"}
+,{"stream_name":"stdout","time":398.062783803,"data":"          XC1042947.ogg\n"}
+,{"stream_name":"stdout","time":398.062787818,"data":"          XC1049878.ogg\n"}
+,{"stream_name":"stdout","time":398.062793986,"data":"          ... (258 more)\n"}
+,{"stream_name":"stdout","time":398.18921873,"data":"        spispi1/\n"}
+,{"stream_name":"stdout","time":398.189262884,"data":"          XC1001226.ogg\n"}
+,{"stream_name":"stdout","time":398.189267005,"data":"          XC1001227.ogg\n"}
+,{"stream_name":"stdout","time":398.189269743,"data":"          XC1018595.ogg\n"}
+,{"stream_name":"stdout","time":398.189272453,"data":"          XC1030277.ogg\n"}
+,{"stream_name":"stdout","time":398.189275246,"data":"          XC1050843.ogg\n"}
+,{"stream_name":"stdout","time":398.189278211,"data":"          ... (234 more)\n"}
+,{"stream_name":"stdout","time":398.504636151,"data":"        fepowl/\n"}
+,{"stream_name":"stdout","time":398.504682456,"data":"          XC1017644.ogg\n"}
+,{"stream_name":"stdout","time":398.504687151,"data":"          XC1034537.ogg\n"}
+,{"stream_name":"stdout","time":398.50468989,"data":"          XC1068707.ogg\n"}
+,{"stream_name":"stdout","time":398.50469241,"data":"          XC11547.ogg\n"}
+,{"stream_name":"stdout","time":398.504694873,"data":"          XC120541.ogg\n"}
+,{"stream_name":"stdout","time":398.504697573,"data":"          ... (492 more)\n"}
+,{"stream_name":"stdout","time":398.50514985,"data":"        25214/\n"}
+,{"stream_name":"stdout","time":398.505168015,"data":"          iNat1242888.ogg\n"}
+,{"stream_name":"stdout","time":398.505193268,"data":"          iNat1242890.ogg\n"}
+,{"stream_name":"stdout","time":398.505198366,"data":"          iNat1253406.ogg\n"}
+,{"stream_name":"stdout","time":398.527225266,"data":"        blchaw1/\n"}
+,{"stream_name":"stdout","time":398.52730794,"data":"          XC1015627.ogg\n"}
+,{"stream_name":"stdout","time":398.527315421,"data":"          XC1015629.ogg\n"}
+,{"stream_name":"stdout","time":398.52731978,"data":"          XC115712.ogg\n"}
+,{"stream_name":"stdout","time":398.527323996,"data":"          XC116247.ogg\n"}
+,{"stream_name":"stdout","time":398.527328883,"data":"          XC119228.ogg\n"}
+,{"stream_name":"stdout","time":398.527333046,"data":"          ... (53 more)\n"}
+,{"stream_name":"stdout","time":398.811554771,"data":"        greyel/\n"}
+,{"stream_name":"stdout","time":398.811630331,"data":"          XC1013228.ogg\n"}
+,{"stream_name":"stdout","time":398.811645742,"data":"          XC1013230.ogg\n"}
+,{"stream_name":"stdout","time":398.811649141,"data":"          XC1013373.ogg\n"}
+,{"stream_name":"stdout","time":398.811651917,"data":"          XC1021049.ogg\n"}
+,{"stream_name":"stdout","time":398.811664555,"data":"          XC1021050.ogg\n"}
+,{"stream_name":"stdout","time":398.81166749,"data":"          ... (470 more)\n"}
+,{"stream_name":"stdout","time":398.886144329,"data":"        phecuc1/\n"}
+,{"stream_name":"stdout","time":398.886185798,"data":"          XC1025539.ogg\n"}
+,{"stream_name":"stdout","time":398.886190082,"data":"          XC1037092.ogg\n"}
+,{"stream_name":"stdout","time":398.886192883,"data":"          XC1037093.ogg\n"}
+,{"stream_name":"stdout","time":398.886195513,"data":"          XC1037094.ogg\n"}
+,{"stream_name":"stdout","time":398.886198183,"data":"          XC1047364.ogg\n"}
+,{"stream_name":"stdout","time":398.886200777,"data":"          ... (144 more)\n"}
+,{"stream_name":"stdout","time":399.017484798,"data":"        chobla1/\n"}
+,{"stream_name":"stdout","time":399.01755595,"data":"          XC1010720.ogg\n"}
+,{"stream_name":"stdout","time":399.017563303,"data":"          XC1018623.ogg\n"}
+,{"stream_name":"stdout","time":399.017568462,"data":"          XC1040160.ogg\n"}
+,{"stream_name":"stdout","time":399.017572567,"data":"          XC1058307.ogg\n"}
+,{"stream_name":"stdout","time":399.017576473,"data":"          XC114260.ogg\n"}
+,{"stream_name":"stdout","time":399.017580454,"data":"          ... (239 more)\n"}
+,{"stream_name":"stdout","time":399.04697414,"data":"        purjay1/\n"}
+,{"stream_name":"stdout","time":399.047025675,"data":"          XC1064097.ogg\n"}
+,{"stream_name":"stdout","time":399.047030761,"data":"          XC114703.ogg\n"}
+,{"stream_name":"stdout","time":399.04703368,"data":"          XC116254.ogg\n"}
+,{"stream_name":"stdout","time":399.047036438,"data":"          XC116255.ogg\n"}
+,{"stream_name":"stdout","time":399.047039268,"data":"          XC123640.ogg\n"}
+,{"stream_name":"stdout","time":399.047041915,"data":"          ... (72 more)\n"}
+,{"stream_name":"stdout","time":399.126414906,"data":"        brcmar1/\n"}
+,{"stream_name":"stdout","time":399.126478062,"data":"          XC1000946.ogg\n"}
+,{"stream_name":"stdout","time":399.12648354,"data":"          XC1001659.ogg\n"}
+,{"stream_name":"stdout","time":399.126486387,"data":"          XC1001662.ogg\n"}
+,{"stream_name":"stdout","time":399.126489124,"data":"          XC114251.ogg\n"}
+,{"stream_name":"stdout","time":399.126491813,"data":"          XC115527.ogg\n"}
+,{"stream_name":"stdout","time":399.126494418,"data":"          ... (118 more)\n"}
+,{"stream_name":"stdout","time":399.149385354,"data":"        ficman1/\n"}
+,{"stream_name":"stdout","time":399.149447067,"data":"          XC1019632.ogg\n"}
+,{"stream_name":"stdout","time":399.149454228,"data":"          XC1019635.ogg\n"}
+,{"stream_name":"stdout","time":399.149477163,"data":"          XC1019637.ogg\n"}
+,{"stream_name":"stdout","time":399.149481408,"data":"          XC1035173.ogg\n"}
+,{"stream_name":"stdout","time":399.149491983,"data":"          XC1035527.ogg\n"}
+,{"stream_name":"stdout","time":399.149495138,"data":"          ... (61 more)\n"}
+,{"stream_name":"stdout","time":399.149941013,"data":"        760266/\n"}
+,{"stream_name":"stdout","time":399.149962561,"data":"          iNat1101522.ogg\n"}
+,{"stream_name":"stdout","time":399.149967831,"data":"          iNat175194.ogg\n"}
+,{"stream_name":"stdout","time":399.149972343,"data":"          iNat379362.ogg\n"}
+,{"stream_name":"stdout","time":399.149976903,"data":"          iNat382322.ogg\n"}
+,{"stream_name":"stdout","time":399.149980956,"data":"          iNat451611.ogg\n"}
+,{"stream_name":"stdout","time":399.149984866,"data":"          ... (2 more)\n"}
+,{"stream_name":"stdout","time":399.205355484,"data":"        litnig1/\n"}
+,{"stream_name":"stdout","time":399.20541718,"data":"          XC1006072.ogg\n"}
+,{"stream_name":"stdout","time":399.205423862,"data":"          XC1027560.ogg\n"}
+,{"stream_name":"stdout","time":399.205452296,"data":"          XC1027561.ogg\n"}
+,{"stream_name":"stdout","time":399.205457019,"data":"          XC1034701.ogg\n"}
+,{"stream_name":"stdout","time":399.205461228,"data":"          XC1047951.ogg\n"}
+,{"stream_name":"stdout","time":399.205465459,"data":"          ... (104 more)\n"}
+,{"stream_name":"stdout","time":399.25077505,"data":"        ashgre1/\n"}
+,{"stream_name":"stdout","time":399.250819885,"data":"          XC115713.ogg\n"}
+,{"stream_name":"stdout","time":399.25083299,"data":"          XC118668.ogg\n"}
+,{"stream_name":"stdout","time":399.250838126,"data":"          XC135192.ogg\n"}
+,{"stream_name":"stdout","time":399.250842776,"data":"          XC142240.ogg\n"}
+,{"stream_name":"stdout","time":399.25084677,"data":"          XC142241.ogg\n"}
+,{"stream_name":"stdout","time":399.250851122,"data":"          ... (101 more)\n"}
+,{"stream_name":"stdout","time":399.521241781,"data":"        greant1/\n"}
+,{"stream_name":"stdout","time":399.521324896,"data":"          XC1009354.ogg\n"}
+,{"stream_name":"stdout","time":399.521334877,"data":"          XC1017648.ogg\n"}
+,{"stream_name":"stdout","time":399.521338982,"data":"          XC1031408.ogg\n"}
+,{"stream_name":"stdout","time":399.52134296,"data":"          XC1035721.ogg\n"}
+,{"stream_name":"stdout","time":399.521347201,"data":"          XC1035724.ogg\n"}
+,{"stream_name":"stdout","time":399.521351342,"data":"          ... (470 more)\n"}
+,{"stream_name":"stdout","time":399.521933067,"data":"        116570/\n"}
+,{"stream_name":"stdout","time":399.52196759,"data":"          iNat1460166.ogg\n"}
+,{"stream_name":"stdout","time":399.522818779,"data":"        23154/\n"}
+,{"stream_name":"stdout","time":399.522846538,"data":"          iNat1301738.ogg\n"}
+,{"stream_name":"stdout","time":399.522854189,"data":"          iNat1475114.ogg\n"}
+,{"stream_name":"stdout","time":399.522860233,"data":"          iNat1553517.ogg\n"}
+,{"stream_name":"stdout","time":399.522866053,"data":"          iNat567443.ogg\n"}
+,{"stream_name":"stdout","time":399.522873239,"data":"          iNat569351.ogg\n"}
+,{"stream_name":"stdout","time":399.628394474,"data":"        undtin1/\n"}
+,{"stream_name":"stdout","time":399.628457892,"data":"          XC1008480.ogg\n"}
+,{"stream_name":"stdout","time":399.628466647,"data":"          XC1011758.ogg\n"}
+,{"stream_name":"stdout","time":399.628471015,"data":"          XC1019620.ogg\n"}
+,{"stream_name":"stdout","time":399.628491133,"data":"          XC1047902.ogg\n"}
+,{"stream_name":"stdout","time":399.62849659,"data":"          XC1047952.ogg\n"}
+,{"stream_name":"stdout","time":399.628500352,"data":"          ... (199 more)\n"}
+,{"stream_name":"stdout","time":399.629007931,"data":"        23176/\n"}
+,{"stream_name":"stdout","time":399.629018443,"data":"          XC929082.ogg\n"}
+,{"stream_name":"stdout","time":399.629021324,"data":"          iNat1099971.ogg\n"}
+,{"stream_name":"stdout","time":399.62902399,"data":"          iNat1293885.ogg\n"}
+,{"stream_name":"stdout","time":399.62904967,"data":"          iNat855633.ogg\n"}
+,{"stream_name":"stdout","time":399.747680814,"data":"        pvttyr1/\n"}
+,{"stream_name":"stdout","time":399.747750108,"data":"          XC1015228.ogg\n"}
+,{"stream_name":"stdout","time":399.747756771,"data":"          XC1019047.ogg\n"}
+,{"stream_name":"stdout","time":399.7477616,"data":"          XC1019085.ogg\n"}
+,{"stream_name":"stdout","time":399.747765683,"data":"          XC1069277.ogg\n"}
+,{"stream_name":"stdout","time":399.74776998,"data":"          XC1069280.ogg\n"}
+,{"stream_name":"stdout","time":399.747774414,"data":"          ... (236 more)\n"}
+,{"stream_name":"stdout","time":399.748334206,"data":"        24287/\n"}
+,{"stream_name":"stdout","time":399.748353707,"data":"          XC928990.ogg\n"}
+,{"stream_name":"stdout","time":399.748360705,"data":"          XC929112.ogg\n"}
+,{"stream_name":"stdout","time":399.748367012,"data":"          XC972398.ogg\n"}
+,{"stream_name":"stdout","time":399.748373196,"data":"          XC972399.ogg\n"}
+,{"stream_name":"stdout","time":399.748379665,"data":"          iNat1044844.ogg\n"}
+,{"stream_name":"stdout","time":399.748385035,"data":"          ... (6 more)\n"}
+,{"stream_name":"stdout","time":399.815779146,"data":"        bucpar/\n"}
+,{"stream_name":"stdout","time":399.815816794,"data":"          XC1007667.ogg\n"}
+,{"stream_name":"stdout","time":399.815823009,"data":"          XC119019.ogg\n"}
+,{"stream_name":"stdout","time":399.815828551,"data":"          XC120045.ogg\n"}
+,{"stream_name":"stdout","time":399.815832885,"data":"          XC127950.ogg\n"}
+,{"stream_name":"stdout","time":399.815838156,"data":"          XC127952.ogg\n"}
+,{"stream_name":"stdout","time":399.815842572,"data":"          ... (119 more)\n"}
+,{"stream_name":"stdout","time":399.816285291,"data":"        209233/\n"}
+,{"stream_name":"stdout","time":399.816304374,"data":"          iNat1545859.ogg\n"}
+,{"stream_name":"stdout","time":399.816309207,"data":"          iNat864998.ogg\n"}
+,{"stream_name":"stdout","time":399.913594591,"data":"        baymac/\n"}
+,{"stream_name":"stdout","time":399.91363062,"data":"          XC1016167.ogg\n"}
+,{"stream_name":"stdout","time":399.913635878,"data":"          XC1028505.ogg\n"}
+,{"stream_name":"stdout","time":399.913640239,"data":"          XC1031768.ogg\n"}
+,{"stream_name":"stdout","time":399.913644202,"data":"          XC1044552.ogg\n"}
+,{"stream_name":"stdout","time":399.913648343,"data":"          XC113.ogg\n"}
+,{"stream_name":"stdout","time":399.913655896,"data":"          ... (162 more)\n"}
+,{"stream_name":"stdout","time":399.995782225,"data":"        bunibi1/\n"}
+,{"stream_name":"stdout","time":399.995838402,"data":"          XC1001664.ogg\n"}
+,{"stream_name":"stdout","time":399.995845091,"data":"          XC1003081.ogg\n"}
+,{"stream_name":"stdout","time":399.995853174,"data":"          XC1003082.ogg\n"}
+,{"stream_name":"stdout","time":399.995862737,"data":"          XC1031753.ogg\n"}
+,{"stream_name":"stdout","time":399.995865505,"data":"          XC1059980.ogg\n"}
+,{"stream_name":"stdout","time":399.995886591,"data":"          ... (169 more)\n"}
+,{"stream_name":"stdout","time":399.996509053,"data":"        sptnig1/\n"}
+,{"stream_name":"stdout","time":399.996533492,"data":"          iNat483063.ogg\n"}
+,{"stream_name":"stdout","time":399.996538412,"data":"          iNat743329.ogg\n"}
+,{"stream_name":"stdout","time":399.996542591,"data":"          iNat790058.ogg\n"}
+,{"stream_name":"stdout","time":400.077048346,"data":"        picpig2/\n"}
+,{"stream_name":"stdout","time":400.077093769,"data":"          XC1019067.ogg\n"}
+,{"stream_name":"stdout","time":400.077098337,"data":"          XC1035789.ogg\n"}
+,{"stream_name":"stdout","time":400.077101783,"data":"          XC1048608.ogg\n"}
+,{"stream_name":"stdout","time":400.077104562,"data":"          XC1053013.ogg\n"}
+,{"stream_name":"stdout","time":400.077107388,"data":"          XC113853.ogg\n"}
+,{"stream_name":"stdout","time":400.077110464,"data":"          ... (157 more)\n"}
+,{"stream_name":"stdout","time":400.15265963,"data":"        schpar1/\n"}
+,{"stream_name":"stdout","time":400.152709767,"data":"          XC1009425.ogg\n"}
+,{"stream_name":"stdout","time":400.152715638,"data":"          XC1017617.ogg\n"}
+,{"stream_name":"stdout","time":400.152740457,"data":"          XC1017641.ogg\n"}
+,{"stream_name":"stdout","time":400.15274436,"data":"          XC1018600.ogg\n"}
+,{"stream_name":"stdout","time":400.152748257,"data":"          XC1027123.ogg\n"}
+,{"stream_name":"stdout","time":400.152756774,"data":"          ... (140 more)\n"}
+,{"stream_name":"stdout","time":400.209111373,"data":"        watjac1/\n"}
+,{"stream_name":"stdout","time":400.209142443,"data":"          XC1009224.ogg\n"}
+,{"stream_name":"stdout","time":400.20914618,"data":"          XC1039955.ogg\n"}
+,{"stream_name":"stdout","time":400.209149056,"data":"          XC1039956.ogg\n"}
+,{"stream_name":"stdout","time":400.209151743,"data":"          XC1064071.ogg\n"}
+,{"stream_name":"stdout","time":400.209154357,"data":"          XC110422.ogg\n"}
+,{"stream_name":"stdout","time":400.209157671,"data":"          ... (129 more)\n"}
+,{"stream_name":"stdout","time":400.295479514,"data":"        whiwoo1/\n"}
+,{"stream_name":"stdout","time":400.295515796,"data":"          XC1035790.ogg\n"}
+,{"stream_name":"stdout","time":400.295520239,"data":"          XC1044396.ogg\n"}
+,{"stream_name":"stdout","time":400.295523035,"data":"          XC114525.ogg\n"}
+,{"stream_name":"stdout","time":400.29552573,"data":"          XC11518.ogg\n"}
+,{"stream_name":"stdout","time":400.29552841,"data":"          XC115522.ogg\n"}
+,{"stream_name":"stdout","time":400.295531347,"data":"          ... (145 more)\n"}
+,{"stream_name":"stdout","time":400.320495013,"data":"        grepot1/\n"}
+,{"stream_name":"stdout","time":400.320541024,"data":"          XC1034571.ogg\n"}
+,{"stream_name":"stdout","time":400.320544829,"data":"          XC1040540.ogg\n"}
+,{"stream_name":"stdout","time":400.320547482,"data":"          XC118336.ogg\n"}
+,{"stream_name":"stdout","time":400.320549984,"data":"          XC119215.ogg\n"}
+,{"stream_name":"stdout","time":400.32055247,"data":"          XC128801.ogg\n"}
+,{"stream_name":"stdout","time":400.320555211,"data":"          ... (67 more)\n"}
+,{"stream_name":"stdout","time":400.320999182,"data":"        nacnig1/\n"}
+,{"stream_name":"stdout","time":400.321020515,"data":"          XC1039705.ogg\n"}
+,{"stream_name":"stdout","time":400.321025173,"data":"          XC311831.ogg\n"}
+,{"stream_name":"stdout","time":400.32102918,"data":"          XC389490.ogg\n"}
+,{"stream_name":"stdout","time":400.321055767,"data":"          XC413523.ogg\n"}
+,{"stream_name":"stdout","time":400.321060277,"data":"          XC422598.ogg\n"}
+,{"stream_name":"stdout","time":400.321064473,"data":"          ... (13 more)\n"}
+,{"stream_name":"stdout","time":400.431120445,"data":"        whbwar2/\n"}
+,{"stream_name":"stdout","time":400.431181491,"data":"          XC1013665.ogg\n"}
+,{"stream_name":"stdout","time":400.431188349,"data":"          XC1045619.ogg\n"}
+,{"stream_name":"stdout","time":400.431192586,"data":"          XC114218.ogg\n"}
+,{"stream_name":"stdout","time":400.431196542,"data":"          XC119351.ogg\n"}
+,{"stream_name":"stdout","time":400.431200538,"data":"          XC135105.ogg\n"}
+,{"stream_name":"stdout","time":400.431205092,"data":"          ... (238 more)\n"}
+,{"stream_name":"stdout","time":400.518200443,"data":"        bkcdon/\n"}
+,{"stream_name":"stdout","time":400.518246125,"data":"          XC1013641.ogg\n"}
+,{"stream_name":"stdout","time":400.518251643,"data":"          XC1018571.ogg\n"}
+,{"stream_name":"stdout","time":400.518255869,"data":"          XC1031465.ogg\n"}
+,{"stream_name":"stdout","time":400.518259926,"data":"          XC1045156.ogg\n"}
+,{"stream_name":"stdout","time":400.518264203,"data":"          XC1064090.ogg\n"}
+,{"stream_name":"stdout","time":400.518269177,"data":"          ... (184 more)\n"}
+,{"stream_name":"stdout","time":400.56885424,"data":"        plasla1/\n"}
+,{"stream_name":"stdout","time":400.568900301,"data":"          XC1006628.ogg\n"}
+,{"stream_name":"stdout","time":400.568907191,"data":"          XC1006630.ogg\n"}
+,{"stream_name":"stdout","time":400.568911492,"data":"          XC1017288.ogg\n"}
+,{"stream_name":"stdout","time":400.568915697,"data":"          XC114967.ogg\n"}
+,{"stream_name":"stdout","time":400.568920722,"data":"          XC114968.ogg\n"}
+,{"stream_name":"stdout","time":400.568925037,"data":"          ... (115 more)\n"}
+,{"stream_name":"stdout","time":400.62579542,"data":"        relser1/\n"}
+,{"stream_name":"stdout","time":400.625840857,"data":"          XC1003080.ogg\n"}
+,{"stream_name":"stdout","time":400.625847161,"data":"          XC1029941.ogg\n"}
+,{"stream_name":"stdout","time":400.625851509,"data":"          XC1044377.ogg\n"}
+,{"stream_name":"stdout","time":400.625855722,"data":"          XC1054219.ogg\n"}
+,{"stream_name":"stdout","time":400.625860606,"data":"          XC1064768.ogg\n"}
+,{"stream_name":"stdout","time":400.625865181,"data":"          ... (130 more)\n"}
+,{"stream_name":"stdout","time":400.851843393,"data":"        sobtyr1/\n"}
+,{"stream_name":"stdout","time":400.85191603,"data":"          XC1002597.ogg\n"}
+,{"stream_name":"stdout","time":400.851923454,"data":"          XC1006623.ogg\n"}
+,{"stream_name":"stdout","time":400.851928179,"data":"          XC1006654.ogg\n"}
+,{"stream_name":"stdout","time":400.851932329,"data":"          XC1011391.ogg\n"}
+,{"stream_name":"stdout","time":400.851936745,"data":"          XC1017621.ogg\n"}
+,{"stream_name":"stdout","time":400.851940884,"data":"          ... (485 more)\n"}
+,{"stream_name":"stdout","time":400.884835119,"data":"        fotfly/\n"}
+,{"stream_name":"stdout","time":400.884877251,"data":"          XC1015982.ogg\n"}
+,{"stream_name":"stdout","time":400.88488743,"data":"          XC1059176.ogg\n"}
+,{"stream_name":"stdout","time":400.884890499,"data":"          XC115604.ogg\n"}
+,{"stream_name":"stdout","time":400.884893104,"data":"          XC119336.ogg\n"}
+,{"stream_name":"stdout","time":400.884895626,"data":"          XC146795.ogg\n"}
+,{"stream_name":"stdout","time":400.884912147,"data":"          ... (78 more)\n"}
+,{"stream_name":"stdout","time":401.118917662,"data":"        whtdov/\n"}
+,{"stream_name":"stdout","time":401.118961563,"data":"          XC1009285.ogg\n"}
+,{"stream_name":"stdout","time":401.118965788,"data":"          XC1009380.ogg\n"}
+,{"stream_name":"stdout","time":401.11896867,"data":"          XC1009382.ogg\n"}
+,{"stream_name":"stdout","time":401.118971971,"data":"          XC1009805.ogg\n"}
+,{"stream_name":"stdout","time":401.118974723,"data":"          XC1016441.ogg\n"}
+,{"stream_name":"stdout","time":401.118977478,"data":"          ... (486 more)\n"}
+,{"stream_name":"stdout","time":401.289073684,"data":"        rufhor2/\n"}
+,{"stream_name":"stdout","time":401.289126501,"data":"          XC1009595.ogg\n"}
+,{"stream_name":"stdout","time":401.289132634,"data":"          XC1035764.ogg\n"}
+,{"stream_name":"stdout","time":401.289136844,"data":"          XC1053496.ogg\n"}
+,{"stream_name":"stdout","time":401.289144653,"data":"          XC114244.ogg\n"}
+,{"stream_name":"stdout","time":401.289148085,"data":"          XC119105.ogg\n"}
+,{"stream_name":"stdout","time":401.289163396,"data":"          ... (310 more)\n"}
+,{"stream_name":"stdout","time":401.335261489,"data":"        litcuc2/\n"}
+,{"stream_name":"stdout","time":401.335324433,"data":"          XC1002762.ogg\n"}
+,{"stream_name":"stdout","time":401.335331534,"data":"          XC1002796.ogg\n"}
+,{"stream_name":"stdout","time":401.335336194,"data":"          XC1006261.ogg\n"}
+,{"stream_name":"stdout","time":401.335340447,"data":"          XC1006263.ogg\n"}
+,{"stream_name":"stdout","time":401.335345298,"data":"          XC1006266.ogg\n"}
+,{"stream_name":"stdout","time":401.335349288,"data":"          ... (99 more)\n"}
+,{"stream_name":"stdout","time":401.338425733,"data":"        65380/\n"}
+,{"stream_name":"stdout","time":401.338476523,"data":"          XC1066017.ogg\n"}
+,{"stream_name":"stdout","time":401.338482387,"data":"          XC999238.ogg\n"}
+,{"stream_name":"stdout","time":401.338486595,"data":"          iNat1181991.ogg\n"}
+,{"stream_name":"stdout","time":401.338493712,"data":"          iNat1261184.ogg\n"}
+,{"stream_name":"stdout","time":401.338496421,"data":"          iNat1291365.ogg\n"}
+,{"stream_name":"stdout","time":401.338499382,"data":"          ... (18 more)\n"}
+,{"stream_name":"stdout","time":401.338882088,"data":"        70711/\n"}
+,{"stream_name":"stdout","time":401.338900346,"data":"          iNat1301472.ogg\n"}
+,{"stream_name":"stdout","time":401.338905214,"data":"          iNat261953.ogg\n"}
+,{"stream_name":"stdout","time":401.437546981,"data":"        flawar1/\n"}
+,{"stream_name":"stdout","time":401.437618018,"data":"          XC1003076.ogg\n"}
+,{"stream_name":"stdout","time":401.437625569,"data":"          XC1006629.ogg\n"}
+,{"stream_name":"stdout","time":401.437630627,"data":"          XC1008344.ogg\n"}
+,{"stream_name":"stdout","time":401.437635327,"data":"          XC1011387.ogg\n"}
+,{"stream_name":"stdout","time":401.437640098,"data":"          XC1026239.ogg\n"}
+,{"stream_name":"stdout","time":401.437643977,"data":"          ... (199 more)\n"}
+,{"stream_name":"stdout","time":401.466779869,"data":"        orbtro3/\n"}
+,{"stream_name":"stdout","time":401.466834723,"data":"          XC1033683.ogg\n"}
+,{"stream_name":"stdout","time":401.466839778,"data":"          XC1033691.ogg\n"}
+,{"stream_name":"stdout","time":401.466842816,"data":"          XC110425.ogg\n"}
+,{"stream_name":"stdout","time":401.466845502,"data":"          XC114112.ogg\n"}
+,{"stream_name":"stdout","time":401.466862011,"data":"          XC122706.ogg\n"}
+,{"stream_name":"stdout","time":401.466864899,"data":"          ... (76 more)\n"}
+,{"stream_name":"stdout","time":401.486132897,"data":"        rufcas2/\n"}
+,{"stream_name":"stdout","time":401.486183403,"data":"          XC1008351.ogg\n"}
+,{"stream_name":"stdout","time":401.486187888,"data":"          XC1017286.ogg\n"}
+,{"stream_name":"stdout","time":401.486191411,"data":"          XC1017287.ogg\n"}
+,{"stream_name":"stdout","time":401.486214063,"data":"          XC1024903.ogg\n"}
+,{"stream_name":"stdout","time":401.486220222,"data":"          XC1037409.ogg\n"}
+,{"stream_name":"stdout","time":401.486224911,"data":"          ... (53 more)\n"}
+,{"stream_name":"stdout","time":401.702696191,"data":"        oliwoo1/\n"}
+,{"stream_name":"stdout","time":401.70279739,"data":"          XC1003402.ogg\n"}
+,{"stream_name":"stdout","time":401.702817278,"data":"          XC1009659.ogg\n"}
+,{"stream_name":"stdout","time":401.702830282,"data":"          XC1025390.ogg\n"}
+,{"stream_name":"stdout","time":401.702839034,"data":"          XC1031800.ogg\n"}
+,{"stream_name":"stdout","time":401.702842263,"data":"          XC1045618.ogg\n"}
+,{"stream_name":"stdout","time":401.702844998,"data":"          ... (419 more)\n"}
+,{"stream_name":"stdout","time":401.951478566,"data":"        banana/\n"}
+,{"stream_name":"stdout","time":401.951626154,"data":"          XC1016729.ogg\n"}
+,{"stream_name":"stdout","time":401.951653982,"data":"          XC1017270.ogg\n"}
+,{"stream_name":"stdout","time":401.951658733,"data":"          XC1017290.ogg\n"}
+,{"stream_name":"stdout","time":401.951662704,"data":"          XC1025691.ogg\n"}
+,{"stream_name":"stdout","time":401.951666888,"data":"          XC1028247.ogg\n"}
+,{"stream_name":"stdout","time":401.951671291,"data":"          ... (493 more)\n"}
+,{"stream_name":"stdout","time":401.952661126,"data":"        41970/\n"}
+,{"stream_name":"stdout","time":401.952679975,"data":"          XC1002183.ogg\n"}
+,{"stream_name":"stdout","time":401.952683161,"data":"          XC1010403.ogg\n"}
+,{"stream_name":"stdout","time":401.9526858,"data":"          XC1044064.ogg\n"}
+,{"stream_name":"stdout","time":401.952688357,"data":"          XC564865.ogg\n"}
+,{"stream_name":"stdout","time":401.952690956,"data":"          XC564866.ogg\n"}
+,{"stream_name":"stdout","time":401.952693612,"data":"          ... (16 more)\n"}
+,{"stream_name":"stdout","time":401.953257448,"data":"        1176823/\n"}
+,{"stream_name":"stdout","time":401.953276601,"data":"          iNat1269019.ogg\n"}
+,{"stream_name":"stdout","time":401.953282103,"data":"          iNat145706.ogg\n"}
+,{"stream_name":"stdout","time":401.953286368,"data":"          iNat1641731.ogg\n"}
+,{"stream_name":"stdout","time":401.953291174,"data":"          iNat1708543.ogg\n"}
+,{"stream_name":"stdout","time":401.953295301,"data":"          iNat188986.ogg\n"}
+,{"stream_name":"stdout","time":401.953299095,"data":"          ... (7 more)\n"}
+,{"stream_name":"stdout","time":401.953926208,"data":"        23150/\n"}
+,{"stream_name":"stdout","time":401.953945103,"data":"          iNat1243039.ogg\n"}
+,{"stream_name":"stdout","time":401.983849577,"data":"        whwpic1/\n"}
+,{"stream_name":"stdout","time":401.983903584,"data":"          XC1016165.ogg\n"}
+,{"stream_name":"stdout","time":401.983910023,"data":"          XC1034560.ogg\n"}
+,{"stream_name":"stdout","time":401.983914915,"data":"          XC1034563.ogg\n"}
+,{"stream_name":"stdout","time":401.983920019,"data":"          XC119038.ogg\n"}
+,{"stream_name":"stdout","time":401.983943483,"data":"          XC147582.ogg\n"}
+,{"stream_name":"stdout","time":401.983950017,"data":"          ... (78 more)\n"}
+,{"stream_name":"stdout","time":402.237740095,"data":"        bbwduc/\n"}
+,{"stream_name":"stdout","time":402.237782073,"data":"          XC1018441.ogg\n"}
+,{"stream_name":"stdout","time":402.237790911,"data":"          XC1046915.ogg\n"}
+,{"stream_name":"stdout","time":402.23779531,"data":"          XC118580.ogg\n"}
+,{"stream_name":"stdout","time":402.237799916,"data":"          XC118581.ogg\n"}
+,{"stream_name":"stdout","time":402.23780452,"data":"          XC118582.ogg\n"}
+,{"stream_name":"stdout","time":402.237809127,"data":"          ... (486 more)\n"}
+,{"stream_name":"stdout","time":402.296481184,"data":"        wesfie1/\n"}
+,{"stream_name":"stdout","time":402.296530711,"data":"          XC1002824.ogg\n"}
+,{"stream_name":"stdout","time":402.296535056,"data":"          XC1002826.ogg\n"}
+,{"stream_name":"stdout","time":402.296538456,"data":"          XC1002835.ogg\n"}
+,{"stream_name":"stdout","time":402.296541531,"data":"          XC1002837.ogg\n"}
+,{"stream_name":"stdout","time":402.29654427,"data":"          XC1002841.ogg\n"}
+,{"stream_name":"stdout","time":402.296546933,"data":"          ... (131 more)\n"}
+,{"stream_name":"stdout","time":402.339171972,"data":"        rivwar1/\n"}
+,{"stream_name":"stdout","time":402.339239681,"data":"          XC1004621.ogg\n"}
+,{"stream_name":"stdout","time":402.339247486,"data":"          XC1017164.ogg\n"}
+,{"stream_name":"stdout","time":402.339256591,"data":"          XC1017169.ogg\n"}
+,{"stream_name":"stdout","time":402.339260347,"data":"          XC1017179.ogg\n"}
+,{"stream_name":"stdout","time":402.33926367,"data":"          XC1017190.ogg\n"}
+,{"stream_name":"stdout","time":402.339272425,"data":"          ... (95 more)\n"}
+,{"stream_name":"stdout","time":402.480789126,"data":"        smbani/\n"}
+,{"stream_name":"stdout","time":402.480839414,"data":"          XC1005797.ogg\n"}
+,{"stream_name":"stdout","time":402.480843827,"data":"          XC1017658.ogg\n"}
+,{"stream_name":"stdout","time":402.48084668,"data":"          XC1018436.ogg\n"}
+,{"stream_name":"stdout","time":402.480849372,"data":"          XC1041247.ogg\n"}
+,{"stream_name":"stdout","time":402.480861823,"data":"          XC1070851.ogg\n"}
+,{"stream_name":"stdout","time":402.48086461,"data":"          ... (300 more)\n"}
+,{"stream_name":"stdout","time":402.505905303,"data":"        sabspa1/\n"}
+,{"stream_name":"stdout","time":402.505966376,"data":"          XC1029210.ogg\n"}
+,{"stream_name":"stdout","time":402.505973625,"data":"          XC1067632.ogg\n"}
+,{"stream_name":"stdout","time":402.505978197,"data":"          XC116391.ogg\n"}
+,{"stream_name":"stdout","time":402.505982736,"data":"          XC158739.ogg\n"}
+,{"stream_name":"stdout","time":402.505987607,"data":"          XC165003.ogg\n"}
+,{"stream_name":"stdout","time":402.505991763,"data":"          ... (64 more)\n"}
+,{"stream_name":"stdout","time":402.597351203,"data":"        grfdov1/\n"}
+,{"stream_name":"stdout","time":402.597399525,"data":"          XC1008354.ogg\n"}
+,{"stream_name":"stdout","time":402.597412897,"data":"          XC1030169.ogg\n"}
+,{"stream_name":"stdout","time":402.597455688,"data":"          XC1035255.ogg\n"}
+,{"stream_name":"stdout","time":402.597464566,"data":"          XC1035554.ogg\n"}
+,{"stream_name":"stdout","time":402.597469491,"data":"          XC1035587.ogg\n"}
+,{"stream_name":"stdout","time":402.597474047,"data":"          ... (190 more)\n"}
+,{"stream_name":"stdout","time":402.852192344,"data":"        brnowl/\n"}
+,{"stream_name":"stdout","time":402.85226039,"data":"          XC1018904.ogg\n"}
+,{"stream_name":"stdout","time":402.852266472,"data":"          XC1034696.ogg\n"}
+,{"stream_name":"stdout","time":402.85227447,"data":"          XC1036422.ogg\n"}
+,{"stream_name":"stdout","time":402.85227729,"data":"          XC1036424.ogg\n"}
+,{"stream_name":"stdout","time":402.852280009,"data":"          XC1050947.ogg\n"}
+,{"stream_name":"stdout","time":402.852282614,"data":"          ... (469 more)\n"}
+,{"stream_name":"stdout","time":403.037914124,"data":"        swtman1/\n"}
+,{"stream_name":"stdout","time":403.03796306,"data":"          XC1006025.ogg\n"}
+,{"stream_name":"stdout","time":403.037968651,"data":"          XC1006026.ogg\n"}
+,{"stream_name":"stdout","time":403.037972823,"data":"          XC1010718.ogg\n"}
+,{"stream_name":"stdout","time":403.037980652,"data":"          XC1012413.ogg\n"}
+,{"stream_name":"stdout","time":403.037985086,"data":"          XC1013680.ogg\n"}
+,{"stream_name":"stdout","time":403.037989921,"data":"          ... (350 more)\n"}
+,{"stream_name":"stdout","time":403.182725169,"data":"        pabspi1/\n"}
+,{"stream_name":"stdout","time":403.182760468,"data":"          XC1000948.ogg\n"}
+,{"stream_name":"stdout","time":403.18276498,"data":"          XC1000949.ogg\n"}
+,{"stream_name":"stdout","time":403.182787326,"data":"          XC1018336.ogg\n"}
+,{"stream_name":"stdout","time":403.182792476,"data":"          XC114002.ogg\n"}
+,{"stream_name":"stdout","time":403.18279799,"data":"          XC114236.ogg\n"}
+,{"stream_name":"stdout","time":403.182802829,"data":"          ... (311 more)\n"}
+,{"stream_name":"stdout","time":403.234902844,"data":"        astcra1/\n"}
+,{"stream_name":"stdout","time":403.234936019,"data":"          XC1008040.ogg\n"}
+,{"stream_name":"stdout","time":403.234939911,"data":"          XC1008361.ogg\n"}
+,{"stream_name":"stdout","time":403.234942749,"data":"          XC1018632.ogg\n"}
+,{"stream_name":"stdout","time":403.234945362,"data":"          XC1019019.ogg\n"}
+,{"stream_name":"stdout","time":403.234948126,"data":"          XC1048515.ogg\n"}
+,{"stream_name":"stdout","time":403.234950874,"data":"          ... (123 more)\n"}
+,{"stream_name":"stdout","time":406.429511014,"data":"      train_soundscapes/\n"}
+,{"stream_name":"stdout","time":406.432876855,"data":"        BC2026_Train_0001_S08_20250606_030007.ogg\n"}
+,{"stream_name":"stdout","time":406.432927543,"data":"        BC2026_Train_0002_S08_20250607_030007.ogg\n"}
+,{"stream_name":"stdout","time":406.4329339,"data":"        BC2026_Train_0003_S08_20250607_070007.ogg\n"}
+,{"stream_name":"stdout","time":406.432938835,"data":"        BC2026_Train_0004_S08_20250607_070007.ogg\n"}
+,{"stream_name":"stdout","time":406.432943007,"data":"        BC2026_Train_0005_S08_20250607_070007.ogg\n"}
+,{"stream_name":"stdout","time":406.432947659,"data":"        ... (10653 more)\n"}
+,{"stream_name":"stdout","time":406.433704781,"data":"      test_soundscapes/\n"}
+,{"stream_name":"stdout","time":406.433726422,"data":"        readme.txt\n"}
+,{"stream_name":"stdout","time":406.433845549,"data":"  datasets/\n"}
+,{"stream_name":"stdout","time":406.433861208,"data":"    maxnoellewying/\n"}
+,{"stream_name":"stdout","time":406.435625826,"data":"      lab-agent-src/\n"}
+,{"stream_name":"stdout","time":406.435669442,"data":"        __init__.py\n"}
+,{"stream_name":"stdout","time":406.435675171,"data":"        __main__.py\n"}
+,{"stream_name":"stdout","time":406.43567977,"data":"        cli.py\n"}
+,{"stream_name":"stdout","time":406.435698812,"data":"        config.py\n"}
+,{"stream_name":"stdout","time":406.438918079,"data":"        reporting/\n"}
+,{"stream_name":"stdout","time":406.43894756,"data":"          __init__.py\n"}
+,{"stream_name":"stdout","time":406.438958628,"data":"          figures.py\n"}
+,{"stream_name":"stdout","time":406.438962698,"data":"          generator.py\n"}
+,{"stream_name":"stdout","time":406.441900159,"data":"        prompts/\n"}
+,{"stream_name":"stdout","time":406.441929121,"data":"          __init__.py\n"}
+,{"stream_name":"stdout","time":406.441935385,"data":"          engine.py\n"}
+,{"stream_name":"stdout","time":406.441940241,"data":"          registry.py\n"}
+,{"stream_name":"stdout","time":406.441945318,"data":"          scoring.py\n"}
+,{"stream_name":"stdout","time":406.442452962,"data":"        core/\n"}
+,{"stream_name":"stdout","time":406.442471754,"data":"          __init__.py\n"}
+,{"stream_name":"stdout","time":406.442476486,"data":"          context.py\n"}
+,{"stream_name":"stdout","time":406.442480581,"data":"          executor.py\n"}
+,{"stream_name":"stdout","time":406.442490675,"data":"          kaggle_executor.py\n"}
+,{"stream_name":"stdout","time":406.442493797,"data":"          llm.py\n"}
+,{"stream_name":"stdout","time":406.442496472,"data":"          ... (5 more)\n"}
+,{"stream_name":"stdout","time":406.442878893,"data":"        submission/\n"}
+,{"stream_name":"stdout","time":406.442901429,"data":"          __init__.py\n"}
+,{"stream_name":"stdout","time":406.442906139,"data":"          builder.py\n"}
+,{"stream_name":"stdout","time":406.443547868,"data":"        tasks/\n"}
+,{"stream_name":"stdout","time":406.44356113,"data":"          __init__.py\n"}
+,{"stream_name":"stdout","time":406.443564369,"data":"          base.py\n"}
+,{"stream_name":"stdout","time":406.443566936,"data":"          registry.py\n"}
+,{"stream_name":"stdout","time":406.443569552,"data":"          track_a_disaster_tweets.py\n"}
+,{"stream_name":"stdout","time":406.443572184,"data":"          track_b_birdclef.py\n"}
+,{"stream_name":"stdout","time":406.444022505,"data":"      birdclef-2026-preprocessed/\n"}
+,{"stream_name":"stdout","time":406.44462935,"data":"        processed/\n"}
+,{"stream_name":"stdout","time":406.444645462,"data":"          dataset_profile.json\n"}
+,{"stream_name":"stdout","time":406.44465001,"data":"          labels.csv\n"}
+,{"stream_name":"stdout","time":478.790210468,"data":"[lab bootstrap] expected maxnoellewying/lab-agent-src. If it's in the tree above under a different path, that's a Kaggle layout change and you should file an issue. Otherwise check `kaggle datasets list -m` shows this dataset as `ready` (not `processing`) and retry.\n"}
+,{"stream_name":"stderr","time":484.812513457,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":484.812599122,"data":"  File \"/kaggle/src/script.py\", line 177, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":484.81265917,"data":"    from lab.tasks.track_b_birdclef import load_audio_dataset\n"}
+,{"stream_name":"stderr","time":484.812751838,"data":"ModuleNotFoundError: No module named 'lab'\n"}
+,{"stream_name":"stderr","time":489.28528762,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":489.285347017,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":489.596903786,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":489.596967668,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":490.394678629,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":491.93928007,"data":"[NbConvertApp] Writing 320454 bytes to __results__.html\n"}
+]

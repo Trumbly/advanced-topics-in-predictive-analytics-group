@@ -1,0 +1,49 @@
+[{"stream_name":"stdout","time":2.125813162,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":2.125881296,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-e0rkki1j\n"}
+,{"stream_name":"stdout","time":39.826221456,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stderr","time":50.010088948,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":50.010149187,"data":"    Found GPU0 Tesla P100-PCIE-16GB which is of cuda capability 6.0.\n"}
+,{"stream_name":"stderr","time":50.010157625,"data":"    Minimum and Maximum cuda capability supported by this version of PyTorch is\n"}
+,{"stream_name":"stderr","time":50.010163907,"data":"    (7.0) - (12.0)\n"}
+,{"stream_name":"stderr","time":50.01016957,"data":"    \n"}
+,{"stream_name":"stderr","time":50.010175054,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":50.010179791,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":50.010185224,"data":"    Please install PyTorch with a following CUDA\n"}
+,{"stream_name":"stderr","time":50.010189974,"data":"    configurations:  12.6 following instructions at\n"}
+,{"stream_name":"stderr","time":50.010195193,"data":"    https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":50.01020057,"data":"    \n"}
+,{"stream_name":"stderr","time":50.010205405,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":50.010266669,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":50.010279762,"data":"Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the current PyTorch installation.\n"}
+,{"stream_name":"stderr","time":50.01028548,"data":"The current PyTorch install supports CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.\n"}
+,{"stream_name":"stderr","time":50.010290314,"data":"If you want to use the Tesla P100-PCIE-16GB GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":50.010295462,"data":"\n"}
+,{"stream_name":"stderr","time":50.010299954,"data":"  queued_call()\n"}
+,{"stream_name":"stdout","time":50.012278983,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla P100-PCIE-16GB\n"}
+,{"stream_name":"stdout","time":59.360178288,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":59.584110119,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 78%|███████▊  | 15.9M/20.5M [00:00\u003c00:00, 166MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 175MB/s]\n"}
+,{"stream_name":"stderr","time":60.560977237,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":60.561542032,"data":"  File \"/kaggle/src/script.py\", line 395, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":60.564913971,"data":"    main()\n"}
+,{"stream_name":"stderr","time":60.564932125,"data":"  File \"/kaggle/src/script.py\", line 374, in main\n"}
+,{"stream_name":"stderr","time":60.564939037,"data":"    loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n"}
+,{"stream_name":"stderr","time":60.564945671,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":60.564962653,"data":"  File \"/kaggle/src/script.py\", line 327, in train_one_epoch\n"}
+,{"stream_name":"stderr","time":60.564967457,"data":"    x, y = mixup_data(x, y, alpha=0.4)\n"}
+,{"stream_name":"stderr","time":60.564971525,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":60.564976532,"data":"  File \"/kaggle/src/script.py\", line 315, in mixup_data\n"}
+,{"stream_name":"stderr","time":60.564981101,"data":"    index = torch.randperm(batch_size, device=x.device)\n"}
+,{"stream_name":"stderr","time":60.564985727,"data":"            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":60.564990034,"data":"torch.AcceleratorError: CUDA error: no kernel image is available for execution on the device\n"}
+,{"stream_name":"stderr","time":60.5649947,"data":"Search for `cudaErrorNoKernelImageForDevice' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.\n"}
+,{"stream_name":"stderr","time":60.564999828,"data":"CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\n"}
+,{"stream_name":"stderr","time":60.565004752,"data":"For debugging consider passing CUDA_LAUNCH_BLOCKING=1\n"}
+,{"stream_name":"stderr","time":60.565009461,"data":"Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n"}
+,{"stream_name":"stderr","time":60.565013558,"data":"\n"}
+,{"stream_name":"stderr","time":66.809517652,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":66.809570092,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":67.23163014,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":67.231655788,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":68.007294814,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":69.732953442,"data":"[NbConvertApp] Writing 337963 bytes to __results__.html\n"}
+]

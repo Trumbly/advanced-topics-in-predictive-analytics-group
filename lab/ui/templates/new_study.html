@@ -49,6 +49,10 @@
       kaggle — push each experiment as a kernel
       {% if not kaggle_configured %}(⚠ username not set in config){% endif %}
     </option>
+    <option value="modal" {% if eb == "modal" %}selected{% endif %}>
+      modal — remote container training
+      {% if not modal_configured %}(⚠ configure executor.modal first){% endif %}
+    </option>
   </select>
   <p class="muted small">
     <strong>local</strong> uses the subprocess sandbox on this machine.
@@ -56,6 +60,9 @@
     + <code>~/.kaggle/kaggle.json</code> credentials; set
     <code>executor.kaggle.username</code> in <a href="/config">Config</a>.
     Each experiment becomes a private Kaggle kernel with GPU enabled.
+    <strong>modal</strong> runs experiments on Modal; configure
+    <code>executor.modal</code> (including optional S3 bucket mount) in
+    <a href="/config">Config</a>.
   </p>
 
   <label class="inline-check" style="margin-top: 14px;">

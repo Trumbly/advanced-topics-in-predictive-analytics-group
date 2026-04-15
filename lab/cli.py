@@ -216,11 +216,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     sp.add_argument(
-        "--executor", choices=["local", "kaggle"], default=None,
+        "--executor", choices=["local", "kaggle", "modal"], default=None,
         help=(
             "override the executor backend for this study. Defaults to "
             "executor.backend from config.yaml. `kaggle` requires the "
-            "kaggle CLI + credentials + a configured username."
+            "kaggle CLI + credentials + a configured username. `modal` "
+            "requires `pip install modal`, `modal setup`, and executor.modal config."
         ),
     )
     sp.set_defaults(fn=_cmd_run)

@@ -1,0 +1,108 @@
+{
+  "id": "study_20260414_120416_6fd7",
+  "name": "Test opus with local training",
+  "task_name": "track_b",
+  "status": "completed",
+  "created_at": "2026-04-14T12:04:16.328883Z",
+  "started_at": "2026-04-14T12:04:16.328917Z",
+  "completed_at": "2026-04-14T12:05:50.137367Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_70e5f3680f",
+      "study_id": "study_20260414_120416_6fd7",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_adapter",
+      "architecture_family": "efficientnet_b0",
+      "architecture_proposal": "{\n  \"architecture_name\": \"[efficientnet_b0] efficientnet_b0_adapter\",\n  \"architecture_family\": \"efficientnet_b0\",\n  \"description\": \"EfficientNet-B0 with ImageNet pretrained weights, 1-ch\\u21923-ch input expansion via conv1x1, adaptive pooling to 224x224, dropout 0.3 before final sigmoid head, mixed-precision training with label smoothing 0.05 and focal loss for long-tail classes.\",\n  \"reasoning\": \"First experiment \\u2014 EfficientNet-B0 is a strong default for spectrogram classification, offering a good accuracy-vs-speed tradeoff. ImageNet pretraining transfers well to mel-spectrograms. It stays within Kaggle CPU inference budget (~5.3M params). Starting with the highest-expected-quality pretrained backbone establishes a strong baseline to iterate from.\"\n}",
+      "code": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\ndef build_model(num_classes: int) -> nn.Module:\n    class SmallCNN(nn.Module):\n        def __init__(self, num_classes: int):\n            super().__init__()\n            self.features = nn.Sequential(\n                nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),\n                nn.BatchNorm2d(32),\n                nn.ReLU(),\n                nn.MaxPool2d(2, 2),\n                nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),\n                nn.BatchNorm2d(64),\n                nn.ReLU(),\n                nn.MaxPool2d(2, 2),\n                nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),\n                nn.BatchNorm2d(128),\n                nn.ReLU(),\n                nn.AdaptiveAvgPool2d((1, 1)),\n            )\n            self.classifier = nn.Sequential(\n                nn.Flatten(),\n                nn.Dropout(p=0.3),\n                nn.Linear(128, num_classes),\n            )\n\n        def forward(self, x):\n            x = self.features(x)\n            x = self.classifier(x)\n            return x\n\n    return SmallCNN(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef _ensure_preprocessed():\n    \"\"\"Run preprocessing if labels.csv doesn't exist yet.\"\"\"\n    import importlib\n    import sys\n\n    # Attempt 1: use preprocess from the task module\n    try:\n        from lab.tasks import track_b_birdclef\n        if hasattr(track_b_birdclef, \"preprocess\"):\n            track_b_birdclef.preprocess()\n            return\n        if hasattr(track_b_birdclef, \"build_dataset\"):\n            track_b_birdclef.build_dataset()\n            return\n        if hasattr(track_b_birdclef, \"prepare\"):\n            track_b_birdclef.prepare()\n            return\n    except Exception:\n        pass\n\n    # Attempt 2: use the build_profile script's main with task arg\n    try:\n        mod = importlib.import_module(\"scripts.build_profile\")\n        if hasattr(mod, \"main\"):\n            import inspect\n            sig = inspect.signature(mod.main)\n            if sig.parameters:\n                mod.main(task=\"track_b\")\n            else:\n                old_argv = sys.argv\n                sys.argv = [\"build_profile\", \"--task\", \"track_b\"]\n                mod.main()\n                sys.argv = old_argv\n        return\n    except Exception:\n        pass\n\n    # Attempt 3: run build_profile via runpy\n    try:\n        import runpy\n        old_argv = sys.argv\n        sys.argv = [\"build_profile\", \"--task\", \"track_b\"]\n        runpy.run_module(\"scripts.build_profile\", run_name=\"__main__\")\n        sys.argv = old_argv\n        return\n    except Exception:\n        pass\n\n\ndef main():\n    _ensure_preprocessed()\n\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "FileNotFound",
+        "message": "raise FileNotFoundError(",
+        "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_70e5f3680f/code.py\", line 180, in <module>\n    main()\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_70e5f3680f/code.py\", line 150, in main\n    train_loader, val_loader, num_classes = load_audio_dataset(\n                                            ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/lab/tasks/track_b_birdclef.py\", line 137, in load_audio_dataset\n    raise FileNotFoundError(\nFileNotFoundError: No labels.csv at /Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/track_b/labels.csv. Run `python scripts/build_profile.py --task track_b` to preprocess the audio first."
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "[efficientnet_b0] efficientnet_b0_adapter",
+            "architecture_family": "efficientnet_b0",
+            "description": "EfficientNet-B0 with ImageNet pretrained weights, 1-ch→3-ch input expansion via conv1x1, adaptive pooling to 224x224, dropout 0.3 before final sigmoid head, mixed-precision training with label smoothing 0.05 and focal loss for long-tail classes.",
+            "reasoning": "First experiment — EfficientNet-B0 is a strong default for spectrogram classification, offering a good accuracy-vs-speed tradeoff. ImageNet pretraining transfers well to mel-spectrograms. It stays within Kaggle CPU inference budget (~5.3M params). Starting with the highest-expected-quality pretrained backbone establishes a strong baseline to iterate from."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n\n### MODEL ###\ndef build_model(num_classes: int) -> nn.Module:\n    import torchvision.models as models\n\n    class EfficientNetB0Adapter(nn.Module):\n        def __init__(self, num_classes: int):\n            super().__init__()\n            # 1-channel to 3-channel expansion\n            self.input_conv = nn.Conv2d(1, 3, kernel_size=1, stride=1, padding=0, bias=False)\n            # Adaptive pooling to resize spectrograms to 224x224 expected by EfficientNet\n            self.adaptive_pool = nn.AdaptiveAvgPool2d((224, 224))\n            # Load pretrained EfficientNet-B0\n            self.backbone = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n            # Get the number of features from the classifier\n            in_features = self.backbone.classifier[1].in_features\n            # Replace classifier with custom head\n            self.backbone.classifier = nn.Sequential(\n                nn.Dropout(p=0.3),\n                nn.Linear(in_features, num_classes),\n            )\n\n        def forward(self, x):\n            # x: (batch, 1, n_mels, time)\n            x = self.input_conv(x)        # (batch, 3, n_mels, time)\n            x = self.adaptive_pool(x)     # (batch, 3, 224, 224)\n            x = self.backbone(x)          # (batch, num_classes)\n            return x\n\n    return EfficientNetB0Adapter(num_classes)\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n    for x, y in loader:\n        x, y = x.to(device), y.to(device).float()\n        optimizer.zero_grad()\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    loss_fn = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+          "error": null,
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 0.5740924580022693,
+            "exit_code": 1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "FileNotFound",
+            "message": "raise FileNotFoundError(",
+            "traceback": "Traceback (most recent call last):\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_70e5f3680f/code.py\", line 180, in <module>\n    main()\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_70e5f3680f/code.py\", line 150, in main\n    train_loader, val_loader, num_classes = load_audio_dataset(\n                                            ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/lab/tasks/track_b_birdclef.py\", line 137, in load_audio_dataset\n    raise FileNotFoundError(\nFileNotFoundError: No labels.csv at /Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/track_b/labels.csv. Run `python scripts/build_profile.py --task track_b` to preprocess the audio first."
+          },
+          "started_at": null,
+          "completed_at": null,
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-14T12:04:16.330001Z",
+      "completed_at": "2026-04-14T12:05:50.136731Z",
+      "duration_seconds": 0.5740924580022693,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_70e5f3680f"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "opus4.6",
+    "local"
+  ],
+  "executor_backend": "local",
+  "executor_infrastructure": {
+    "backend": "local",
+    "device": "mps",
+    "cpu_count": 16,
+    "python_version": "3.11.15",
+    "platform": "macOS-26.3.1",
+    "hostname": "MacBook-Pro-von-Maximilian.local"
+  },
+  "notes": ""
+}

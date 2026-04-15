@@ -1,22 +1,10 @@
-# Single source of truth for the `lab` agent.
-#
-# Every runtime knob lives here. Task-specific values live in
-# config/tasks/<track>.yaml and override the defaults below.
-#
-# Precedence (highest wins):
-#   CLI flag  >  AGENT_* env var  >  config/tasks/<track>.yaml  >  this file.
-#
-# NOTHING in lab/core/* is allowed to import task-specific constants. If a
-# value changes between Track A and Track B, it belongs in the task YAML.
+# Edited via the lab UI.
+# To edit safely by hand, keep this as a YAML dict and run
+# `python -m lab config` to reprint the merged configuration.
 
 project: lab
-version: "2.0.0"
-
-# Which task adapter to run by default. Can be overridden per-invocation
-# via `lab run --task track_a` or the UI's new-study form.
+version: 2.0.0
 default_task: track_b
-
-# All paths are repo-root relative.
 paths:
   data_root: data
   experiments: experiments/studies
@@ -26,76 +14,82 @@ paths:
   skeletons_dir: config/skeletons
   registry_dir: registry
   reports_dir: reports
-
 llm:
-  provider: ollama                     # ollama | openai
-  base_url: http://localhost:11434/v1
-  default_model: gemma4:e4b
-  api_key: ollama                      # ollama ignores this; openai reads it
+  provider: anthropic
+  base_url: https://api.anthropic.com/v1
+  default_model: claude-opus-4-6
+  api_key: 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
   temperature: 0.7
   max_tokens: 4096
-  timeout_seconds: 120
+  timeout_seconds: 120.0
   retry_attempts: 3
   retry_backoff_seconds: 5
-
 compute_budget:
-  max_experiments: 20
+  max_experiments: 1
   max_wallclock_minutes: 240
-  max_experiment_seconds: 1800         # 30 min per experiment default
-  max_epochs_per_run: 3
-  max_recovery_attempts: 5             # retries per experiment when code fails
-  max_codegen_retries: 5               # retries if validator rejects generated code
-
+  max_experiment_seconds: 1800
+  max_epochs_per_run: 1
+  max_recovery_attempts: 5
+  max_codegen_retries: 5
 context:
   max_prompt_tokens: 8000
   memory_top_k: 5
   memory_format: markdown
-
-# Env-var prefix for the injected training knobs. The subprocess can read
-# $AGENT_EPOCHS, $AGENT_BATCH_SIZE, etc. Task adapters may add more but must
-# keep the prefix stable so generated code is portable across tasks.
 env_prefix: AGENT
-
 training:
-  device: auto                         # auto | cpu | mps | cuda
+  device: auto
   batch_size: 64
-  num_workers: 4
+  num_workers: 2
   persistent_workers: true
-  prefetch_factor: 2
-
+  prefetch_factor: 1
 logging:
-  level: INFO
+  level: DEBUG
   console: true
   file: experiments/agent.log
-  structured: true                     # JSON-lines when false; pretty when true
-
+  structured: true
 ui:
   host: 127.0.0.1
   port: 8765
   enable_live_sse: true
-
-# Selective publishing defaults. Studies are unpublished by default; the
-# user flips the flag via the UI or the CLI.
 publishing:
   default_publish: false
   default_tags: []
-
-# Where the generated training code physically runs. `local` uses the
-# subprocess sandbox on this machine; `kaggle` pushes each experiment
-# as a Kaggle notebook kernel. The UI lets you pick per-study, so this
-# is only the default for new studies.
 executor:
-  backend: local                       # local | kaggle
+  backend: kaggle
   kaggle:
-    username: ""                       # Kaggle username (the part before the slash in kernel slugs)
-    kernel_prefix: lab-exp             # becomes slug `<username>/lab-exp-<experiment_id>`
+    username: maxnoellewying
+    kernel_prefix: lab-exp
     enable_gpu: true
-    enable_internet: false             # keep off to match Kaggle competition rules
-    # Pick the exact accelerator. Empty = Kaggle's default (P100), which
-    # is INCOMPATIBLE with Kaggle's own PyTorch image (sm_60 vs sm_70+).
-    # "GPU T4 x2" is the recommended default — sm_75, works out of the box.
-    accelerator: ""                    # "" | "GPU T4 x2" | "GPU P100" | "TPU VM v3-8"
+    enable_internet: true
+    accelerator: ""
     poll_interval_seconds: 30
-    poll_timeout_seconds: 36000        # 10h safety net
-    dataset_sources: []                # user-dataset slugs to attach (e.g. "maxuser/my-processed-data")
-    competition_sources: []            # competition slugs to attach (e.g. "birdclef-2026")
+    poll_timeout_seconds: 36000
+    dataset_sources:
+    - maxnoellewying/birdclef-2026-preprocessed
+    competition_sources:
+    - birdclef-2026
+  modal:
+    app_name: lab-agent
+    image_name: debian_slim
+    pip_packages:
+    - torch
+    - torchvision
+    - torchaudio
+    - scikit-learn>=1.3
+    - numpy>=1.24
+    - pandas>=2.0
+    - pyyaml>=6.0
+    gpu: ""
+    cpu:
+    memory_mb:
+    timeout_seconds: 1800
+    retries: 0
+    output_volume_name: ""
+    output_mount_path: /mnt/output
+    s3_bucket_name: ""
+    s3_secret_name: ""
+    s3_endpoint_url: ""
+    s3_mount_path: /mnt/data
+    s3_key_prefix: ""
+    set_processed_dir_from_s3: true
+    processed_subpath: processed

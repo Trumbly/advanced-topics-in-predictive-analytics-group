@@ -9,6 +9,7 @@ venv/
 # Sandbox artifacts are disposable
 sandbox/
 !sandbox/.gitkeep
+*.zip
 
 # Raw data never goes into git (Kaggle terms)
 data/raw/
@@ -21,3 +22,10 @@ reports/bundles/
 
 # UI-spawned launches: records + logs live here. Local-only.
 experiments/launches/
+
+# UI-generated config backup
+config/config.yaml.bak
+config/*.yaml.bak
+
+# Orchestrator runtime log — stays local
+experiments/agent.log

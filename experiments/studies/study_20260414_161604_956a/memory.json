@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_3668433b10",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

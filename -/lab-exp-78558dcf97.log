@@ -1,0 +1,13 @@
+[{"stream_name":"stdout","time":0.99489665,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":0.994985773,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-8qivquq4\n"}
+,{"stream_name":"stdout","time":38.288356051,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":51.151019253,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":51.42469976,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 63%|██████▎   | 12.9M/20.5M [00:00\u003c00:00, 135MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 162MB/s]\n"}
+,{"stream_name":"stderr","time":85.241293517,"data":"/bin/bash: line 1:     7 Killed                  \"$ENTRYPOINT\" \"$A0\" \"$A1\"\n"}
+,{"stream_name":"stderr","time":87.813412437,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":87.813460263,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":88.115937858,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":88.115984431,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":89.410536064,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":90.73392858,"data":"[NbConvertApp] Writing 326730 bytes to __results__.html\n"}
+]

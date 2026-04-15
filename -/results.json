@@ -1,0 +1,24 @@
+{
+  "primary_metric": "f1_macro",
+  "primary_score": 0.39021421957879165,
+  "history": [
+    {
+      "f1_macro": 0.39021421957879165,
+      "roc_auc_macro": NaN,
+      "loss": 0.02153171424032655,
+      "epoch": 1
+    }
+  ],
+  "final": {
+    "f1_macro": 0.39021421957879165,
+    "roc_auc_macro": NaN,
+    "loss": 0.02153171424032655,
+    "epoch": 1
+  },
+  "best": {
+    "f1_macro": 0.39021421957879165,
+    "roc_auc_macro": NaN,
+    "loss": 0.02153171424032655,
+    "epoch": 1
+  }
+}

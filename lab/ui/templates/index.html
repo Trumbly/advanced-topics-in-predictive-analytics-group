@@ -158,8 +158,15 @@
           {% set eb = s.executor_backend or "local" %}
           <span class="pill pill-backend pill-backend-{{ eb }}"
                 title="{% if s.executor_infrastructure %}{{ s.executor_infrastructure|tojson }}{% endif %}">
-            {% if eb == "kaggle" %}☁ kaggle{% else %}◼ local{% endif %}
+            {% if eb == "kaggle" %}
+              ☁ kaggle
+            {% elif eb == "modal" %}
+              ◉ modal
+            {% else %}
+              ◼ local
+            {% endif %}
             {% if eb == "kaggle" and s.executor_infrastructure and s.executor_infrastructure.get('enable_gpu') %} · gpu{% endif %}
+            {% if eb == "modal" and s.executor_infrastructure and s.executor_infrastructure.get('gpu') and s.executor_infrastructure.get('gpu') != 'none' %} · gpu{% endif %}
           </span>
         </td>
         <td class="muted">{{ s.created_at[:19] if s.created_at else "" }}</td>
