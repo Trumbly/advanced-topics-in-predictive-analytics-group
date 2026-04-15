@@ -655,6 +655,38 @@ if "AGENT_PROCESSED_DIR" not in _os.environ:
     else:
         print("[lab bootstrap] no data directory found under " + _input)
 
+# Before importing torch, check whether the kernel's GPU is a P100.
+# Kaggle's current Python 3.12 image ships a PyTorch compiled WITHOUT
+# sm_60 support — any real CUDA call on a P100 errors with
+# "no kernel image is available for execution on the device". The
+# CLI's `accelerator` field in kernel-metadata doesn't always get us a
+# T4 (quota / region dependent), so we fall back to pip-installing a
+# sm_60-retaining torch build right here. Costs ~30-60s on the first
+# kernel that hits this path.
+try:
+    import subprocess as _sub
+    _gpu_probe = _sub.check_output(
+        ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+        text=True, timeout=10,
+    ).strip()
+    if "P100" in _gpu_probe and _os.environ.get("AGENT_DEVICE", "") == "cuda":
+        print("[lab bootstrap] detected P100 — swapping in sm_60-compatible torch"
+              " (cu118 build, ~30-60s)")
+        _sub.check_call(
+            [
+                _sys.executable, "-m", "pip", "install", "--quiet",
+                "--index-url", "https://download.pytorch.org/whl/cu118",
+                "torch==2.2.2+cu118",
+                "torchvision==0.17.2+cu118",
+            ],
+            timeout=900,
+        )
+        print("[lab bootstrap] torch 2.2.2+cu118 installed for P100")
+except FileNotFoundError:
+    pass  # no nvidia-smi → no GPU at all; skip
+except Exception as _e:
+    print("[lab bootstrap] P100 compat install failed: " + repr(_e))
+
 # Log the effective training device. Bright-red signal if AGENT_DEVICE
 # is something other than cuda but cuda IS available — that's the
 # 6.4-hours-for-one-epoch class of bug.
