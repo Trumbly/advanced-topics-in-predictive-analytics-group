@@ -380,8 +380,24 @@ class SubmissionExporter:
                         features = features.flatten(1)
                     return self.head(features)
 
-            # Instantiate and load weights
-            model = TorchvisionAdapter(BACKBONE, NUM_CLASSES)
+            # This wrapper matches the EXACT structure used during training.
+            # The LLM-generated code.py wraps TorchvisionAdapter in an extra
+            # EfficientNetHead class, producing state_dict keys like
+            # backbone.backbone.features... — we must replicate that nesting.
+            class EfficientNetHead(nn.Module):
+                def __init__(self, backbone):
+                    super().__init__()
+                    self.backbone = backbone
+                    self.head = nn.LazyLinear(NUM_CLASSES)
+
+                def forward(self, x):
+                    x = self.backbone(x)
+                    x = x.flatten(1)
+                    return self.head(x)
+
+            # Instantiate with the same double-wrapped structure as training
+            backbone = TorchvisionAdapter(BACKBONE, NUM_CLASSES)
+            model = EfficientNetHead(backbone=backbone)
             model = model.to(device)
 
             # Initialize lazy layers with a dummy forward pass
@@ -544,18 +560,26 @@ class SubmissionExporter:
 
         submission_cell = _code_cell(textwrap.dedent("""\
             # Build submission DataFrame
-            submission = pd.DataFrame(rows)
+            if rows:
+                submission = pd.DataFrame(rows)
+            else:
+                # No test files found (normal during Kaggle draft mode).
+                # Create an empty DataFrame with the correct columns.
+                submission = pd.DataFrame(columns=["row_id"] + ALL_SPECIES)
 
             # Ensure all expected row_ids are present (fill missing with uniform prior)
             if len(submission) < len(sample_sub):
-                missing_ids = set(sample_sub["row_id"]) - set(submission["row_id"])
+                existing_ids = set(submission["row_id"]) if len(submission) > 0 else set()
+                missing_ids = set(sample_sub["row_id"]) - existing_ids
                 if missing_ids:
                     print(f"WARNING: {len(missing_ids)} missing row_ids, filling with uniform prior")
                     uniform = 1.0 / len(ALL_SPECIES)
+                    fill_rows = []
                     for rid in missing_ids:
                         row = {"row_id": rid}
                         row.update({sp: uniform for sp in ALL_SPECIES})
-                        submission = pd.concat([submission, pd.DataFrame([row])], ignore_index=True)
+                        fill_rows.append(row)
+                    submission = pd.concat([submission, pd.DataFrame(fill_rows)], ignore_index=True)
 
             # Ensure correct column order
             submission = submission[["row_id"] + ALL_SPECIES]
