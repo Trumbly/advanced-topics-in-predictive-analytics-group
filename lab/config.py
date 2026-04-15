@@ -91,6 +91,13 @@ class KaggleConfig(BaseModel):
     kernel_prefix: str = "lab-exp"
     enable_gpu: bool = True
     enable_internet: bool = False
+    # Accelerator the kernel should request. Empty string = let Kaggle
+    # pick whatever's default (historically P100, which ships with a
+    # PyTorch build lacking sm_60 support — so training crashes before
+    # it starts). Set this to "GPU T4 x2" to force a T4 pair, which is
+    # compatible with the current PyTorch image.
+    # Valid values (as of 2026): "", "GPU T4 x2", "GPU P100", "TPU VM v3-8".
+    accelerator: str = ""
     poll_interval_seconds: int = 30
     poll_timeout_seconds: int = 36_000
     dataset_sources: list[str] = Field(default_factory=list)

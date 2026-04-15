@@ -196,16 +196,29 @@ def test_infrastructure_reports_gpu_and_sources(tmp_path):
 
 def test_classify_kaggle_status_handles_known_phrasings():
     from lab.core.kaggle_executor import _classify_kaggle_status
+    # Legacy phrasings
     assert _classify_kaggle_status('Kernel has status "complete"') == "complete"
     assert _classify_kaggle_status('status: complete') == "complete"
-    assert _classify_kaggle_status('https://… has status "complete"') == "complete"
-    assert _classify_kaggle_status('status: running') == "running"
     assert _classify_kaggle_status('Kernel has status "error"') == "error"
     assert _classify_kaggle_status('Kernel has status "cancelled"') == "cancelled"
-    # Americanised spelling too
     assert _classify_kaggle_status('Kernel has status "canceled"') == "cancelled"
-    # "incomplete" must NOT match complete
     assert _classify_kaggle_status('status: incomplete (queued)') == "running"
+    # Current Kaggle CLI (seen in production logs, 2026-04)
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.COMPLETE"'
+    ) == "complete"
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.ERROR"'
+    ) == "error"
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.RUNNING"'
+    ) == "running"
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.QUEUED"'
+    ) == "running"
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.CANCELLED"'
+    ) == "cancelled"
 
 
 def test_run_overrides_agent_device_for_kaggle(monkeypatch, tmp_path):

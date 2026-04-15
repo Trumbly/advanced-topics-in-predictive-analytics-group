@@ -71,6 +71,11 @@ class KaggleExecutor:
     kernel_prefix: str = "lab-exp"
     enable_gpu: bool = True
     enable_internet: bool = False
+    # Accelerator name (e.g. "GPU T4 x2", "GPU P100", "TPU VM v3-8").
+    # Empty string = let Kaggle pick whatever's default, which is
+    # historically P100 and currently incompatible with Kaggle's own
+    # PyTorch image. Strongly recommended: "GPU T4 x2".
+    accelerator: str = ""
     poll_interval_seconds: int = 30
     poll_timeout_seconds: int = 36_000       # 10 h safety net
     dataset_sources: list[str] = field(default_factory=list)
@@ -137,7 +142,7 @@ class KaggleExecutor:
         if lab_slug:
             dataset_sources.append(lab_slug)
 
-        (kernel_dir / "kernel-metadata.json").write_text(json.dumps({
+        meta: dict[str, Any] = {
             "id": slug,
             "title": slug.split("/", 1)[-1],
             "code_file": "code.py",
@@ -149,7 +154,14 @@ class KaggleExecutor:
             "dataset_sources": dataset_sources,
             "competition_sources": list(self.competition_sources),
             "kernel_sources": [],
-        }, indent=2))
+        }
+        if self.accelerator:
+            # Newer Kaggle kernels support picking the specific
+            # accelerator (e.g. "GPU T4 x2"). Without this, Kaggle
+            # defaults to P100 which is incompatible with the current
+            # PyTorch image.
+            meta["accelerator"] = self.accelerator
+        (kernel_dir / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
 
         # Push
         logger.info("Pushing kernel %s from %s", slug, kernel_dir)
@@ -704,46 +716,45 @@ except ImportError:
 def _classify_kaggle_status(raw: str) -> str:
     """Map raw ``kaggle kernels status`` CLI output to a coarse state.
 
-    Kaggle has shipped several output formats over the years and none
-    are documented as stable — we match substrings liberally rather
-    than hard-coding one specific phrasing, to avoid the "poll forever
-    because we missed ONE character" failure mode.
+    Kaggle has shipped several output formats over the years, including
+    a newer one where the state appears as an enum repr:
 
-    Returns: 'complete', 'error', 'cancelled', or 'running'.
+        maxuser/foo has status "KernelWorkerStatus.RUNNING"
+        maxuser/foo has status "KernelWorkerStatus.COMPLETE"
+        maxuser/foo has status "KernelWorkerStatus.ERROR"
+
+    We match the state suffix after the last dot, so both the legacy
+    formats and the KernelWorkerStatus.X format flow through the same
+    branch. Returns 'complete', 'error', 'cancelled', or 'running'.
     """
+    import re as _re
+
     t = (raw or "").lower()
+
+    # Extract the state token from any ``"*.<state>"`` or ``"<state>"``
+    # occurrence — handles KernelWorkerStatus.ERROR, bare "error", etc.
+    state: str | None = None
+    for m in _re.finditer(r'"([a-z_.]+)"', t):
+        candidate = m.group(1).rsplit(".", 1)[-1]
+        if candidate in {"complete", "succeeded", "error", "failed",
+                         "cancelled", "canceled", "queued", "running"}:
+            state = candidate
 
     def _word_hit(phrases: tuple[str, ...]) -> bool:
         return any(p in t for p in phrases)
 
-    # Order matters: check failure states first so "complete" doesn't
-    # win over "completed with error" hypothetical combos.
-    if _word_hit((
-        'has status "error"',
-        'status: error',
-        'status=error',
-        '"error"',
-        'has failed',
-        'failed to run',
+    # Order matters: failure states win over "complete" when both show
+    # up (e.g. "completed with errors" hypothetical).
+    if state in {"error", "failed"} or _word_hit((
+        'status: error', 'status=error', 'has failed', 'failed to run',
     )):
         return "error"
-    if _word_hit((
-        'has status "cancelled"',
-        'has status "canceled"',
-        'status: cancelled',
-        'status: canceled',
-        '"cancelled"',
-        '"canceled"',
+    if state in {"cancelled", "canceled"} or _word_hit((
+        'status: cancelled', 'status: canceled',
     )):
         return "cancelled"
-    if _word_hit((
-        'has status "complete"',
-        'has status "succeeded"',
-        'status: complete',
-        'status: succeeded',
-        'status=complete',
-        '"complete"',
-        '"succeeded"',
+    if state in {"complete", "succeeded"} or _word_hit((
+        'status: complete', 'status: succeeded', 'status=complete',
     )):
         return "complete"
     return "running"

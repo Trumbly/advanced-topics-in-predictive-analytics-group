@@ -295,6 +295,21 @@
   </div>
   <div class="row">
     <div class="field field-wide">
+      <label for="kaggle_accelerator">
+        Accelerator
+        <span class="muted small">(leave blank = Kaggle default, often P100 → PyTorch-incompatible)</span>
+      </label>
+      {% set accel = raw.get("executor", {}).get("kaggle", {}).get("accelerator", "") %}
+      <select id="kaggle_accelerator" name="kaggle_accelerator">
+        <option value="" {% if accel == "" %}selected{% endif %}>— Kaggle default —</option>
+        <option value="GPU T4 x2" {% if accel == "GPU T4 x2" %}selected{% endif %}>GPU T4 x2 (recommended)</option>
+        <option value="GPU P100" {% if accel == "GPU P100" %}selected{% endif %}>GPU P100 (sm_60, likely broken)</option>
+        <option value="TPU VM v3-8" {% if accel == "TPU VM v3-8" %}selected{% endif %}>TPU VM v3-8</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field field-wide">
       <label for="kaggle_competition_sources">Competition sources (comma-separated slugs)</label>
       <input type="text" id="kaggle_competition_sources" name="kaggle_competition_sources"
              value="{{ raw.get('executor', {}).get('kaggle', {}).get('competition_sources', [])|join(', ') }}"

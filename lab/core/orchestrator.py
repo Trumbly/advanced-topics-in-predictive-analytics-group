@@ -740,6 +740,7 @@ def _build_executor(
             kernel_prefix=k.kernel_prefix,
             enable_gpu=k.enable_gpu,
             enable_internet=k.enable_internet,
+            accelerator=k.accelerator,
             poll_interval_seconds=k.poll_interval_seconds,
             poll_timeout_seconds=min(k.poll_timeout_seconds, timeout * 10) or timeout,
             dataset_sources=list(k.dataset_sources),

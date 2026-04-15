@@ -91,6 +91,10 @@ executor:
     kernel_prefix: lab-exp             # becomes slug `<username>/lab-exp-<experiment_id>`
     enable_gpu: true
     enable_internet: false             # keep off to match Kaggle competition rules
+    # Pick the exact accelerator. Empty = Kaggle's default (P100), which
+    # is INCOMPATIBLE with Kaggle's own PyTorch image (sm_60 vs sm_70+).
+    # "GPU T4 x2" is the recommended default — sm_75, works out of the box.
+    accelerator: ""                    # "" | "GPU T4 x2" | "GPU P100" | "TPU VM v3-8"
     poll_interval_seconds: 30
     poll_timeout_seconds: 36000        # 10h safety net
     dataset_sources: []                # user-dataset slugs to attach (e.g. "maxuser/my-processed-data")
