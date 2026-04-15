@@ -166,9 +166,10 @@ class KaggleExecutor:
         push_argv = ["kernels", "push", "-p", str(kernel_dir)]
         if self.accelerator:
             # Kaggle CLI >= ~0.18 accepts this flag. Valid IDs:
-            #   NvidiaTeslaT4 / NvidiaTeslaT4X2 / NvidiaTeslaP100 /
-            #   NvidiaTeslaV100 / NvidiaTeslaA100 / TpuV3-8 / TpuV6E8
+            #   NvidiaTeslaT4 / NvidiaTeslaP100 / NvidiaTeslaV100 /
+            #   NvidiaTeslaA100 / TpuV6E8  (per `kaggle kernels push --help`)
             push_argv.extend(["--accelerator", self.accelerator])
+        logger.info("push argv: %s", " ".join(push_argv))
         push = self._run_kaggle(cli, push_argv, timeout=300)
         if push.returncode != 0:
             return self._failed(
@@ -179,6 +180,12 @@ class KaggleExecutor:
                     traceback=push.stderr.strip()[-600:],
                 ),
             )
+        # Even on success, Kaggle may warn about an unrecognised flag or
+        # an unavailable accelerator and silently fall back. Log the
+        # full stdout/stderr so the user can spot it in the agent log.
+        _push_out = ((push.stdout or "") + (push.stderr or "")).strip()
+        if _push_out:
+            logger.info("kernels push output:\n%s", _push_out[:1200])
 
         # Poll
         status, logs = self._poll_until_done(cli, slug)
