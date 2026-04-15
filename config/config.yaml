@@ -61,7 +61,7 @@ executor:
     kernel_prefix: lab-exp
     enable_gpu: true
     enable_internet: true
-    accelerator: ""
+    accelerator: NvidiaTeslaT4
     poll_interval_seconds: 30
     poll_timeout_seconds: 36000
     dataset_sources:

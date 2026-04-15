@@ -92,13 +92,14 @@ class KaggleConfig(BaseModel):
     enable_gpu: bool = True
     enable_internet: bool = False
     # Accelerator ID passed to `kaggle kernels push --accelerator <X>`.
-    # Empty = Kaggle's default (historically P100, which ships with a
-    # PyTorch build lacking sm_60 support). Set to NvidiaTeslaT4 or
-    # NvidiaTeslaT4X2 to force a T4; NvidiaTeslaP100 still works but
-    # requires the bootstrap's torch-downgrade fallback.
-    # Valid IDs: NvidiaTeslaT4, NvidiaTeslaT4X2, NvidiaTeslaP100,
+    # Default is NvidiaTeslaT4 — T4 has sm_75 which matches Kaggle's
+    # stock PyTorch image, so the kernel trains on GPU out of the box.
+    # Empty string = no flag → Kaggle's fallback, currently P100. The
+    # bootstrap installs a sm_60 torch on P100 but that adds ~60 s to
+    # every cold start; picking T4 explicitly avoids that.
+    # Other valid IDs: NvidiaTeslaT4X2, NvidiaTeslaP100,
     # NvidiaTeslaV100, NvidiaTeslaA100, TpuV3-8, TpuV6E8.
-    accelerator: str = ""
+    accelerator: str = "NvidiaTeslaT4"
     poll_interval_seconds: int = 30
     poll_timeout_seconds: int = 36_000
     dataset_sources: list[str] = Field(default_factory=list)
