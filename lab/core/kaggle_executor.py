@@ -120,6 +120,16 @@ class KaggleExecutor:
 
         # Write kernel source + metadata
         full_env = _kaggle_safe_env({**self.training_env, **(extra_env or {})})
+        # Override any local-device hint (mps/cpu/auto) with what's
+        # actually available inside the kernel. AGENT_DEVICE is one of
+        # the env vars the skeleton reads directly, so getting this
+        # wrong silently trains on CPU even when enable_gpu=true.
+        prefix = (full_env.get("AGENT_ENV_PREFIX") or "AGENT")
+        full_env[f"{prefix}_DEVICE"] = "cuda" if self.enable_gpu else "cpu"
+        # Kaggle's kernels have ~4 vCPUs; num_workers=0 serialises I/O
+        # which is catastrophic on BirdCLEF-sized datasets.
+        full_env.setdefault(f"{prefix}_NUM_WORKERS", "2")
+        full_env.setdefault(f"{prefix}_PERSISTENT_WORKERS", "1")
         (kernel_dir / "code.py").write_text(
             _wrap_with_bootstrap(code, full_env, lab_dataset_slug=lab_slug)
         )
@@ -632,6 +642,26 @@ if "AGENT_PROCESSED_DIR" not in _os.environ:
         print("[lab bootstrap] AGENT_PROCESSED_DIR = " + _d)
     else:
         print("[lab bootstrap] no data directory found under " + _input)
+
+# Log the effective training device. Bright-red signal if AGENT_DEVICE
+# is something other than cuda but cuda IS available — that's the
+# 6.4-hours-for-one-epoch class of bug.
+try:
+    import torch as _torch
+    _want = _os.environ.get("AGENT_DEVICE", "?")
+    _have_cuda = _torch.cuda.is_available()
+    _gpu_name = _torch.cuda.get_device_name(0) if _have_cuda else "none"
+    print(
+        "[lab bootstrap] AGENT_DEVICE=" + str(_want)
+        + " | torch.cuda.is_available=" + str(_have_cuda)
+        + " | gpu=" + str(_gpu_name)
+    )
+    if _have_cuda and _want != "cuda":
+        print("[lab bootstrap] WARNING: GPU is available but AGENT_DEVICE is '"
+              + _want + "'. Training will run on CPU and be very slow."
+              " Set executor.kaggle.enable_gpu=true and re-push.")
+except ImportError:
+    pass
 # --- end bootstrap ---------------------------------------------------
 '''
 

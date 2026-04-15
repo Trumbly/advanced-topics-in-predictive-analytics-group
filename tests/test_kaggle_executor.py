@@ -208,6 +208,80 @@ def test_classify_kaggle_status_handles_known_phrasings():
     assert _classify_kaggle_status('status: incomplete (queued)') == "running"
 
 
+def test_run_overrides_agent_device_for_kaggle(monkeypatch, tmp_path):
+    """The orchestrator may pass AGENT_DEVICE='cpu' (based on the Mac
+    host) but on a Kaggle GPU kernel we need cuda. Executor must
+    override the value based on enable_gpu."""
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    ex = KaggleExecutor(
+        username="u", kernel_prefix="test", enable_gpu=True,
+        poll_interval_seconds=0, sandbox_root=tmp_path, repo_root=tmp_path,
+        training_env={"AGENT_DEVICE": "cpu"},   # host says CPU
+    )
+
+    captured: dict[str, str] = {}
+
+    def fake_run(self, cli, argv, *, timeout):
+        if argv[0:2] == ["kernels", "push"]:
+            # Inspect the written code.py for the env dict
+            import re as _re
+            kernel_dir = _re.search(r"-p\s+(\S+)", " ".join(argv))
+            if kernel_dir:
+                code = (tmp_path / "exp_env" / "kernel" / "code.py")
+                if code.exists():
+                    captured["code"] = code.read_text()
+            return _completed(stdout="Kernel pushed.\n")
+        if argv[0:2] == ["kernels", "status"]:
+            return _completed(stdout='Kernel has status "complete".\n')
+        if argv[0:2] == ["kernels", "output"]:
+            (tmp_path / "exp_env" / "results.json").write_text(
+                '{"primary_metric":"f1_macro","primary_score":0.1,"history":[],"final":{},"best":{}}'
+            )
+            return _completed(stdout="ok\n")
+        if argv[0:2] == ["datasets", "create"] or argv[0:2] == ["datasets", "version"]:
+            return _completed(stdout="Dataset.\n")
+        return _completed(stdout="")
+
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+    ex.run("from lab.tasks.track_b_birdclef import load_audio_dataset\nprint(1)\n",
+           experiment_id="exp_env")
+    assert "code" in captured, "kernel code.py not captured"
+    assert '"AGENT_DEVICE": "cuda"' in captured["code"], (
+        "expected AGENT_DEVICE overridden to 'cuda' for GPU kernel, got:\n"
+        + "\n".join(l for l in captured["code"].splitlines() if "AGENT_DEVICE" in l)
+    )
+
+
+def test_run_sets_cpu_when_gpu_disabled(monkeypatch, tmp_path):
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    ex = KaggleExecutor(
+        username="u", enable_gpu=False, poll_interval_seconds=0,
+        sandbox_root=tmp_path, repo_root=tmp_path,
+        training_env={"AGENT_DEVICE": "cuda"},  # caller incorrectly asked for gpu
+    )
+    captured: dict[str, str] = {}
+
+    def fake_run(self, cli, argv, *, timeout):
+        if argv[0:2] == ["kernels", "push"]:
+            code = (tmp_path / "exp_nogpu" / "kernel" / "code.py")
+            if code.exists():
+                captured["code"] = code.read_text()
+            return _completed()
+        if argv[0:2] == ["kernels", "status"]:
+            return _completed(stdout='status: complete\n')
+        if argv[0:2] == ["kernels", "output"]:
+            (tmp_path / "exp_nogpu" / "results.json").write_text(
+                '{"primary_metric":"f1_macro","primary_score":0.1,"history":[],"final":{},"best":{}}'
+            )
+            return _completed()
+        return _completed()
+
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+    ex.run("pass\n", experiment_id="exp_nogpu")
+    assert "code" in captured
+    assert '"AGENT_DEVICE": "cpu"' in captured["code"]
+
+
 def test_kaggle_safe_env_strips_host_filesystem_paths():
     from lab.core.kaggle_executor import _kaggle_safe_env
     env = {
