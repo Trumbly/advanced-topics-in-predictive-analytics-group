@@ -1,0 +1,439 @@
+{
+  "id": "study_20260415_175927_d423",
+  "name": "track_b-20260415_175927",
+  "task_name": "track_b",
+  "status": "failed",
+  "created_at": "2026-04-15T17:59:27.444932Z",
+  "started_at": "2026-04-15T17:59:27.444946Z",
+  "completed_at": "2026-04-15T18:01:57.657006Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_5db62f4c7f",
+      "study_id": "study_20260415_175927_d423",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T17:59:27.446346Z",
+          "completed_at": "2026-04-15T17:59:42.465683Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T17:59:27.446280Z",
+      "completed_at": "2026-04-15T17:59:42.466255Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_c917be3737",
+      "study_id": "study_20260415_175927_d423",
+      "index": 1,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T17:59:42.467781Z",
+          "completed_at": "2026-04-15T17:59:57.485693Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T17:59:42.467611Z",
+      "completed_at": "2026-04-15T17:59:57.486688Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_827f5da5a1",
+      "study_id": "study_20260415_175927_d423",
+      "index": 2,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T17:59:57.489674Z",
+          "completed_at": "2026-04-15T18:00:12.510803Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T17:59:57.489365Z",
+      "completed_at": "2026-04-15T18:00:12.511434Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_17c7d2dbac",
+      "study_id": "study_20260415_175927_d423",
+      "index": 3,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:00:12.513465Z",
+          "completed_at": "2026-04-15T18:00:27.533185Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:00:12.513240Z",
+      "completed_at": "2026-04-15T18:00:27.533923Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_7beaa0654a",
+      "study_id": "study_20260415_175927_d423",
+      "index": 4,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:00:27.535609Z",
+          "completed_at": "2026-04-15T18:00:42.552290Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:00:27.535392Z",
+      "completed_at": "2026-04-15T18:00:42.553102Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_b2c2416572",
+      "study_id": "study_20260415_175927_d423",
+      "index": 5,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:00:42.555267Z",
+          "completed_at": "2026-04-15T18:00:57.571043Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:00:42.555008Z",
+      "completed_at": "2026-04-15T18:00:57.571746Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_8625fec6f7",
+      "study_id": "study_20260415_175927_d423",
+      "index": 6,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:00:57.573849Z",
+          "completed_at": "2026-04-15T18:01:12.593427Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:00:57.573569Z",
+      "completed_at": "2026-04-15T18:01:12.594076Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_4454bbe5b7",
+      "study_id": "study_20260415_175927_d423",
+      "index": 7,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:01:12.596720Z",
+          "completed_at": "2026-04-15T18:01:27.614127Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:01:12.596344Z",
+      "completed_at": "2026-04-15T18:01:27.615010Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_9fefb414dd",
+      "study_id": "study_20260415_175927_d423",
+      "index": 8,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:01:27.617491Z",
+          "completed_at": "2026-04-15T18:01:42.635901Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:01:27.617177Z",
+      "completed_at": "2026-04-15T18:01:42.636597Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    },
+    {
+      "id": "exp_a0adb8bdaf",
+      "study_id": "study_20260415_175927_d423",
+      "index": 9,
+      "status": "failed",
+      "architecture_name": null,
+      "architecture_family": null,
+      "architecture_proposal": null,
+      "code": null,
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "LLMError",
+        "message": "LLM call failed after 3 attempts",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "failed",
+          "input": {},
+          "output": {},
+          "code_used": null,
+          "error": {
+            "error_type": "LLMError",
+            "message": "LLM call failed after 3 attempts",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T18:01:42.639095Z",
+          "completed_at": "2026-04-15T18:01:57.653716Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T18:01:42.638772Z",
+      "completed_at": "2026-04-15T18:01:57.655142Z",
+      "duration_seconds": null,
+      "sandbox_path": null
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v2.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v2.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v2.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v2.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v2.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

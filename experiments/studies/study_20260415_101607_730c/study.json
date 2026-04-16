@@ -1,0 +1,207 @@
+{
+  "id": "study_20260415_101607_730c",
+  "name": "track_b-20260415_101607",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-15T10:16:07.221239Z",
+  "started_at": "2026-04-15T10:16:07.221263Z",
+  "completed_at": "2026-04-15T10:18:25.219915Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_9162f8bd8b",
+      "study_id": "study_20260415_101607_730c",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": "custom_cnn",
+      "architecture_proposal": "{\n  \"architecture_name\": \"cnn_small_v1\",\n  \"architecture_family\": \"custom_cnn\",\n  \"description\": \"A small custom CNN with 3 Conv2d blocks, BatchNorm, AdaptiveAvgPool2d, and Dense head for efficient audio classification.\",\n  \"reasoning\": \"The custom_cnn family with the cnn_small_v1 configuration is a CPU-friendly baseline that has shown good performance on similar audio tasks while staying within the 90-minute Kaggle runtime budget. It's a safe starting point that avoids overfitting on the long-tail distribution while maintaining reasonable accuracy.\"\n}",
+      "code": "import torch\nimport torch.nn as nn\n\n### MODEL ###\ndef build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # Block 1\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 2\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 3\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Flatten and dense head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 512),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(512, num_classes),\n    )\n### END MODEL ###\n\nif __name__ == \"__main__\":\n    model = build_model(num_classes=20)\n    print(model)",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "[NbConvertApp] Writing 327032 bytes to __results__.html",
+        "traceback": "  (4): BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (5): ReLU(inplace=True)\n  (6): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (7): Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (8): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (9): ReLU(inplace=True)\n  (10): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (11): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (12): ReLU(inplace=True)\n  (13): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (14): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (15): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (16): ReLU(inplace=True)\n  (17): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (18): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (19): ReLU(inplace=True)\n  (20): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (21): AdaptiveAvgPool2d(output_size=(4, 4))\n  (22): Flatten(start_dim=1, end_dim=-1)\n  (23): Linear(in_features=2048, out_features=512, bias=True)\n  (24): ReLU(inplace=True)\n  (25): Dropout(p=0.5, inplace=False)\n  (26): Linear(in_features=512, out_features=20, bias=True)\n)\n/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n[NbConvertApp] Converting notebook __script__.ipynb to html\n[NbConvertApp] Writing 327032 bytes to __results__.html"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "cnn_small_v1",
+            "architecture_family": "custom_cnn",
+            "description": "A small custom CNN with 3 Conv2d blocks, BatchNorm, AdaptiveAvgPool2d, and Dense head for efficient audio classification.",
+            "reasoning": "The custom_cnn family with the cnn_small_v1 configuration is a CPU-friendly baseline that has shown good performance on similar audio tasks while staying within the 90-minute Kaggle runtime budget. It's a safe starting point that avoids overfitting on the long-tail distribution while maintaining reasonable accuracy."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T10:16:07.222779Z",
+          "completed_at": "2026-04-15T10:16:10.905093Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "### MODEL ###\ndef build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # Block 1\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 2\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 3\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Flatten and dense head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 512),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(512, num_classes),\n    )\n### END MODEL ###",
+          "error": null,
+          "started_at": "2026-04-15T10:16:10.905937Z",
+          "completed_at": "2026-04-15T10:16:26.233948Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 2
+          },
+          "code_used": "import torch\nimport torch.nn as nn\n\n### MODEL ###\ndef build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # Block 1\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 2\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Block 3\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Flatten and dense head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 512),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(512, num_classes),\n    )\n### END MODEL ###\n\nif __name__ == \"__main__\":\n    model = build_model(num_classes=20)\n    print(model)",
+          "error": null,
+          "started_at": "2026-04-15T10:16:26.234705Z",
+          "completed_at": "2026-04-15T10:16:37.638802Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 66.2019242499955,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "UnknownError",
+            "message": "[NbConvertApp] Writing 327032 bytes to __results__.html",
+            "traceback": "  (4): BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (5): ReLU(inplace=True)\n  (6): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (7): Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (8): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (9): ReLU(inplace=True)\n  (10): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (11): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (12): ReLU(inplace=True)\n  (13): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (14): Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (15): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (16): ReLU(inplace=True)\n  (17): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))\n  (18): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n  (19): ReLU(inplace=True)\n  (20): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)\n  (21): AdaptiveAvgPool2d(output_size=(4, 4))\n  (22): Flatten(start_dim=1, end_dim=-1)\n  (23): Linear(in_features=2048, out_features=512, bias=True)\n  (24): ReLU(inplace=True)\n  (25): Dropout(p=0.5, inplace=False)\n  (26): Linear(in_features=512, out_features=20, bias=True)\n)\n/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n[NbConvertApp] Converting notebook __script__.ipynb to html\n[NbConvertApp] Writing 327032 bytes to __results__.html"
+          },
+          "started_at": "2026-04-15T10:16:37.639151Z",
+          "completed_at": "2026-04-15T10:17:43.841926Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T10:16:07.222684Z",
+      "completed_at": "2026-04-15T10:17:43.842468Z",
+      "duration_seconds": 66.2019242499955,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_9162f8bd8b"
+    },
+    {
+      "id": "exp_4ffc8b7f58",
+      "study_id": "study_20260415_101607_730c",
+      "index": 1,
+      "status": "aborted",
+      "architecture_name": "cnn_gru_hybrid_small",
+      "architecture_family": "cnn_gru_hybrid",
+      "architecture_proposal": "{\n  \"architecture_name\": \"cnn_gru_hybrid_small\",\n  \"architecture_family\": \"cnn_gru_hybrid\",\n  \"description\": \"A compact CNN-GRU hybrid with 2 Conv2d blocks followed by a 1-layer GRU and dense head.\",\n  \"reasoning\": \"Leverages CNN for local feature extraction from mel-spectrograms and GRU for temporal modeling, suitable for audio sequences. The small size ensures CPU-friendly inference within 90-minute Kaggle budget while addressing the long-tail distribution through temporal context.\"\n}",
+      "code": "import torch\nimport torch.nn as nn\n\ndef build_model(num_classes):\n    class CNN_GRU_Hybrid(nn.Module):\n        def __init__(self, num_classes, n_mels=128, time=256):\n            super().__init__()\n            self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n            self.bn1 = nn.BatchNorm2d(32)\n            self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n            self.bn2 = nn.BatchNorm2d(64)\n            self.pool = nn.MaxPool2d(2, 2)\n            self.relu = nn.ReLU()\n            self.dropout = nn.Dropout(0.25)\n            \n            # GRU layer\n            self.gru = nn.GRU(\n                input_size=64 * (n_mels // 4) * (time // 4),\n                hidden_size=64,\n                num_layers=1,\n                batch_first=True,\n                bidirectional=False,\n            )\n            \n            # Dense head\n            self.classifier = nn.Sequential(\n                nn.Linear(64, 32),\n                nn.ReLU(),\n                nn.Dropout(0.25),\n                nn.Linear(32, num_classes),\n            )\n\n        def forward(self, x):\n            # Conv blocks\n            x = self.pool(self.relu(self.bn1(self.conv1(x))))\n            x = self.pool(self.relu(self.bn2(self.conv2(x))))\n            \n            # Reshape for GRU\n            batch_size, _, height, width = x.size()\n            x = x.view(batch_size, 64, height * width)\n            x = x.transpose(1, 2)  # (batch, seq_len, features)\n            \n            # GRU\n            _, hidden = self.gru(x)\n            x = hidden.squeeze(0)  # (batch, hidden_size)\n            \n            # Classifier\n            x = self.classifier(x)\n            return x\n\n    return CNN_GRU_Hybrid(num_classes)",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "Aborted",
+        "message": "User requested abort",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "cnn_gru_hybrid_small",
+            "architecture_family": "cnn_gru_hybrid",
+            "description": "A compact CNN-GRU hybrid with 2 Conv2d blocks followed by a 1-layer GRU and dense head.",
+            "reasoning": "Leverages CNN for local feature extraction from mel-spectrograms and GRU for temporal modeling, suitable for audio sequences. The small size ensures CPU-friendly inference within 90-minute Kaggle budget while addressing the long-tail distribution through temporal context."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T10:17:43.844094Z",
+          "completed_at": "2026-04-15T10:17:48.535297Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "def build_model(num_classes):\n    class CNN_GRU_Hybrid(nn.Module):\n        def __init__(self, num_classes, n_mels=128, time=256):\n            super().__init__()\n            self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n            self.bn1 = nn.BatchNorm2d(32)\n            self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n            self.bn2 = nn.BatchNorm2d(64)\n            self.pool = nn.MaxPool2d(2, 2)\n            self.relu = nn.ReLU()\n            self.dropout = nn.Dropout(0.25)\n            \n            # GRU layer\n            self.gru = nn.GRU(\n                input_size=64 * (n_mels // 4) * (time // 4),\n                hidden_size=64,\n                num_layers=1,\n                batch_first=True,\n                bidirectional=False,\n            )\n            \n            # Dense head\n            self.classifier = nn.Sequential(\n                nn.Linear(64, 32),\n                nn.ReLU(),\n                nn.Dropout(0.25),\n                nn.Linear(32, num_classes),\n            )\n\n        def forward(self, x):\n            # Conv blocks\n            x = self.pool(self.relu(self.bn1(self.conv1(x))))\n            x = self.pool(self.relu(self.bn2(self.conv2(x))))\n            \n            # Reshape for GRU\n            batch_size, _, height, width = x.size()\n            x = x.view(batch_size, 64, height * width)\n            x = x.transpose(1, 2)  # (batch, seq_len, features)\n            \n            # GRU\n            _, hidden = self.gru(x)\n            x = hidden.squeeze(0)  # (batch, hidden_size)\n            \n            # Classifier\n            x = self.classifier(x)\n            return x\n\n    return CNN_GRU_Hybrid(num_classes)",
+          "error": null,
+          "started_at": "2026-04-15T10:17:48.535887Z",
+          "completed_at": "2026-04-15T10:18:10.942100Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 2
+          },
+          "code_used": "import torch\nimport torch.nn as nn\n\ndef build_model(num_classes):\n    class CNN_GRU_Hybrid(nn.Module):\n        def __init__(self, num_classes, n_mels=128, time=256):\n            super().__init__()\n            self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n            self.bn1 = nn.BatchNorm2d(32)\n            self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n            self.bn2 = nn.BatchNorm2d(64)\n            self.pool = nn.MaxPool2d(2, 2)\n            self.relu = nn.ReLU()\n            self.dropout = nn.Dropout(0.25)\n            \n            # GRU layer\n            self.gru = nn.GRU(\n                input_size=64 * (n_mels // 4) * (time // 4),\n                hidden_size=64,\n                num_layers=1,\n                batch_first=True,\n                bidirectional=False,\n            )\n            \n            # Dense head\n            self.classifier = nn.Sequential(\n                nn.Linear(64, 32),\n                nn.ReLU(),\n                nn.Dropout(0.25),\n                nn.Linear(32, num_classes),\n            )\n\n        def forward(self, x):\n            # Conv blocks\n            x = self.pool(self.relu(self.bn1(self.conv1(x))))\n            x = self.pool(self.relu(self.bn2(self.conv2(x))))\n            \n            # Reshape for GRU\n            batch_size, _, height, width = x.size()\n            x = x.view(batch_size, 64, height * width)\n            x = x.transpose(1, 2)  # (batch, seq_len, features)\n            \n            # GRU\n            _, hidden = self.gru(x)\n            x = hidden.squeeze(0)  # (batch, hidden_size)\n            \n            # Classifier\n            x = self.classifier(x)\n            return x\n\n    return CNN_GRU_Hybrid(num_classes)",
+          "error": null,
+          "started_at": "2026-04-15T10:18:10.944541Z",
+          "completed_at": "2026-04-15T10:18:25.216020Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 0.0,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "Aborted",
+            "message": "User requested abort",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T10:18:25.217468Z",
+          "completed_at": "2026-04-15T10:18:25.218405Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T10:17:43.843884Z",
+      "completed_at": "2026-04-15T10:18:25.218826Z",
+      "duration_seconds": 0.0,
+      "sandbox_path": "."
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

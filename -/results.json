@@ -1,24 +1,33 @@
 {
   "primary_metric": "f1_macro",
-  "primary_score": 0.39021421957879165,
+  "primary_score": 0.4485895046241394,
   "history": [
     {
-      "f1_macro": 0.39021421957879165,
-      "roc_auc_macro": NaN,
-      "loss": 0.02153171424032655,
+      "f1_macro": 0.4485895046241394,
+      "roc_auc_macro": 0.9736974273870153,
+      "roc_auc_macro_valid_only": 0.9736974273870153,
+      "n_valid_roc_labels": 201,
+      "n_total_roc_labels": 206,
+      "loss": 0.01971145918966714,
       "epoch": 1
     }
   ],
   "final": {
-    "f1_macro": 0.39021421957879165,
-    "roc_auc_macro": NaN,
-    "loss": 0.02153171424032655,
+    "f1_macro": 0.4485895046241394,
+    "roc_auc_macro": 0.9736974273870153,
+    "roc_auc_macro_valid_only": 0.9736974273870153,
+    "n_valid_roc_labels": 201,
+    "n_total_roc_labels": 206,
+    "loss": 0.01971145918966714,
     "epoch": 1
   },
   "best": {
-    "f1_macro": 0.39021421957879165,
-    "roc_auc_macro": NaN,
-    "loss": 0.02153171424032655,
+    "f1_macro": 0.4485895046241394,
+    "roc_auc_macro": 0.9736974273870153,
+    "roc_auc_macro_valid_only": 0.9736974273870153,
+    "n_valid_roc_labels": 201,
+    "n_total_roc_labels": 206,
+    "loss": 0.01971145918966714,
     "epoch": 1
   }
 }

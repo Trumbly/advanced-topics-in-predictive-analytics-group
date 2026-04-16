@@ -1,0 +1,211 @@
+{
+  "id": "study_20260415_095507_b52f",
+  "name": "Test opus with kaggle training",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-15T09:55:07.575496Z",
+  "started_at": "2026-04-15T09:55:07.575517Z",
+  "completed_at": "2026-04-15T09:59:52.972838Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_67e05accfd",
+      "study_id": "study_20260415_095507_b52f",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": "specaugment_cnn_small",
+      "architecture_family": "[specaugment_cnn]",
+      "architecture_proposal": "{\n  \"architecture_name\": \"specaugment_cnn_small\",\n  \"architecture_family\": \"[specaugment_cnn]\",\n  \"description\": \"A custom CNN backbone augmented with SpecAugment techniques for robust feature extraction from spectrograms.\",\n  \"reasoning\": \"Given the long-tail nature of the classes, robustness to variations (noise, slight shifts) is critical, making SpecAugment highly valuable. This architecture maintains a small footprint suitable for CPU inference while specifically tailoring the feature learning process for spectrogram data.\"\n}",
+      "code": "### MODEL ###\nclass SpecAugmentCNNSmall(nn.Module):\n    \"\"\"\n    Small CNN backbone for spectrogram feature extraction, designed for\n    low computational overhead suitable for CPU inference.\n    Input: (batch, 1, n_mels, time)\n    Output: (batch, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Initial convolution layer to capture basic patterns\n        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n        self.bn1 = nn.BatchNorm2d(32)\n        self.relu = nn.ReLU()\n\n        # Second convolution layer to deepen features\n        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n        self.bn2 = nn.BatchNorm2d(64)\n\n        # Adaptive pooling to fix the spatial dimensions (Mel x Time)\n        # Output size will be (B, 64, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n\n        # Final linear layer mapping features to class logits\n        self.fc = nn.Linear(64, num_classes)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # (B, 1, Mel, Time)\n        \n        # Block 1\n        x = self.conv1(x)\n        x = self.bn1(x)\n        x = self.relu(x) # (B, 32, Mel, Time)\n\n        # Block 2\n        x = self.conv2(x)\n        x = self.bn2(x)\n        x = self.relu(x) # (B, 64, Mel, Time)\n\n        # Pool and Flatten\n        x = self.pool(x) # (B, 64, 1, 1)\n        x = torch.flatten(x, 1) # (B, 64)\n\n        # Output logits\n        logits = self.fc(x) # (B, num_classes)\n        return logits\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    \"\"\"Builds and returns the instantiated model.\"\"\"\n    return SpecAugmentCNNSmall(num_classes=num_classes)\n### END MODEL ###",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "]",
+        "traceback": "[{\"stream_name\":\"stdout\",\"time\":0.992383446,\"data\":\"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":0.992434162,\"data\":\"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-w8vdzpcg\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":52.992118658,\"data\":\"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":58.563731417,\"data\":\"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.563851764,\"data\":\"Traceback (most recent call last):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.563899759,\"data\":\"  File \\\"/kaggle/src/script.py\\\", line 293, in \\u003cmodule\\u003e\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.56414671,\"data\":\"    class SpecAugmentCNNSmall(nn.Module):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.564198797,\"data\":\"                              ^^\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.564272408,\"data\":\"NameError: name 'nn' is not defined\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.390657855,\"data\":\"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\\\|'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.390697149,\"data\":\"  cells[i][c] = re.sub('\\\\\\\\\\\\\\\\\\\\|', '|', cell)\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.665776852,\"data\":\"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\\\_'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.665816662,\"data\":\"  text = re.sub(r'_', '\\\\_', text) # Escape underscores in display text\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":63.340846085,\"data\":\"[NbConvertApp] Converting notebook __script__.ipynb to html\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":64.582400488,\"data\":\"[NbConvertApp] Writing 326390 bytes to __results__.html\\n\"}\n]"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "specaugment_cnn_small",
+            "architecture_family": "[specaugment_cnn]",
+            "description": "A custom CNN backbone augmented with SpecAugment techniques for robust feature extraction from spectrograms.",
+            "reasoning": "Given the long-tail nature of the classes, robustness to variations (noise, slight shifts) is critical, making SpecAugment highly valuable. This architecture maintains a small footprint suitable for CPU inference while specifically tailoring the feature learning process for spectrogram data."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T09:55:07.577272Z",
+          "completed_at": "2026-04-15T09:55:21.075326Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "### MODEL ###\nclass SpecAugmentCNNSmall(nn.Module):\n    \"\"\"\n    Small CNN backbone for spectrogram feature extraction, designed for\n    low computational overhead suitable for CPU inference.\n    Input: (batch, 1, n_mels, time)\n    Output: (batch, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Initial convolution layer to capture basic patterns\n        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n        self.bn1 = nn.BatchNorm2d(32)\n        self.relu = nn.ReLU()\n\n        # Second convolution layer to deepen features\n        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n        self.bn2 = nn.BatchNorm2d(64)\n\n        # Adaptive pooling to fix the spatial dimensions (Mel x Time)\n        # Output size will be (B, 64, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n\n        # Final linear layer mapping features to class logits\n        self.fc = nn.Linear(64, num_classes)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # (B, 1, Mel, Time)\n        \n        # Block 1\n        x = self.conv1(x)\n        x = self.bn1(x)\n        x = self.relu(x) # (B, 32, Mel, Time)\n\n        # Block 2\n        x = self.conv2(x)\n        x = self.bn2(x)\n        x = self.relu(x) # (B, 64, Mel, Time)\n\n        # Pool and Flatten\n        x = self.pool(x) # (B, 64, 1, 1)\n        x = torch.flatten(x, 1) # (B, 64)\n\n        # Output logits\n        logits = self.fc(x) # (B, num_classes)\n        return logits\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    \"\"\"Builds and returns the instantiated model.\"\"\"\n    return SpecAugmentCNNSmall(num_classes=num_classes)\n### END MODEL ###",
+          "error": null,
+          "started_at": "2026-04-15T09:55:21.075910Z",
+          "completed_at": "2026-04-15T09:55:40.363957Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 1
+          },
+          "code_used": "### MODEL ###\nclass SpecAugmentCNNSmall(nn.Module):\n    \"\"\"\n    Small CNN backbone for spectrogram feature extraction, designed for\n    low computational overhead suitable for CPU inference.\n    Input: (batch, 1, n_mels, time)\n    Output: (batch, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        # Initial convolution layer to capture basic patterns\n        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)\n        self.bn1 = nn.BatchNorm2d(32)\n        self.relu = nn.ReLU()\n\n        # Second convolution layer to deepen features\n        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)\n        self.bn2 = nn.BatchNorm2d(64)\n\n        # Adaptive pooling to fix the spatial dimensions (Mel x Time)\n        # Output size will be (B, 64, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n\n        # Final linear layer mapping features to class logits\n        self.fc = nn.Linear(64, num_classes)\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # (B, 1, Mel, Time)\n        \n        # Block 1\n        x = self.conv1(x)\n        x = self.bn1(x)\n        x = self.relu(x) # (B, 32, Mel, Time)\n\n        # Block 2\n        x = self.conv2(x)\n        x = self.bn2(x)\n        x = self.relu(x) # (B, 64, Mel, Time)\n\n        # Pool and Flatten\n        x = self.pool(x) # (B, 64, 1, 1)\n        x = torch.flatten(x, 1) # (B, 64)\n\n        # Output logits\n        logits = self.fc(x) # (B, num_classes)\n        return logits\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    \"\"\"Builds and returns the instantiated model.\"\"\"\n    return SpecAugmentCNNSmall(num_classes=num_classes)\n### END MODEL ###",
+          "error": null,
+          "started_at": "2026-04-15T09:55:40.365327Z",
+          "completed_at": "2026-04-15T09:55:40.368300Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 96.16252712509595,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "UnknownError",
+            "message": "]",
+            "traceback": "[{\"stream_name\":\"stdout\",\"time\":0.992383446,\"data\":\"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":0.992434162,\"data\":\"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-w8vdzpcg\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":52.992118658,\"data\":\"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":58.563731417,\"data\":\"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.563851764,\"data\":\"Traceback (most recent call last):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.563899759,\"data\":\"  File \\\"/kaggle/src/script.py\\\", line 293, in \\u003cmodule\\u003e\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.56414671,\"data\":\"    class SpecAugmentCNNSmall(nn.Module):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.564198797,\"data\":\"                              ^^\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":58.564272408,\"data\":\"NameError: name 'nn' is not defined\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.390657855,\"data\":\"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\\\|'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.390697149,\"data\":\"  cells[i][c] = re.sub('\\\\\\\\\\\\\\\\\\\\|', '|', cell)\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.665776852,\"data\":\"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\\\_'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":62.665816662,\"data\":\"  text = re.sub(r'_', '\\\\_', text) # Escape underscores in display text\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":63.340846085,\"data\":\"[NbConvertApp] Converting notebook __script__.ipynb to html\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":64.582400488,\"data\":\"[NbConvertApp] Writing 326390 bytes to __results__.html\\n\"}\n]"
+          },
+          "started_at": "2026-04-15T09:55:40.368969Z",
+          "completed_at": "2026-04-15T09:57:16.536374Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T09:55:07.577204Z",
+      "completed_at": "2026-04-15T09:57:16.536888Z",
+      "duration_seconds": 96.16252712509595,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_67e05accfd"
+    },
+    {
+      "id": "exp_c2802957e8",
+      "study_id": "study_20260415_095507_b52f",
+      "index": 1,
+      "status": "aborted",
+      "architecture_name": "mobilenet_v3_small_adapter",
+      "architecture_family": "[mobilenet_v3_small]",
+      "architecture_proposal": "{\n  \"architecture_name\": \"mobilenet_v3_small_adapter\",\n  \"architecture_family\": \"[mobilenet_v3_small]\",\n  \"description\": \"Employs the highly optimized MobileNetV3 backbone for efficient feature extraction from the mel-spectrograms.\",\n  \"reasoning\": \"Given the strict CPU-only runtime constraint and the need to process 206 classes, MobileNetV3 offers an excellent balance between model depth/feature richness and computational efficiency, making it a strong candidate to outperform the baseline custom CNN without risking timeout.\"\n}",
+      "code": "### MODEL ###\nclass MobileNetV3Adapter(nn.Module):\n    \"\"\"\n    Adapter implementing the MobileNetV3 principles (Depthwise Separable Convolutions)\n    for spectrogram feature extraction.\n    Input: (B, 1, n_mels, time)\n    Output: (B, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        \n        # Initial convolution layer: Maps 1 channel (mel) to 16 feature channels\n        self.initial_conv = nn.Sequential(\n            nn.Conv2d(1, 16, kernel_size=3, padding=1, stride=1),\n            nn.BatchNorm2d(16),\n            nn.ReLU6(inplace=True)\n        )\n        \n        # Feature extraction blocks mimicking MobileNetV3 structure\n        # Using a simplified sequence of Depthwise Separable Convolutions\n        self.features = nn.Sequential(\n            # Block 1: Increase depth\n            self._make_block(16, 32, kernel_size=3, padding=1),\n            # Block 2: Further feature extraction\n            self._make_block(32, 64, kernel_size=3, padding=1),\n            # Block 3: Capture complex patterns\n            self._make_block(64, 128, kernel_size=3, padding=1),\n        )\n        \n        # Global pooling to reduce spatial dimensions to 1x1 feature vector\n        # Input feature size: (B, 128, H', W') -> Output: (B, 128, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n        \n        # Classifier head\n        self.classifier = nn.Sequential(\n            nn.Conv2d(128, 128, kernel_size=1), # Optional: refine features before FC\n            nn.BatchNorm2d(128),\n            nn.ReLU6(inplace=True),\n            nn.Linear(128, num_classes)\n        )\n\n    def _make_block(self, in_channels: int, out_channels: int, kernel_size: int, padding: int) -> nn.Sequential:\n        \"\"\"Helper to create a Depthwise Separable Convolution block.\"\"\"\n        return nn.Sequential(\n            # Depthwise Conv: Processes spatial dimensions independently per channel\n            nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, padding=padding, groups=in_channels),\n            nn.BatchNorm2d(in_channels),\n            nn.ReLU6(inplace=True),\n            # Pointwise Conv: Combines channels\n            nn.Conv2d(in_channels, out_channels, kernel_size=1),\n            nn.BatchNorm2d(out_channels),\n            nn.ReLU6(inplace=True)\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # Input shape: (B, 1, N_mels, T)\n        \n        x = self.initial_conv(x)\n        \n        # Feature extraction blocks\n        x = self.features(x)\n        \n        # Pool spatial dimensions (N_mels, T) -> (1, 1)\n        x = self.pool(x)\n        \n        # Flatten spatial dimensions and pass through final layers\n        x = torch.flatten(x, 2) # (B, 128, 1, 1) -> (B, 128)\n        \n        logits = self.classifier(x)\n        \n        return logits\n\ndef build_model(num_classes: int) -> nn.Module:\n    return MobileNetV3Adapter(num_classes)\n### END MODEL ###",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "Aborted",
+        "message": "User requested abort",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "mobilenet_v3_small_adapter",
+            "architecture_family": "[mobilenet_v3_small]",
+            "description": "Employs the highly optimized MobileNetV3 backbone for efficient feature extraction from the mel-spectrograms.",
+            "reasoning": "Given the strict CPU-only runtime constraint and the need to process 206 classes, MobileNetV3 offers an excellent balance between model depth/feature richness and computational efficiency, making it a strong candidate to outperform the baseline custom CNN without risking timeout."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T09:57:16.538278Z",
+          "completed_at": "2026-04-15T09:57:26.287520Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "### MODEL ###\nclass MobileNetV3Adapter(nn.Module):\n    \"\"\"\n    Adapter implementing the MobileNetV3 principles (Depthwise Separable Convolutions)\n    for spectrogram feature extraction.\n    Input: (B, 1, n_mels, time)\n    Output: (B, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        \n        # Initial convolution layer: Maps 1 channel (mel) to 16 feature channels\n        self.initial_conv = nn.Sequential(\n            nn.Conv2d(1, 16, kernel_size=3, padding=1, stride=1),\n            nn.BatchNorm2d(16),\n            nn.ReLU6(inplace=True)\n        )\n        \n        # Feature extraction blocks mimicking MobileNetV3 structure\n        # Using a simplified sequence of Depthwise Separable Convolutions\n        self.features = nn.Sequential(\n            # Block 1: Increase depth\n            self._make_block(16, 32, kernel_size=3, padding=1),\n            # Block 2: Further feature extraction\n            self._make_block(32, 64, kernel_size=3, padding=1),\n            # Block 3: Capture complex patterns\n            self._make_block(64, 128, kernel_size=3, padding=1),\n        )\n        \n        # Global pooling to reduce spatial dimensions to 1x1 feature vector\n        # Input feature size: (B, 128, H', W') -> Output: (B, 128, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n        \n        # Classifier head\n        self.classifier = nn.Sequential(\n            nn.Conv2d(128, 128, kernel_size=1), # Optional: refine features before FC\n            nn.BatchNorm2d(128),\n            nn.ReLU6(inplace=True),\n            nn.Linear(128, num_classes)\n        )\n\n    def _make_block(self, in_channels: int, out_channels: int, kernel_size: int, padding: int) -> nn.Sequential:\n        \"\"\"Helper to create a Depthwise Separable Convolution block.\"\"\"\n        return nn.Sequential(\n            # Depthwise Conv: Processes spatial dimensions independently per channel\n            nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, padding=padding, groups=in_channels),\n            nn.BatchNorm2d(in_channels),\n            nn.ReLU6(inplace=True),\n            # Pointwise Conv: Combines channels\n            nn.Conv2d(in_channels, out_channels, kernel_size=1),\n            nn.BatchNorm2d(out_channels),\n            nn.ReLU6(inplace=True)\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # Input shape: (B, 1, N_mels, T)\n        \n        x = self.initial_conv(x)\n        \n        # Feature extraction blocks\n        x = self.features(x)\n        \n        # Pool spatial dimensions (N_mels, T) -> (1, 1)\n        x = self.pool(x)\n        \n        # Flatten spatial dimensions and pass through final layers\n        x = torch.flatten(x, 2) # (B, 128, 1, 1) -> (B, 128)\n        \n        logits = self.classifier(x)\n        \n        return logits\n\ndef build_model(num_classes: int) -> nn.Module:\n    return MobileNetV3Adapter(num_classes)\n### END MODEL ###",
+          "error": null,
+          "started_at": "2026-04-15T09:57:26.288155Z",
+          "completed_at": "2026-04-15T09:57:57.775243Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 1
+          },
+          "code_used": "### MODEL ###\nclass MobileNetV3Adapter(nn.Module):\n    \"\"\"\n    Adapter implementing the MobileNetV3 principles (Depthwise Separable Convolutions)\n    for spectrogram feature extraction.\n    Input: (B, 1, n_mels, time)\n    Output: (B, num_classes) logits\n    \"\"\"\n    def __init__(self, num_classes: int):\n        super().__init__()\n        \n        # Initial convolution layer: Maps 1 channel (mel) to 16 feature channels\n        self.initial_conv = nn.Sequential(\n            nn.Conv2d(1, 16, kernel_size=3, padding=1, stride=1),\n            nn.BatchNorm2d(16),\n            nn.ReLU6(inplace=True)\n        )\n        \n        # Feature extraction blocks mimicking MobileNetV3 structure\n        # Using a simplified sequence of Depthwise Separable Convolutions\n        self.features = nn.Sequential(\n            # Block 1: Increase depth\n            self._make_block(16, 32, kernel_size=3, padding=1),\n            # Block 2: Further feature extraction\n            self._make_block(32, 64, kernel_size=3, padding=1),\n            # Block 3: Capture complex patterns\n            self._make_block(64, 128, kernel_size=3, padding=1),\n        )\n        \n        # Global pooling to reduce spatial dimensions to 1x1 feature vector\n        # Input feature size: (B, 128, H', W') -> Output: (B, 128, 1, 1)\n        self.pool = nn.AdaptiveAvgPool2d(1)\n        \n        # Classifier head\n        self.classifier = nn.Sequential(\n            nn.Conv2d(128, 128, kernel_size=1), # Optional: refine features before FC\n            nn.BatchNorm2d(128),\n            nn.ReLU6(inplace=True),\n            nn.Linear(128, num_classes)\n        )\n\n    def _make_block(self, in_channels: int, out_channels: int, kernel_size: int, padding: int) -> nn.Sequential:\n        \"\"\"Helper to create a Depthwise Separable Convolution block.\"\"\"\n        return nn.Sequential(\n            # Depthwise Conv: Processes spatial dimensions independently per channel\n            nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, padding=padding, groups=in_channels),\n            nn.BatchNorm2d(in_channels),\n            nn.ReLU6(inplace=True),\n            # Pointwise Conv: Combines channels\n            nn.Conv2d(in_channels, out_channels, kernel_size=1),\n            nn.BatchNorm2d(out_channels),\n            nn.ReLU6(inplace=True)\n        )\n\n    def forward(self, x: torch.Tensor) -> torch.Tensor:\n        # Input shape: (B, 1, N_mels, T)\n        \n        x = self.initial_conv(x)\n        \n        # Feature extraction blocks\n        x = self.features(x)\n        \n        # Pool spatial dimensions (N_mels, T) -> (1, 1)\n        x = self.pool(x)\n        \n        # Flatten spatial dimensions and pass through final layers\n        x = torch.flatten(x, 2) # (B, 128, 1, 1) -> (B, 128)\n        \n        logits = self.classifier(x)\n        \n        return logits\n\ndef build_model(num_classes: int) -> nn.Module:\n    return MobileNetV3Adapter(num_classes)\n### END MODEL ###",
+          "error": null,
+          "started_at": "2026-04-15T09:57:57.776204Z",
+          "completed_at": "2026-04-15T09:57:57.778677Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 115.19179212499876,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "Aborted",
+            "message": "User requested abort",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T09:57:57.779197Z",
+          "completed_at": "2026-04-15T09:59:52.971772Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T09:57:16.538076Z",
+      "completed_at": "2026-04-15T09:59:52.972169Z",
+      "duration_seconds": 115.19179212499876,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_c2802957e8"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "opus4.6",
+    "kaggle",
+    "gpu"
+  ],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

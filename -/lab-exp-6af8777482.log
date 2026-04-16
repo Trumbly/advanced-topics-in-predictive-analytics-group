@@ -1,0 +1,112 @@
+[{"stream_name":"stdout","time":1.263400062,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.263469497,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-1x9z4xlh\n"}
+,{"stream_name":"stdout","time":40.154049834,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":46.155142614,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\n"}
+,{"stream_name":"stdout","time":53.498273279,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":53.755528633,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 40%|███▉      | 8.12M/20.5M [00:00\u003c00:00, 84.8MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 129MB/s] \n"}
+,{"stream_name":"stdout","time":54.057851566,"data":"[skeleton] DataParallel across 2 GPUs. effective BATCH_SIZE=128 (per-GPU=64)\n"}
+,{"stream_name":"stderr","time":57.682789288,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":57.682848045,"data":"  File \"/kaggle/src/script.py\", line 529, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":57.6832453,"data":"    main()\n"}
+,{"stream_name":"stderr","time":57.683271072,"data":"  File \"/kaggle/src/script.py\", line 507, in main\n"}
+,{"stream_name":"stderr","time":57.683670078,"data":"    loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n"}
+,{"stream_name":"stderr","time":57.683845294,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.683981755,"data":"  File \"/kaggle/src/script.py\", line 448, in train_one_epoch\n"}
+,{"stream_name":"stderr","time":57.684232829,"data":"    logits = model(x)\n"}
+,{"stream_name":"stderr","time":57.684315229,"data":"             ^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.68433374,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.684795272,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.68487345,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.684952324,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.685343108,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.685419529,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.685428841,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/data_parallel.py\", line 197, in forward\n"}
+,{"stream_name":"stderr","time":57.686610969,"data":"    outputs = self.parallel_apply(replicas, inputs, module_kwargs)\n"}
+,{"stream_name":"stderr","time":57.686717239000004,"data":"              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.68678269,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/data_parallel.py\", line 214, in parallel_apply\n"}
+,{"stream_name":"stderr","time":57.687009708,"data":"    return parallel_apply(\n"}
+,{"stream_name":"stderr","time":57.687089117,"data":"           ^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.687098614,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/parallel_apply.py\", line 133, in parallel_apply\n"}
+,{"stream_name":"stderr","time":57.687293621,"data":"    output.reraise()\n"}
+,{"stream_name":"stderr","time":57.687347162,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/_utils.py\", line 775, in reraise\n"}
+,{"stream_name":"stderr","time":57.689484666,"data":"    raise exception\n"}
+,{"stream_name":"stderr","time":57.689506974,"data":"RuntimeError: Caught RuntimeError in replica 0 on device 0.\n"}
+,{"stream_name":"stderr","time":57.689511729,"data":"Original Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":57.689517295,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/parallel_apply.py\", line 103, in _worker\n"}
+,{"stream_name":"stderr","time":57.689524556,"data":"    output = module(*input, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689527128,"data":"             ^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689529572,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.68953232,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689534686,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.68953704,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689539562,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689541876,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689544224,"data":"  File \"/kaggle/src/script.py\", line 413, in forward\n"}
+,{"stream_name":"stderr","time":57.689546676,"data":"    x = self.features(x)\n"}
+,{"stream_name":"stderr","time":57.689549023,"data":"        ^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689551379,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689553888,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689556224,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689558615,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689561081,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689564294,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.68958079,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":57.689585876,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":57.68958997,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689594457,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689598939,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689602624,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689606982,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689611074,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689614962,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689632335,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":57.689636949,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":57.689641288,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689645122,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689649408,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689654396,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689657924,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689661438,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.68966572,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689669848,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/models/efficientnet.py\", line 165, in forward\n"}
+,{"stream_name":"stderr","time":57.689674862,"data":"    result = self.block(input)\n"}
+,{"stream_name":"stderr","time":57.689679064,"data":"             ^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689682738,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689686276,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689689659,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689704143,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.68970814,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689711611,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689715505,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":57.689719585,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":57.689723328,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689726794,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689730988,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689734685,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689738117,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689742284,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689746309,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689750111,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":57.689754302,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":57.689758,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689761284,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":57.689787744,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.689792621,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689796628,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":57.689800591,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":57.68980395,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689807317,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/batchnorm.py\", line 194, in forward\n"}
+,{"stream_name":"stderr","time":57.689810919,"data":"    return F.batch_norm(\n"}
+,{"stream_name":"stderr","time":57.689814182,"data":"           ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689818425,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/functional.py\", line 2846, in batch_norm\n"}
+,{"stream_name":"stderr","time":57.689822103,"data":"    return torch.batch_norm(\n"}
+,{"stream_name":"stderr","time":57.689827036,"data":"           ^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":57.689834092,"data":"RuntimeError: cuDNN error: CUDNN_STATUS_EXECUTION_FAILED\n"}
+,{"stream_name":"stderr","time":57.689836509,"data":"\n"}
+,{"stream_name":"stderr","time":62.593946237,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":62.593995185,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":62.849366695,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":62.849421697,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":63.533516339,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":64.840148346,"data":"[NbConvertApp] Writing 360705 bytes to __results__.html\n"}
+]

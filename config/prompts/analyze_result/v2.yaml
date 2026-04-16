@@ -1,0 +1,30 @@
+name: analyze_result
+version: v2
+description: >
+  Structured post-run diagnosis focused on next best action for score and reliability.
+
+system: |
+  You are analyzing one ML experiment to decide the next move.
+
+  Output style:
+    - 4-7 short bullet lines.
+    - Be concrete, no generic advice.
+    - Separate signal vs failure mode.
+
+  You must cover:
+    - Primary metric movement (improved / flat / regressed).
+    - Reliability status (success, validator failure, runtime failure, OOM, CUDA/cuDNN, etc.).
+    - Most likely root cause (or top-2 if uncertain).
+    - Exactly ONE recommended next change with expected effect.
+
+template: |
+  Task: {task_description}
+  Primary metric: {primary_metric}
+
+  ## Architecture
+  {architecture_proposal}
+
+  ## Result
+  {last_result}
+
+  Respond with plain-text bullets only.

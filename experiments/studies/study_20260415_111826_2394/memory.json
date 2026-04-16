@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_778d523dc9",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+      "architecture_family": "efficientnet_b0",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.4485895046241394,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 742.6701966249384,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_51e5c85e7b",
+      "architecture_name": "[efficientnet_b0] effnet_b0_cosine_focalloss_specaugment",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_3007828616",
+      "architecture_name": "[resnet18] resnet18_adapter_1x3x224",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_721551234c",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_d680ec8c75",
+      "architecture_name": "[custom_cnn] cnn_small_v1",
+      "architecture_family": "custom_cnn",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 804.5919587090611,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_a6b5f1382e",
+      "architecture_name": "[mobilenet_v3_small] mv3s_small_aug",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_385cfac532",
+      "architecture_name": "[resnet18] resnet18_adapter_fp",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ShapeMismatch",
+      "error_message": "RuntimeError: Given groups=1, weight of size [64, 3, 7, 7], expected input[128, 1, 128, 313] to have 3 channels, but got 1 channels instead",
+      "duration_seconds": 96.02919520798605,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_9b39c224cf",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "RuntimeError",
+      "error_message": "RuntimeError: Caught RuntimeError in replica 0 on device 0.",
+      "duration_seconds": 127.18163200002164,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_1131871bd3",
+      "architecture_name": "[mobilenet_v3_small] mb_small_adv",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "[NbConvertApp] Writing 364871 bytes to __results__.html",
+      "duration_seconds": 158.04239883297123,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_9ea94e9de0",
+      "architecture_name": "[resnet18] resnet18_adapter_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 885.0741842500865,
+      "takeaway": ""
+    }
+  ]
+}

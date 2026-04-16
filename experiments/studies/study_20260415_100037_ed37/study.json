@@ -1,0 +1,210 @@
+{
+  "id": "study_20260415_100037_ed37",
+  "name": "Test qwen-coder with kaggle training",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-15T10:00:37.731024Z",
+  "started_at": "2026-04-15T10:00:37.731044Z",
+  "completed_at": "2026-04-15T10:04:03.565380Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_c6c4438c73",
+      "study_id": "study_20260415_100037_ed37",
+      "index": 0,
+      "status": "failed",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": "custom_cnn",
+      "architecture_proposal": "{\n  \"architecture_name\": \"cnn_small_v1\",\n  \"architecture_family\": \"custom_cnn\",\n  \"description\": \"A small custom CNN with 3 Conv2d blocks, BatchNorm, AdaptiveAvgPool2d, and Dense head for efficient audio classification.\",\n  \"reasoning\": \"This is a CPU-friendly baseline architecture that has shown good performance on similar audio tasks, with ~800k parameters which should fit well within the 90-minute runtime budget while being small enough for the long-tail class distribution.\"\n}",
+      "code": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv Block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Second Conv Block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Third Conv Block\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive Pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Dense Head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 256),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(256, num_classes),\n    )",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "UnknownError",
+        "message": "]",
+        "traceback": "[{\"stream_name\":\"stdout\",\"time\":0.970455735,\"data\":\"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":0.970528097,\"data\":\"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-oxwbh6ug\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":59.930365235,\"data\":\"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":65.18081946,\"data\":\"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.180975499,\"data\":\"Traceback (most recent call last):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.18102535,\"data\":\"  File \\\"/kaggle/src/script.py\\\", line 292, in \\u003cmodule\\u003e\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.18120902,\"data\":\"    def build_model(num_classes: int) -\\u003e nn.Module:\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.1813181,\"data\":\"                                         ^^\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.181432604,\"data\":\"NameError: name 'nn' is not defined\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":68.831146225,\"data\":\"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\\\|'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":68.831185947,\"data\":\"  cells[i][c] = re.sub('\\\\\\\\\\\\\\\\\\\\|', '|', cell)\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.06841071,\"data\":\"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\\\_'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.068443271,\"data\":\"  text = re.sub(r'_', '\\\\_', text) # Escape underscores in display text\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.716180249,\"data\":\"[NbConvertApp] Converting notebook __script__.ipynb to html\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":70.921673493,\"data\":\"[NbConvertApp] Writing 326207 bytes to __results__.html\\n\"}\n]"
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "cnn_small_v1",
+            "architecture_family": "custom_cnn",
+            "description": "A small custom CNN with 3 Conv2d blocks, BatchNorm, AdaptiveAvgPool2d, and Dense head for efficient audio classification.",
+            "reasoning": "This is a CPU-friendly baseline architecture that has shown good performance on similar audio tasks, with ~800k parameters which should fit well within the 90-minute runtime budget while being small enough for the long-tail class distribution."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T10:00:37.732355Z",
+          "completed_at": "2026-04-15T10:00:43.615753Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv Block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Second Conv Block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Third Conv Block\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive Pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Dense Head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 256),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(256, num_classes),\n    )",
+          "error": null,
+          "started_at": "2026-04-15T10:00:43.616138Z",
+          "completed_at": "2026-04-15T10:00:50.253034Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 1
+          },
+          "code_used": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv Block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.BatchNorm2d(32),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Second Conv Block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.BatchNorm2d(64),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Third Conv Block\n        nn.Conv2d(64, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.Conv2d(128, 128, kernel_size=3, padding=1),\n        nn.BatchNorm2d(128),\n        nn.ReLU(inplace=True),\n        nn.MaxPool2d(2),\n        \n        # Adaptive Pooling\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Dense Head\n        nn.Flatten(),\n        nn.Linear(128 * 4 * 4, 256),\n        nn.ReLU(inplace=True),\n        nn.Dropout(0.5),\n        nn.Linear(256, num_classes),\n    )",
+          "error": null,
+          "started_at": "2026-04-15T10:00:50.254177Z",
+          "completed_at": "2026-04-15T10:00:50.256338Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 95.7661425829865,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "UnknownError",
+            "message": "]",
+            "traceback": "[{\"stream_name\":\"stdout\",\"time\":0.970455735,\"data\":\"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":0.970528097,\"data\":\"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-oxwbh6ug\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":59.930365235,\"data\":\"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\\n\"}\n,{\"stream_name\":\"stdout\",\"time\":65.18081946,\"data\":\"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.180975499,\"data\":\"Traceback (most recent call last):\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.18102535,\"data\":\"  File \\\"/kaggle/src/script.py\\\", line 292, in \\u003cmodule\\u003e\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.18120902,\"data\":\"    def build_model(num_classes: int) -\\u003e nn.Module:\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.1813181,\"data\":\"                                         ^^\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":65.181432604,\"data\":\"NameError: name 'nn' is not defined\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":68.831146225,\"data\":\"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\\\|'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":68.831185947,\"data\":\"  cells[i][c] = re.sub('\\\\\\\\\\\\\\\\\\\\|', '|', cell)\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.06841071,\"data\":\"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\\\_'\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.068443271,\"data\":\"  text = re.sub(r'_', '\\\\_', text) # Escape underscores in display text\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":69.716180249,\"data\":\"[NbConvertApp] Converting notebook __script__.ipynb to html\\n\"}\n,{\"stream_name\":\"stderr\",\"time\":70.921673493,\"data\":\"[NbConvertApp] Writing 326207 bytes to __results__.html\\n\"}\n]"
+          },
+          "started_at": "2026-04-15T10:00:50.257290Z",
+          "completed_at": "2026-04-15T10:02:26.024666Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T10:00:37.732284Z",
+      "completed_at": "2026-04-15T10:02:26.025015Z",
+      "duration_seconds": 95.7661425829865,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_c6c4438c73"
+    },
+    {
+      "id": "exp_e2286230a7",
+      "study_id": "study_20260415_100037_ed37",
+      "index": 1,
+      "status": "aborted",
+      "architecture_name": "cnn_gru_hybrid_small",
+      "architecture_family": "cnn_gru_hybrid",
+      "architecture_proposal": "{\n  \"architecture_name\": \"cnn_gru_hybrid_small\",\n  \"architecture_family\": \"cnn_gru_hybrid\",\n  \"description\": \"A compact CNN-GRU hybrid with 2 Conv2d blocks, 1 GRU layer, and dense head for audio sequence modeling.\",\n  \"reasoning\": \"Building on the successful custom_cnn baseline, this hybrid approach leverages CNN feature extraction followed by GRU temporal modeling which is effective for audio sequences. The small size ensures CPU efficiency within the 90-minute budget while the GRU captures temporal dependencies important for bird species classification from 5-second clips.\"\n}",
+      "code": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv2d block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Second Conv2d block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Adaptive pooling to ensure fixed-size feature maps\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Reshape for GRU: (batch, channels, height, width) -> (batch, height, channels*width)\n        nn.Lambda(lambda x: x.view(x.size(0), x.size(2), -1)),\n        \n        # GRU layer\n        nn.GRU(64 * 4, 64, batch_first=True, dropout=0.25),\n        \n        # Global average pooling over time dimension\n        nn.AdaptiveAvgPool1d(1),\n        \n        # Dense head\n        nn.Flatten(),\n        nn.Linear(64, num_classes),\n    )",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "Aborted",
+        "message": "User requested abort",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "cnn_gru_hybrid_small",
+            "architecture_family": "cnn_gru_hybrid",
+            "description": "A compact CNN-GRU hybrid with 2 Conv2d blocks, 1 GRU layer, and dense head for audio sequence modeling.",
+            "reasoning": "Building on the successful custom_cnn baseline, this hybrid approach leverages CNN feature extraction followed by GRU temporal modeling which is effective for audio sequences. The small size ensures CPU efficiency within the 90-minute budget while the GRU captures temporal dependencies important for bird species classification from 5-second clips."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T10:02:26.025896Z",
+          "completed_at": "2026-04-15T10:02:27.921665Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv2d block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Second Conv2d block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Adaptive pooling to ensure fixed-size feature maps\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Reshape for GRU: (batch, channels, height, width) -> (batch, height, channels*width)\n        nn.Lambda(lambda x: x.view(x.size(0), x.size(2), -1)),\n        \n        # GRU layer\n        nn.GRU(64 * 4, 64, batch_first=True, dropout=0.25),\n        \n        # Global average pooling over time dimension\n        nn.AdaptiveAvgPool1d(1),\n        \n        # Dense head\n        nn.Flatten(),\n        nn.Linear(64, num_classes),\n    )",
+          "error": null,
+          "started_at": "2026-04-15T10:02:27.922323Z",
+          "completed_at": "2026-04-15T10:02:34.643433Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "validate_code",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "validator_attempts": 1
+          },
+          "code_used": "def build_model(num_classes: int) -> nn.Module:\n    return nn.Sequential(\n        # First Conv2d block\n        nn.Conv2d(1, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.Conv2d(32, 32, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(32),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Second Conv2d block\n        nn.Conv2d(32, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.Conv2d(64, 64, kernel_size=3, padding=1),\n        nn.ReLU(),\n        nn.BatchNorm2d(64),\n        nn.MaxPool2d(2),\n        nn.Dropout2d(0.25),\n        \n        # Adaptive pooling to ensure fixed-size feature maps\n        nn.AdaptiveAvgPool2d((4, 4)),\n        \n        # Reshape for GRU: (batch, channels, height, width) -> (batch, height, channels*width)\n        nn.Lambda(lambda x: x.view(x.size(0), x.size(2), -1)),\n        \n        # GRU layer\n        nn.GRU(64 * 4, 64, batch_first=True, dropout=0.25),\n        \n        # Global average pooling over time dimension\n        nn.AdaptiveAvgPool1d(1),\n        \n        # Dense head\n        nn.Flatten(),\n        nn.Linear(64, num_classes),\n    )",
+          "error": null,
+          "started_at": "2026-04-15T10:02:34.643853Z",
+          "completed_at": "2026-04-15T10:02:34.644554Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 88.91913875006139,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "Aborted",
+            "message": "User requested abort",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T10:02:34.644714Z",
+          "completed_at": "2026-04-15T10:04:03.564422Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T10:02:26.025793Z",
+      "completed_at": "2026-04-15T10:04:03.564770Z",
+      "duration_seconds": 88.91913875006139,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_e2286230a7"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "qwen-coder",
+    "local"
+  ],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

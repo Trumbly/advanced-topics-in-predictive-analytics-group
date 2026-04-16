@@ -19,13 +19,23 @@ EPOCHS = int(os.environ.get("AGENT_EPOCHS", "1"))
 BASE_BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
 NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "4"))
 DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+LOG_EVERY_BATCHES = max(1, int(os.environ.get("AGENT_LOG_EVERY_BATCHES", "10")))
+LOG_GPU_EVERY_BATCHES = max(
+    1, int(os.environ.get("AGENT_LOG_GPU_EVERY_BATCHES", str(LOG_EVERY_BATCHES))),
+)
+ENABLE_GPU_UTIL_LOGS = os.environ.get("AGENT_LOG_GPU_UTIL", "1").lower() in {
+    "1", "true", "yes", "on",
+}
 
-# Scale batch size when multiple GPUs are visible so DataParallel
-# actually has work to shard across them. Override via AGENT_BATCH_SIZE
-# if you want a fixed total batch.
+# Keep AGENT_BATCH_SIZE as the TOTAL batch for the DataLoader.
+# Do NOT auto-scale by GPU count: multiplying the global batch often
+# causes OOM / CUDA instability on smaller cards (e.g., T4).
 _gpu_count = torch.cuda.device_count() if (DEVICE != "cpu" and torch.cuda.is_available()) else 0
-MULTI_GPU = _gpu_count > 1
-BATCH_SIZE = BASE_BATCH_SIZE * max(_gpu_count, 1) if MULTI_GPU else BASE_BATCH_SIZE
+ENABLE_DATA_PARALLEL = os.environ.get("AGENT_ENABLE_DATA_PARALLEL", "1").lower() in {
+    "1", "true", "yes", "on",
+}
+MULTI_GPU = _gpu_count > 1 and ENABLE_DATA_PARALLEL
+BATCH_SIZE = BASE_BATCH_SIZE
 
 
 ### MODEL ###
@@ -33,10 +43,15 @@ BATCH_SIZE = BASE_BATCH_SIZE * max(_gpu_count, 1) if MULTI_GPU else BASE_BATCH_S
 ### END MODEL ###
 
 
-def train_one_epoch(model, loader, optimizer, loss_fn, device):
+def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int):
     model.train()
     total, n = 0.0, 0
-    for x, y in loader:
+    try:
+        total_batches = len(loader)
+    except TypeError:
+        total_batches = None
+
+    for batch_idx, (x, y) in enumerate(loader, start=1):
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True).float()
         optimizer.zero_grad(set_to_none=True)
         logits = model(x)
@@ -45,7 +60,84 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device):
         optimizer.step()
         total += loss.item() * x.size(0)
         n += x.size(0)
+        should_log = (
+            batch_idx == 1
+            or batch_idx % LOG_EVERY_BATCHES == 0
+            or (total_batches is not None and batch_idx == total_batches)
+        )
+        if should_log:
+            running_loss = total / max(n, 1)
+            gpu_stats = ""
+            should_log_gpu = (
+                ENABLE_GPU_UTIL_LOGS
+                and device != "cpu"
+                and (
+                    batch_idx == 1
+                    or batch_idx % LOG_GPU_EVERY_BATCHES == 0
+                    or (total_batches is not None and batch_idx == total_batches)
+                )
+            )
+            if should_log_gpu:
+                gpu_stats = _gpu_stats_line()
+            gpu_suffix = f" | {gpu_stats}" if gpu_stats else ""
+            if total_batches is not None:
+                print(
+                    f"[epoch {epoch}][batch {batch_idx}/{total_batches}] "
+                    f"loss={loss.item():.4f} running_loss={running_loss:.4f}"
+                    f"{gpu_suffix}",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"[epoch {epoch}][batch {batch_idx}] "
+                    f"loss={loss.item():.4f} running_loss={running_loss:.4f}"
+                    f"{gpu_suffix}",
+                    flush=True,
+                )
     return total / max(n, 1)
+
+
+def _gpu_stats_line() -> str:
+    """Return a compact per-GPU util/memory string for live tuning."""
+    if not torch.cuda.is_available():
+        return ""
+    try:
+        parts = []
+        util_fn = getattr(torch.cuda, "utilization", None)
+        has_mem_get_info = hasattr(torch.cuda, "mem_get_info")
+        for i in range(torch.cuda.device_count()):
+            util_str = ""
+            if callable(util_fn):
+                try:
+                    util = util_fn(i)
+                    if isinstance(util, (int, float)):
+                        util_str = f" util={float(util):.0f}%"
+                except Exception:
+                    util_str = ""
+
+            mem_str = ""
+            if has_mem_get_info:
+                try:
+                    free_b, total_b = torch.cuda.mem_get_info(i)
+                    used_b = max(0, total_b - free_b)
+                    used_mb = used_b / (1024 ** 2)
+                    total_mb = total_b / (1024 ** 2)
+                    used_pct = 100.0 * used_b / max(total_b, 1)
+                    mem_str = f" mem={used_mb:.0f}/{total_mb:.0f}MiB ({used_pct:.0f}%)"
+                except Exception:
+                    mem_str = ""
+
+            alloc_mb = torch.cuda.memory_allocated(i) / (1024 ** 2)
+            reserved_mb = torch.cuda.memory_reserved(i) / (1024 ** 2)
+            peak_mb = torch.cuda.max_memory_allocated(i) / (1024 ** 2)
+            parts.append(
+                f"gpu{i}{util_str}{mem_str} "
+                f"alloc={alloc_mb:.0f}MiB reserved={reserved_mb:.0f}MiB "
+                f"peak={peak_mb:.0f}MiB",
+            )
+        return " | ".join(parts)
+    except Exception:
+        return ""
 
 
 @torch.no_grad()
@@ -62,13 +154,29 @@ def evaluate(model, loader, device):
     y = np.concatenate(ys, axis=0)
     p = np.concatenate(ps, axis=0)
     preds = (p > 0.5).astype(int)
-    try:
-        roc = float(roc_auc_score(y, p, average="macro"))
-    except Exception:
-        roc = 0.0
+    # ROC-AUC in multilabel is undefined for labels where y_true has only one
+    # class in this validation slice (all 0 or all 1). Filter those labels out.
+    # This avoids UndefinedMetricWarning spam and yields a stable "valid-only"
+    # macro AUC.
+    valid_mask = np.ptp(y, axis=0) > 0
+    n_valid_labels = int(valid_mask.sum())
+    n_total_labels = int(y.shape[1]) if y.ndim == 2 else 0
+    if n_valid_labels > 0:
+        try:
+            roc_valid = float(
+                roc_auc_score(y[:, valid_mask], p[:, valid_mask], average="macro"),
+            )
+        except Exception:
+            roc_valid = 0.0
+    else:
+        roc_valid = 0.0
     return {
         "f1_macro": float(f1_score(y, preds, average="macro", zero_division=0)),
-        "roc_auc_macro": roc,
+        # Keep the legacy key for compatibility; it now means "valid-only".
+        "roc_auc_macro": roc_valid,
+        "roc_auc_macro_valid_only": roc_valid,
+        "n_valid_roc_labels": n_valid_labels,
+        "n_total_roc_labels": n_total_labels,
         "loss": None,
     }
 
@@ -78,31 +186,47 @@ def main():
         batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
     )
     model = build_model(num_classes).to(DEVICE)
-    # DataParallel replicates the module across all visible GPUs and
-    # splits each batch along dim 0. Each GPU therefore sees
-    # ``BASE_BATCH_SIZE`` samples even though the DataLoader yields
-    # ``BATCH_SIZE = BASE_BATCH_SIZE * N_GPUs``. No code change needed
-    # downstream — DataParallel forwards + gathers transparently.
     if MULTI_GPU:
         model = nn.DataParallel(model)
-        print(f"[skeleton] DataParallel across {_gpu_count} GPUs. "
-              f"effective BATCH_SIZE={BATCH_SIZE} (per-GPU={BASE_BATCH_SIZE})",
-              flush=True)
+        print(
+            f"[skeleton] DataParallel across {_gpu_count} GPUs. "
+            f"total BATCH_SIZE={BATCH_SIZE} "
+            f"LOG_EVERY_BATCHES={LOG_EVERY_BATCHES} "
+            f"LOG_GPU_EVERY_BATCHES={LOG_GPU_EVERY_BATCHES}",
+            flush=True,
+        )
     else:
-        print(f"[skeleton] device={DEVICE} BATCH_SIZE={BATCH_SIZE} "
-              f"NUM_WORKERS={NUM_WORKERS}", flush=True)
+        if _gpu_count > 1 and not ENABLE_DATA_PARALLEL:
+            print(
+                f"[skeleton] {_gpu_count} GPUs visible; DataParallel disabled "
+                f"(set AGENT_ENABLE_DATA_PARALLEL=1 to enable). "
+                f"device={DEVICE} BATCH_SIZE={BATCH_SIZE} NUM_WORKERS={NUM_WORKERS} "
+                f"LOG_EVERY_BATCHES={LOG_EVERY_BATCHES} "
+                f"LOG_GPU_EVERY_BATCHES={LOG_GPU_EVERY_BATCHES}",
+                flush=True,
+            )
+        else:
+            print(
+                f"[skeleton] device={DEVICE} BATCH_SIZE={BATCH_SIZE} "
+                f"NUM_WORKERS={NUM_WORKERS} LOG_EVERY_BATCHES={LOG_EVERY_BATCHES} "
+                f"LOG_GPU_EVERY_BATCHES={LOG_GPU_EVERY_BATCHES}",
+                flush=True,
+            )
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     history = []
     for epoch in range(1, EPOCHS + 1):
-        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)
+        loss = train_one_epoch(
+            model, train_loader, optimizer, loss_fn, DEVICE, epoch=epoch,
+        )
         metrics = evaluate(model, val_loader, DEVICE)
         metrics.update(loss=loss, epoch=epoch)
         history.append(metrics)
         print(f"[epoch {epoch}] loss={loss:.4f} "
               f"f1_macro={metrics['f1_macro']:.4f} "
-              f"roc_auc_macro={metrics['roc_auc_macro']:.4f}",
+              f"roc_auc_macro={metrics['roc_auc_macro']:.4f} "
+              f"roc_labels={metrics['n_valid_roc_labels']}/{metrics['n_total_roc_labels']}",
               flush=True)
 
     best = max(history, key=lambda h: h["f1_macro"])

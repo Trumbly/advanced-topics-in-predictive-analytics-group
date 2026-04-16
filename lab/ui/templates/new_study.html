@@ -10,7 +10,11 @@
   <label for="task">Task</label>
   <select id="task" name="task" required>
     {% for t in tasks %}
-      <option value="{{ t.name }}" {% if t.name == default_task %}selected{% endif %}>
+      <option
+        value="{{ t.name }}"
+        data-primary-metric="{{ t.primary_metric }}"
+        data-metrics="{{ t.metrics }}"
+        {% if t.name == default_task %}selected{% endif %}>
         {{ t.name }} — {{ t.kind }}
       </option>
     {% endfor %}
@@ -26,6 +30,13 @@
 
   <label for="tags">Tags (comma-separated)</label>
   <input id="tags" name="tags" type="text" placeholder="baseline, cnn, track-b-cpu">
+
+  <label for="primary_metrics">Primary metrics per experiment (optional)</label>
+  <input id="primary_metrics" name="primary_metrics" type="text" placeholder="f1_macro,roc_auc_macro">
+  <p class="muted small" id="primary-metrics-help">
+    Optional round-robin schedule. Example: <code>f1_macro,roc_auc_macro</code>.
+    Leave empty to use the task default for all experiments.
+  </p>
 
   <label for="predecessor">Continue from predecessor study (optional)</label>
   <select id="predecessor" name="predecessor">
@@ -128,6 +139,8 @@
   const $task = document.getElementById("task");
   const $name = document.getElementById("name");
   const $tags = document.getElementById("tags");
+  const $primaryMetrics = document.getElementById("primary_metrics");
+  const $primaryMetricsHelp = document.getElementById("primary-metrics-help");
   const $predecessor = document.getElementById("predecessor");
   const $report = document.getElementById("opt-report");
   const $executor = document.getElementById("executor");
@@ -147,6 +160,7 @@
     const task = $task.value.trim();
     const name = $name.value.trim();
     const tags = $tags.value.trim();
+    const primaryMetrics = $primaryMetrics.value.trim();
     const predecessor = $predecessor.value.trim();
     const report = $report.checked;
 
@@ -155,6 +169,7 @@
     parts.push("run");
     if (name) parts.push("--name", quote(name));
     if (tags) parts.push("--tags", quote(tags));
+    if (primaryMetrics) parts.push("--primary-metrics", quote(primaryMetrics));
     if (predecessor) parts.push("--resume", predecessor);
     if (report) parts.push("--report");
     const executor = $executor ? $executor.value.trim() : "";
@@ -168,10 +183,28 @@
     $cmd.textContent = parts.join(" ");
   }
 
-  [$task, $name, $tags, $predecessor, $executor].filter(Boolean).forEach(el => {
+  function updateMetricHint() {
+    if (!$task || !$primaryMetricsHelp) return;
+    const opt = $task.options[$task.selectedIndex];
+    const primary = (opt?.dataset?.primaryMetric || "").trim();
+    const metricsCsv = (opt?.dataset?.metrics || "").trim();
+    if (metricsCsv) {
+      $primaryMetricsHelp.innerHTML = `Allowed for this task: <code>${metricsCsv}</code>. ` +
+        `Default: <code>${primary || metricsCsv.split(",")[0]}</code>. ` +
+        `Use comma-separated round-robin schedule.`;
+    } else if (primary) {
+      $primaryMetricsHelp.innerHTML = `Default for this task: <code>${primary}</code>. ` +
+        `Optional round-robin schedule via comma list.`;
+    }
+  }
+
+  [$task, $name, $tags, $primaryMetrics, $predecessor, $executor].filter(Boolean).forEach(el => {
     el.addEventListener("input", build);
     el.addEventListener("change", build);
   });
+  if ($task) {
+    $task.addEventListener("change", updateMetricHint);
+  }
   $report.addEventListener("change", build);
   $promptSelects.forEach(el => el.addEventListener("change", build));
 
@@ -191,6 +224,7 @@
     setTimeout(() => { $copy.classList.remove("copied"); $copy.textContent = "Copy"; }, 1500);
   });
 
+  updateMetricHint();
   build();
 })();
 </script>

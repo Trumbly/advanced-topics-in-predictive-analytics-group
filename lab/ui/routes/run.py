@@ -23,6 +23,7 @@ async def start_study(
     predecessor: str = Form(""),
     report: str = Form("false"),
     executor: str = Form(""),
+    primary_metrics: str = Form(""),
 ):
     settings = request.app.state.settings
     if not task:
@@ -46,6 +47,7 @@ async def start_study(
         report=report.lower() in {"1", "true", "on", "yes"},
         prompt_overrides=overrides,
         executor_backend=executor.strip(),
+        primary_metrics=primary_metrics.strip(),
     )
     return RedirectResponse(f"/launches/{launch.id}", status_code=303)
 

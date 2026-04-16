@@ -47,7 +47,7 @@ loss:
 
 compute_budget:
   max_experiment_seconds: 7200
-  max_epochs_per_run: 1
+  max_epochs_per_run: 5
 
 submission:
   format: kaggle_notebook_cpu

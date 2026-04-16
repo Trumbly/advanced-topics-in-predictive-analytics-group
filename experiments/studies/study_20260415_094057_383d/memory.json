@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_778d523dc9",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_heavy_dropout",
+      "architecture_family": "efficientnet_b0",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.4485895046241394,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 742.6701966249384,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_51e5c85e7b",
+      "architecture_name": "[efficientnet_b0] effnet_b0_cosine_focalloss_specaugment",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

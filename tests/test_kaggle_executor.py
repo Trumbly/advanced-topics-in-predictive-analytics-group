@@ -98,12 +98,19 @@ def test_run_surfaces_kernel_error_as_task_error(monkeypatch, tmp_path):
         if argv[0:2] == ["kernels", "status"]:
             return _completed(stdout='Kernel has status "error".\n')
         if argv[0:2] == ["kernels", "output"]:
-            # Typical OOM traceback landing in the run log
-            return _completed(stdout=(
-                "Training started…\n"
-                "Traceback (most recent call last):\n"
-                "RuntimeError: CUDA out of memory. Tried to allocate …\n"
-            ))
+            # New Kaggle log path: CLI writes kernel console output into
+            # <path>/<kernel_slug>.log, then prints a short download msg.
+            slug = argv[2]
+            if "-p" in argv:
+                out_dir = Path(argv[argv.index("-p") + 1])
+                out_dir.mkdir(parents=True, exist_ok=True)
+                kernel_slug = slug.split("/", 1)[-1]
+                (out_dir / f"{kernel_slug}.log").write_text(
+                    "Training started…\n"
+                    "Traceback (most recent call last):\n"
+                    "RuntimeError: CUDA out of memory. Tried to allocate …\n"
+                )
+            return _completed(stdout="Kernel log downloaded.\n")
         return _completed()
 
     monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
@@ -219,6 +226,67 @@ def test_classify_kaggle_status_handles_known_phrasings():
     assert _classify_kaggle_status(
         'u/foo has status "KernelWorkerStatus.CANCELLED"'
     ) == "cancelled"
+    assert _classify_kaggle_status(
+        'u/foo has status "KernelWorkerStatus.CANCEL_ACKNOWLEDGED"'
+    ) == "cancelled"
+
+
+def test_stream_kaggle_log_delta_emits_only_new_lines(caplog, tmp_path):
+    from lab.core.kaggle_executor import _stream_kaggle_log_delta
+    live = tmp_path / "stdout.log"
+    caplog.set_level("INFO", logger="lab.kaggle_executor")
+
+    prev = ""
+    prev = _stream_kaggle_log_delta(
+        previous=prev,
+        current="line1\nline2\n",
+        live_stdout_path=live,
+    )
+    prev = _stream_kaggle_log_delta(
+        previous=prev,
+        current="line1\nline2\nline3\n",
+        live_stdout_path=live,
+    )
+    # No new lines here -> nothing should be appended/logged
+    prev = _stream_kaggle_log_delta(
+        previous=prev,
+        current="line1\nline2\nline3\n",
+        live_stdout_path=live,
+    )
+
+    text = live.read_text()
+    assert text.splitlines() == ["line1", "line2", "line3"]
+    assert any("[kaggle] line1" in rec.message for rec in caplog.records)
+    assert any("[kaggle] line3" in rec.message for rec in caplog.records)
+
+
+def test_fetch_kernel_log_reads_kaggle_log_file(monkeypatch, tmp_path):
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    ex = _make(tmp_path)
+
+    def fake_run(self, cli, argv, *, timeout):
+        if argv[0:2] == ["kernels", "output"]:
+            slug = argv[2]
+            out_dir = Path(argv[argv.index("-p") + 1])
+            out_dir.mkdir(parents=True, exist_ok=True)
+            kernel_slug = slug.split("/", 1)[-1]
+            (out_dir / f"{kernel_slug}.log").write_text("[epoch 1] loss=0.1234\n")
+            return _completed(stdout="Kernel log downloaded.\n")
+        return _completed()
+
+    monkeypatch.setattr(KaggleExecutor, "_run_kaggle", fake_run)
+    text = ex._fetch_kernel_log("/usr/bin/kaggle", "maxuser/lab-exp-abc", target_dir=tmp_path)
+    assert "[epoch 1] loss=0.1234" in text
+
+
+def test_normalize_kaggle_json_log_to_plain_lines():
+    from lab.core.kaggle_executor import _normalize_kaggle_log_text
+    raw = (
+        '[{"stream_name":"stdout","time":1.2,"data":"hello\\n"},'
+        '{"stream_name":"stderr","time":1.3,"data":"boom\\n"}]'
+    )
+    out = _normalize_kaggle_log_text(raw)
+    assert out.splitlines() == ["hello", "boom"]
 
 
 def test_run_overrides_agent_device_for_kaggle(monkeypatch, tmp_path):

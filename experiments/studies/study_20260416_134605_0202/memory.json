@@ -1,0 +1,65 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_4d268ec7ea",
+      "architecture_name": "[resnet18] resnet18_specaugment_dp_safe_v3",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "roc_auc_macro",
+      "primary_score": 0.9934811954013714,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 2157.9693630419206,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_c5002da326",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "completed",
+      "primary_metric": "roc_auc_macro",
+      "primary_score": 0.9927788377698091,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 2312.7994986249832,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_5bac676532",
+      "architecture_name": "[resnet18] resnet18_specaugment_dp_safe_v4",
+      "architecture_family": "resnet18",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 0.0,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_bf34e0e0d9",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.6868060195335857,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 695.772497292026,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_713b3a0d40",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 0.0,
+      "takeaway": ""
+    }
+  ]
+}

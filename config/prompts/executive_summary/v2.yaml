@@ -1,0 +1,28 @@
+name: executive_summary
+version: v2
+description: >
+  Executive summary that balances model performance, failure analysis,
+  and concrete next-run plan.
+
+system: |
+  You are writing a concise research executive summary for stakeholders.
+
+  Constraints:
+    - 2 short paragraphs, 170-260 words total.
+    - Paragraph 1: best result + what drove it.
+    - Paragraph 2: reliability/process learnings + concrete next plan.
+    - Mention at least 1 quantitative reliability signal
+      (failure rate, common error type, or runtime bottleneck).
+    - Mention whether progress is robust or fragile.
+    - End with exactly 3 numbered next experiments.
+
+template: |
+  Task: {task_description}
+  Total experiments: {n_experiments} ({n_success} succeeded, {n_failed} failed)
+  Best {primary_metric}: {best_score}
+  Best architecture: {best_architecture}
+
+  Per-family summary:
+  {family_summary}
+
+  Write the executive summary.

@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_9f471dae9c",
+      "architecture_name": "[custom_cnn] cnn_small_v2",
+      "architecture_family": "custom_cnn",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 652.4368039170513,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_d68a9b0bc4",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "[NbConvertApp] Writing 366847 bytes to __results__.html",
+      "duration_seconds": 126.8812279580161,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_93569a1eab",
+      "architecture_name": "[resnet18] resnet18_adapter_dropout02",
+      "architecture_family": "[resnet18]",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_467323065f",
+      "architecture_name": "mobilenet_v3_small_adapter_safe_dropout02_specaugment01",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.10937507345277349,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 805.3113112919964,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_4465d58867",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_safe_dropout02_specaugment01",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_4e0d5e1889",
+      "architecture_name": "mobilenet_v3_small_adapter_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "[NbConvertApp] Writing 368597 bytes to __results__.html",
+      "duration_seconds": 218.9725486249663,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_b2cd101e9a",
+      "architecture_name": "[resnet18] resnet18_adapter_safe_dropout01",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 836.1011242499808,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_fa61c7d5de",
+      "architecture_name": "efficientnet_b0_adapter_safe_specaugment01",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ShapeMismatch",
+      "error_message": "RuntimeError: Given groups=1, weight of size [32, 3, 3, 3], expected input[128, 1, 128, 313] to have 3 channels, but got 1 channels instead",
+      "duration_seconds": 95.99176733300555,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_b3c96bec5d",
+      "architecture_name": "[custom_cnn] cnn_small_v2_adapter",
+      "architecture_family": "[custom_cnn]",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ShapeMismatch",
+      "error_message": "RuntimeError: mat1 and mat2 shapes cannot be multiplied (128x39936 and 1024x128)",
+      "duration_seconds": 95.69452204101253,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_799e4454ba",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_safe_dropout02_specaugment01",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

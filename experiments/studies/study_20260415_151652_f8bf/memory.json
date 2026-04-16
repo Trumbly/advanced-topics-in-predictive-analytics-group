@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_da769854e2",
+      "architecture_name": "mobilenet_v3_small_adapter_dropout",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_8659bea80e",
+      "architecture_name": "[custom_cnn] cnn_small_v1_specaugment",
+      "architecture_family": "custom_cnn",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "OOM",
+      "error_message": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.22 GiB. GPU 0 has a total capacity of 14.56 GiB of which 841.81 MiB is free. Including non-PyTorch memory, this process has 13.74 GiB memory in use. Of the allocated memory 11.29 GiB is allocated by PyTorch, and 2.25 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)",
+      "duration_seconds": 126.39017295802478,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_40ec41db77",
+      "architecture_name": "[resnet18] resnet18_adapter_safe",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.012748219211924339,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 802.5469367919723,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_93c25919d1",
+      "architecture_name": "[custom_cnn] cnn_small_v1_dropout",
+      "architecture_family": "custom_cnn",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 679.7534519169712,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_e5389ff690",
+      "architecture_name": "[efficientnet_b0] effnet_b0_adapter_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_e17770e5c0",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValueError",
+      "error_message": "raise ValueError(",
+      "duration_seconds": 403.17695845791604,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_12138ad318",
+      "architecture_name": "[custom_cnn] cnn_small_v1_mixup_safe",
+      "architecture_family": "custom_cnn",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_1dedad5742",
+      "architecture_name": "[resnet18] resnet18_adapter_safe",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_12ac2eab07",
+      "architecture_name": "parse_failed",
+      "architecture_family": null,
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.02341328665798553,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 711.7519192079781,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_e0de88d86c",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_dropout",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

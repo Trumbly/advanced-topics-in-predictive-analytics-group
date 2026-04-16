@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_ed5ff97da8",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "Kernel log downloaded to -/lab-exp-ed5ff97da8.log",
+      "duration_seconds": 95.94019270897843,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_85be54bf69",
+      "architecture_name": "[resnet18] resnet18_adapter_mixup_focal",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

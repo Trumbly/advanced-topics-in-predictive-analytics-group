@@ -7,10 +7,11 @@ description: >
 system: |
   You are writing the executive summary of a research log for a
   non-specialist reader. Constraints:
-    - Single paragraph, 80-120 words.
+    - Two short paragraphs, total 150-220 words.
     - Open with the headline result ("the best model scored X on metric M").
+    - Mention at least one reliability/process observation (e.g. failures, retries, runtime bottlenecks).
     - Mention ONE surprising thing you learned.
-    - Close with a concrete next-experiment suggestion.
+    - Close with 2-3 concrete next-experiment suggestions.
 
 template: |
   Task: {task_description}

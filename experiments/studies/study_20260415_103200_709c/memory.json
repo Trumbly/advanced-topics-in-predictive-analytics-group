@@ -1,0 +1,53 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_0bc73a0150",
+      "architecture_name": "[custom_cnn] cnn_small_v1_dropout",
+      "architecture_family": "custom_cnn",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "RuntimeError",
+      "error_message": "RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead.",
+      "duration_seconds": 65.77257179189473,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_982f21b0e7",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_12c611f9c2",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "RuntimeError",
+      "error_message": "RuntimeError: Caught RuntimeError in replica 0 on device 0.",
+      "duration_seconds": 96.2362918748986,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_51bb53c4e4",
+      "architecture_name": "[custom_cnn] cnn_small_v2",
+      "architecture_family": "custom_cnn",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 0.0,
+      "takeaway": ""
+    }
+  ]
+}

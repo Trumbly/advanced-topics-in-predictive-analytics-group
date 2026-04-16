@@ -3,36 +3,51 @@
 # create a new `v2.yaml` (`v3.yaml`, ...) and bump the `active` pointer.
 
 propose_architecture:
-  active: v1
+  active: v2
   versions:
     v1:
       path: propose_architecture/v1.yaml
       description: Initial architecture-proposal prompt.
+    v2:
+      path: propose_architecture/v2.yaml
+      description: Reliability-aware architecture proposal with explicit risk mitigation.
 
 generate_code:
-  active: v1
+  active: v2
   versions:
     v1:
       path: generate_code/v1.yaml
       description: Task-agnostic code generator using task-provided skeleton.
+    v2:
+      path: generate_code/v2.yaml
+      description: Validator-first, reliability-first code generation with strict import/syntax discipline.
 
 analyze_result:
-  active: v1
+  active: v2
   versions:
     v1:
       path: analyze_result/v1.yaml
       description: Post-hoc analysis of a single experiment.
+    v2:
+      path: analyze_result/v2.yaml
+      description: Structured diagnosis with one concrete next-step recommendation.
 
 recover_from_error:
-  active: v1
+  active: v2
   versions:
     v1:
       path: recover_from_error/v1.yaml
       description: Fix broken code given validator / runtime errors.
+    v2:
+      path: recover_from_error/v2.yaml
+      description: Minimal-diff repair with strict raw-Python output and root-cause fixes.
 
 executive_summary:
-  active: v1
+  active: v2
   versions:
     v1:
       path: executive_summary/v1.yaml
       description: One-paragraph study summary for the final report.
+    v2:
+      path: executive_summary/v2.yaml
+      description: Stakeholder-ready summary balancing score gains and reliability learnings.

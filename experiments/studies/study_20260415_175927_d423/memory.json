@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_5db62f4c7f",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_c917be3737",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_827f5da5a1",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_17c7d2dbac",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_7beaa0654a",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_b2c2416572",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_8625fec6f7",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_4454bbe5b7",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_9fefb414dd",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_a0adb8bdaf",
+      "architecture_name": "<unknown>",
+      "architecture_family": null,
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

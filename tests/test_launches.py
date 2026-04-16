@@ -1,6 +1,7 @@
 """Launch manager tests — spawn real subprocesses and verify lifecycle."""
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
@@ -120,3 +121,28 @@ def test_launch_for_study_returns_running_only(tmp_path):
     launches._write(r2, tmp_path)
     found = launches.launch_for_study("s", tmp_path)
     assert found is not None and found.id == "l1"
+
+
+def test_reconcile_running_launch_to_completed_when_study_is_terminal(tmp_path):
+    launches_dir = tmp_path / "experiments" / "launches"
+    launches_dir.mkdir(parents=True)
+    studies_dir = tmp_path / "experiments" / "studies" / "study_done"
+    studies_dir.mkdir(parents=True)
+    (studies_dir / "study.json").write_text(json.dumps({"id": "study_done", "status": "completed"}))
+
+    record = launches.Launch(
+        id="launch_done",
+        pid=os.getpid(),  # alive PID on purpose; study status must win
+        command=[],
+        task="t",
+        study_id="study_done",
+        status="running",
+    )
+    launches._write(record, tmp_path)
+
+    refreshed = launches.load_launch("launch_done", tmp_path)
+    assert refreshed is not None
+    assert refreshed.status == "completed"
+
+    on_disk = json.loads((tmp_path / "experiments" / "launches" / "launch_done.json").read_text())
+    assert on_disk["status"] == "completed"

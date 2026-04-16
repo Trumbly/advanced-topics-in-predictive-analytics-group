@@ -1,0 +1,114 @@
+{
+  "id": "study_20260415_075443_4853",
+  "name": "Test opus with kaggle training",
+  "task_name": "track_b",
+  "status": "aborted",
+  "created_at": "2026-04-15T07:54:43.054862Z",
+  "started_at": "2026-04-15T07:54:43.054884Z",
+  "completed_at": "2026-04-15T07:59:04.693076Z",
+  "primary_metric": "f1_macro",
+  "best_experiment_id": null,
+  "best_score": null,
+  "experiments": [
+    {
+      "id": "exp_27ff586ae3",
+      "study_id": "study_20260415_075443_4853",
+      "index": 0,
+      "status": "aborted",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+      "architecture_family": "efficientnet_b0",
+      "architecture_proposal": "{\n  \"architecture_name\": \"[efficientnet_b0] efficientnet_b0_mixup_focal\",\n  \"architecture_family\": \"efficientnet_b0\",\n  \"description\": \"EfficientNet-B0 with ImageNet pretrained weights, 1\\u21923 channel expansion via conv1x1, input resized to 224x224, classifier head replaced with Dropout(0.3)\\u2192Linear(1280,206) using focal loss to handle long-tail class imbalance, with mixup augmentation during training.\",\n  \"reasoning\": \"As the first experiment, EfficientNet-B0 offers the best quality-to-size ratio among the pretrained options for spectrogram classification. ImageNet pretraining transfers well to mel-spectrograms. Focal loss directly addresses the long-tail distribution by down-weighting easy/majority-class examples. The model is small enough (~5.3M params) for CPU inference within the 90-minute budget. Starting with the strongest expected baseline establishes a good reference point for subsequent experiments.\"\n}",
+      "code": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBASE_BATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n_gpu_count = torch.cuda.device_count() if (DEVICE != \"cpu\" and torch.cuda.is_available()) else 0\nMULTI_GPU = _gpu_count > 1\nBATCH_SIZE = BASE_BATCH_SIZE * max(_gpu_count, 1) if MULTI_GPU else BASE_BATCH_SIZE\n\n\n### MODEL ###\nimport torchvision.models as models\nimport torch.nn.functional as F\nimport numpy as np\n\n\nclass FocalLoss(nn.Module):\n    \"\"\"Sigmoid focal loss for multi-label classification.\"\"\"\n    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):\n        super().__init__()\n        self.alpha = alpha\n        self.gamma = gamma\n        self.reduction = reduction\n\n    def forward(self, inputs, targets):\n        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')\n        p_t = torch.sigmoid(inputs)\n        p_t = targets * p_t + (1 - targets) * (1 - p_t)\n        focal_weight = (1 - p_t) ** self.gamma\n        alpha_t = targets * self.alpha + (1 - targets) * (1 - self.alpha)\n        loss = alpha_t * focal_weight * bce_loss\n        if self.reduction == 'mean':\n            return loss.mean()\n        elif self.reduction == 'sum':\n            return loss.sum()\n        return loss\n\n\nclass EfficientNetB0MixupFocal(nn.Module):\n    def __init__(self, num_classes, mixup_alpha=0.4):\n        super().__init__()\n        self.mixup_alpha = mixup_alpha\n        # 1->3 channel expansion\n        self.channel_expand = nn.Conv2d(1, 3, kernel_size=1, bias=False)\n        nn.init.constant_(self.channel_expand.weight, 1.0)\n\n        # Load pretrained EfficientNet-B0\n        efficientnet = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n\n        # Extract features (everything except the classifier)\n        self.features = efficientnet.features\n        self.avgpool = efficientnet.avgpool\n\n        # Custom classifier head\n        self.classifier = nn.Sequential(\n            nn.Dropout(p=0.3),\n            nn.Linear(1280, num_classes),\n        )\n\n        self._mixup_lam = None\n        self._mixup_index = None\n\n    def mixup_data(self, x, y):\n        \"\"\"Apply mixup augmentation.\"\"\"\n        if self.training and self.mixup_alpha > 0:\n            lam = np.random.beta(self.mixup_alpha, self.mixup_alpha)\n            batch_size = x.size(0)\n            index = torch.randperm(batch_size, device=x.device)\n            mixed_x = lam * x + (1 - lam) * x[index]\n            mixed_y = lam * y + (1 - lam) * y[index]\n            return mixed_x, mixed_y\n        return x, y\n\n    def forward(self, x):\n        # Expand 1 channel to 3\n        x = self.channel_expand(x)\n        # Resize to 224x224 for EfficientNet\n        x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)\n        # Feature extraction\n        x = self.features(x)\n        x = self.avgpool(x)\n        x = torch.flatten(x, 1)\n        x = self.classifier(x)\n        return x\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return EfficientNetB0MixupFocal(num_classes=num_classes, mixup_alpha=0.4)\n\n\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n\n    # Determine if model is wrapped in DataParallel\n    core_model = model.module if isinstance(model, nn.DataParallel) else model\n    use_mixup = hasattr(core_model, 'mixup_data') and core_model.mixup_alpha > 0\n\n    for x, y in loader:\n        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True).float()\n\n        # Apply mixup if available\n        if use_mixup:\n            x, y = core_model.mixup_data(x, y)\n\n        optimizer.zero_grad(set_to_none=True)\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device, non_blocking=True)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    if MULTI_GPU:\n        model = nn.DataParallel(model)\n        print(f\"[skeleton] DataParallel across {_gpu_count} GPUs. \"\n              f\"effective BATCH_SIZE={BATCH_SIZE} (per-GPU={BASE_BATCH_SIZE})\",\n              flush=True)\n    else:\n        print(f\"[skeleton] device={DEVICE} BATCH_SIZE={BATCH_SIZE} \"\n              f\"NUM_WORKERS={NUM_WORKERS}\", flush=True)\n\n    # Use focal loss instead of BCEWithLogitsLoss for long-tail handling\n    loss_fn = FocalLoss(alpha=0.25, gamma=2.0)\n\n    # Use AdamW with a lower LR for pretrained model fine-tuning\n    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)\n\n    # Cosine annealing scheduler\n    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        scheduler.step()\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "error": {
+        "error_type": "Aborted",
+        "message": "User requested abort",
+        "traceback": null
+      },
+      "tasks": [
+        {
+          "name": "propose_architecture",
+          "status": "completed",
+          "input": {},
+          "output": {
+            "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+            "architecture_family": "efficientnet_b0",
+            "description": "EfficientNet-B0 with ImageNet pretrained weights, 1→3 channel expansion via conv1x1, input resized to 224x224, classifier head replaced with Dropout(0.3)→Linear(1280,206) using focal loss to handle long-tail class imbalance, with mixup augmentation during training.",
+            "reasoning": "As the first experiment, EfficientNet-B0 offers the best quality-to-size ratio among the pretrained options for spectrogram classification. ImageNet pretraining transfers well to mel-spectrograms. Focal loss directly addresses the long-tail distribution by down-weighting easy/majority-class examples. The model is small enough (~5.3M params) for CPU inference within the 90-minute budget. Starting with the strongest expected baseline establishes a good reference point for subsequent experiments."
+          },
+          "code_used": null,
+          "error": null,
+          "started_at": "2026-04-15T07:54:43.056372Z",
+          "completed_at": "2026-04-15T07:54:50.121377Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "generate_code",
+          "status": "completed",
+          "input": {},
+          "output": {},
+          "code_used": "\"\"\"Training skeleton for audio multi-label classification (Track B).\n\nFill in ONLY the `### MODEL ###` block. Input is (batch, 1, n_mels, time)\nspectrograms; output is a logit per species of shape (batch, num_classes).\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nfrom pathlib import Path\n\nimport torch\nimport torch.nn as nn\n\nfrom lab.tasks.track_b_birdclef import load_audio_dataset\n\n\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"1\"))\nBASE_BATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"64\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"4\"))\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\n\n_gpu_count = torch.cuda.device_count() if (DEVICE != \"cpu\" and torch.cuda.is_available()) else 0\nMULTI_GPU = _gpu_count > 1\nBATCH_SIZE = BASE_BATCH_SIZE * max(_gpu_count, 1) if MULTI_GPU else BASE_BATCH_SIZE\n\n\n### MODEL ###\nimport torchvision.models as models\nimport torch.nn.functional as F\nimport numpy as np\n\n\nclass FocalLoss(nn.Module):\n    \"\"\"Sigmoid focal loss for multi-label classification.\"\"\"\n    def __init__(self, alpha=0.25, gamma=2.0, reduction='mean'):\n        super().__init__()\n        self.alpha = alpha\n        self.gamma = gamma\n        self.reduction = reduction\n\n    def forward(self, inputs, targets):\n        bce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')\n        p_t = torch.sigmoid(inputs)\n        p_t = targets * p_t + (1 - targets) * (1 - p_t)\n        focal_weight = (1 - p_t) ** self.gamma\n        alpha_t = targets * self.alpha + (1 - targets) * (1 - self.alpha)\n        loss = alpha_t * focal_weight * bce_loss\n        if self.reduction == 'mean':\n            return loss.mean()\n        elif self.reduction == 'sum':\n            return loss.sum()\n        return loss\n\n\nclass EfficientNetB0MixupFocal(nn.Module):\n    def __init__(self, num_classes, mixup_alpha=0.4):\n        super().__init__()\n        self.mixup_alpha = mixup_alpha\n        # 1->3 channel expansion\n        self.channel_expand = nn.Conv2d(1, 3, kernel_size=1, bias=False)\n        nn.init.constant_(self.channel_expand.weight, 1.0)\n\n        # Load pretrained EfficientNet-B0\n        efficientnet = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.IMAGENET1K_V1)\n\n        # Extract features (everything except the classifier)\n        self.features = efficientnet.features\n        self.avgpool = efficientnet.avgpool\n\n        # Custom classifier head\n        self.classifier = nn.Sequential(\n            nn.Dropout(p=0.3),\n            nn.Linear(1280, num_classes),\n        )\n\n        self._mixup_lam = None\n        self._mixup_index = None\n\n    def mixup_data(self, x, y):\n        \"\"\"Apply mixup augmentation.\"\"\"\n        if self.training and self.mixup_alpha > 0:\n            lam = np.random.beta(self.mixup_alpha, self.mixup_alpha)\n            batch_size = x.size(0)\n            index = torch.randperm(batch_size, device=x.device)\n            mixed_x = lam * x + (1 - lam) * x[index]\n            mixed_y = lam * y + (1 - lam) * y[index]\n            return mixed_x, mixed_y\n        return x, y\n\n    def forward(self, x):\n        # Expand 1 channel to 3\n        x = self.channel_expand(x)\n        # Resize to 224x224 for EfficientNet\n        x = F.interpolate(x, size=(224, 224), mode='bilinear', align_corners=False)\n        # Feature extraction\n        x = self.features(x)\n        x = self.avgpool(x)\n        x = torch.flatten(x, 1)\n        x = self.classifier(x)\n        return x\n\n\ndef build_model(num_classes: int) -> nn.Module:\n    return EfficientNetB0MixupFocal(num_classes=num_classes, mixup_alpha=0.4)\n\n\n### END MODEL ###\n\n\ndef train_one_epoch(model, loader, optimizer, loss_fn, device):\n    model.train()\n    total, n = 0.0, 0\n\n    # Determine if model is wrapped in DataParallel\n    core_model = model.module if isinstance(model, nn.DataParallel) else model\n    use_mixup = hasattr(core_model, 'mixup_data') and core_model.mixup_alpha > 0\n\n    for x, y in loader:\n        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True).float()\n\n        # Apply mixup if available\n        if use_mixup:\n            x, y = core_model.mixup_data(x, y)\n\n        optimizer.zero_grad(set_to_none=True)\n        logits = model(x)\n        loss = loss_fn(logits, y)\n        loss.backward()\n        optimizer.step()\n        total += loss.item() * x.size(0)\n        n += x.size(0)\n    return total / max(n, 1)\n\n\n@torch.no_grad()\ndef evaluate(model, loader, device):\n    from sklearn.metrics import f1_score, roc_auc_score\n    import numpy as np\n    model.eval()\n    ys, ps = [], []\n    for x, y in loader:\n        x = x.to(device, non_blocking=True)\n        probs = torch.sigmoid(model(x)).cpu().numpy()\n        ys.append(y.numpy())\n        ps.append(probs)\n    y = np.concatenate(ys, axis=0)\n    p = np.concatenate(ps, axis=0)\n    preds = (p > 0.5).astype(int)\n    try:\n        roc = float(roc_auc_score(y, p, average=\"macro\"))\n    except Exception:\n        roc = 0.0\n    return {\n        \"f1_macro\": float(f1_score(y, preds, average=\"macro\", zero_division=0)),\n        \"roc_auc_macro\": roc,\n        \"loss\": None,\n    }\n\n\ndef main():\n    train_loader, val_loader, num_classes = load_audio_dataset(\n        batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,\n    )\n    model = build_model(num_classes).to(DEVICE)\n    if MULTI_GPU:\n        model = nn.DataParallel(model)\n        print(f\"[skeleton] DataParallel across {_gpu_count} GPUs. \"\n              f\"effective BATCH_SIZE={BATCH_SIZE} (per-GPU={BASE_BATCH_SIZE})\",\n              flush=True)\n    else:\n        print(f\"[skeleton] device={DEVICE} BATCH_SIZE={BATCH_SIZE} \"\n              f\"NUM_WORKERS={NUM_WORKERS}\", flush=True)\n\n    # Use focal loss instead of BCEWithLogitsLoss for long-tail handling\n    loss_fn = FocalLoss(alpha=0.25, gamma=2.0)\n\n    # Use AdamW with a lower LR for pretrained model fine-tuning\n    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)\n\n    # Cosine annealing scheduler\n    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)\n\n    history = []\n    for epoch in range(1, EPOCHS + 1):\n        loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n        scheduler.step()\n        metrics = evaluate(model, val_loader, DEVICE)\n        metrics.update(loss=loss, epoch=epoch)\n        history.append(metrics)\n        print(f\"[epoch {epoch}] loss={loss:.4f} \"\n              f\"f1_macro={metrics['f1_macro']:.4f} \"\n              f\"roc_auc_macro={metrics['roc_auc_macro']:.4f}\",\n              flush=True)\n\n    best = max(history, key=lambda h: h[\"f1_macro\"])\n    results = {\n        \"primary_metric\": \"f1_macro\",\n        \"primary_score\": best[\"f1_macro\"],\n        \"history\": history,\n        \"final\": history[-1],\n        \"best\": best,\n    }\n    Path(\"results.json\").write_text(json.dumps(results, indent=2))\n\n\nif __name__ == \"__main__\":\n    main()",
+          "error": null,
+          "started_at": "2026-04-15T07:54:50.122556Z",
+          "completed_at": "2026-04-15T07:55:16.714672Z",
+          "prompt_paths": {}
+        },
+        {
+          "name": "execute_training",
+          "status": "failed",
+          "input": {},
+          "output": {
+            "duration_seconds": 227.9754125000909,
+            "exit_code": -1,
+            "timed_out": false
+          },
+          "code_used": null,
+          "error": {
+            "error_type": "Aborted",
+            "message": "User requested abort",
+            "traceback": null
+          },
+          "started_at": "2026-04-15T07:55:16.715038Z",
+          "completed_at": "2026-04-15T07:59:04.690737Z",
+          "prompt_paths": {}
+        }
+      ],
+      "started_at": "2026-04-15T07:54:43.056268Z",
+      "completed_at": "2026-04-15T07:59:04.691616Z",
+      "duration_seconds": 227.9754125000909,
+      "sandbox_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/exp_27ff586ae3"
+    }
+  ],
+  "prompt_template_paths": {
+    "propose_architecture": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/propose_architecture/v1.yaml",
+    "generate_code": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/generate_code/v1.yaml",
+    "analyze_result": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/analyze_result/v1.yaml",
+    "recover_from_error": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/recover_from_error/v1.yaml",
+    "executive_summary": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/config/prompts/executive_summary/v1.yaml"
+  },
+  "predecessor_id": null,
+  "publish": false,
+  "tags": [
+    "opus4.6",
+    "kaggle",
+    "gpu"
+  ],
+  "executor_backend": "kaggle",
+  "executor_infrastructure": {
+    "backend": "kaggle",
+    "username": "maxnoellewying",
+    "enable_gpu": true,
+    "enable_internet": true,
+    "dataset_sources": [
+      "maxnoellewying/birdclef-2026-preprocessed"
+    ],
+    "competition_sources": [
+      "birdclef-2026"
+    ],
+    "kernel_prefix": "lab-exp"
+  },
+  "notes": ""
+}

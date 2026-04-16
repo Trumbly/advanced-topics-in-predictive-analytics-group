@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_68f12c3b9f",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+      "architecture_family": "efficientnet_b0",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 65.89850925002247,
+      "takeaway": ""
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_9a1053fb95",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "AttributeError: 'Dropout' object has no attribute 'in_features'",
+      "duration_seconds": 157.70094074995723,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_eba21d729d",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_specaugment",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ShapeMismatch",
+      "error_message": "RuntimeError: mat1 and mat2 shapes cannot be multiplied (64x1024 and 576x206)",
+      "duration_seconds": 618.5059362920001,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_d5e368e55e",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_specaugment",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "AttributeError: 'Dropout' object has no attribute 'in_features'",
+      "duration_seconds": 96.19781737495214,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_610ff0c9a5",
+      "architecture_name": "[resnet18] resnet18_adapter_specaugment_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_5e0588b451",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "AttributeError: 'Dropout' object has no attribute 'in_features'",
+      "duration_seconds": 96.15278558398131,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_72c3371b3b",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "AttributeError: 'MobileNetV3' object has no attribute 'last_channel'",
+      "duration_seconds": 95.9653593749972,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_d7b74b03a1",
+      "architecture_name": "[resnet18] resnet18_adapter_specaugment_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.05409881400116457,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 1020.7903694170527,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_203f2803d7",
+      "architecture_name": "[resnet18] resnet18_specaugment_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.3417252436651137,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 558.5802658750908,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_1143c179dd",
+      "architecture_name": "[resnet18] resnet18_specaugment_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.3541901042899534,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 621.1419271250488,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_1d39957b8e",
+      "architecture_name": "[resnet18] resnet18_specaugment_dp_safe_v2",
+      "architecture_family": "resnet18",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.3551975708680114,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 682.7913956249831,
+      "takeaway": ""
+    }
+  ]
+}

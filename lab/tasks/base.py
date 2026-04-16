@@ -56,6 +56,23 @@ class TaskAdapter(ABC):
     def prompt_slot_values(self) -> dict[str, Any]:
         return dict(self.task_cfg.get("prompt_slots", {}))
 
+    def available_primary_metrics(self) -> tuple[str, ...]:
+        """Allowed objective metrics for this task (primary first)."""
+        metrics_cfg = self.task_cfg.get("metrics", {}) or {}
+        primary = metrics_cfg.get("primary")
+        others = metrics_cfg.get("others", []) or []
+        out: list[str] = []
+        if isinstance(primary, str) and primary.strip():
+            out.append(primary.strip())
+        for m in others:
+            if isinstance(m, str) and m.strip():
+                mv = m.strip()
+                if mv not in out:
+                    out.append(mv)
+        if not out and self.primary_metric:
+            out.append(self.primary_metric)
+        return tuple(out)
+
     # ------------------------------------------------------------------
     # Validator hook
     # ------------------------------------------------------------------
@@ -128,26 +145,67 @@ class TaskAdapter(ABC):
         cache.write_text(profile.model_dump_json(indent=2))
         return profile
 
-    def validate_training_output(self, results_json: dict[str, Any]) -> list[str]:
+    def validate_training_output(
+        self,
+        results_json: dict[str, Any],
+        *,
+        expected_primary_metric: str | None = None,
+    ) -> list[str]:
         """Return a list of error strings if the training output is invalid.
 
         Empty list = ok. Default implementation checks the primary metric is
         present and numeric; adapters can add more checks.
         """
         errors: list[str] = []
-        if results_json.get("primary_metric") != self.primary_metric:
+        expected = (expected_primary_metric or self.primary_metric or "").strip()
+        if not expected:
+            return errors
+
+        resolved = _extract_metric_value(results_json, expected)
+        if resolved is None:
             errors.append(
-                f"results.primary_metric={results_json.get('primary_metric')!r} but "
-                f"task requires {self.primary_metric!r}"
+                f"expected metric {expected!r} not found in results "
+                "(checked metrics/final/best/history)"
             )
+            return errors
+
+        declared_metric = results_json.get("primary_metric")
         score = results_json.get("primary_score")
-        if not isinstance(score, (int, float)):
+        if declared_metric == expected and not isinstance(score, (int, float)):
             errors.append("results.primary_score missing or non-numeric")
         return errors
 
     @abstractmethod
     def build_submission(self, experiment_code: str, experiment_id: str, out_dir: Path) -> Path:
         """Write a runnable submission artifact and return its path."""
+
+
+def _extract_metric_value(results_json: dict[str, Any], metric: str) -> float | None:
+    def _from_dict(obj: object) -> float | None:
+        if not isinstance(obj, dict):
+            return None
+        v = obj.get(metric)
+        if isinstance(v, (int, float)):
+            return float(v)
+        return None
+
+    for key in ("best", "final", "metrics"):
+        v = _from_dict(results_json.get(key))
+        if v is not None:
+            return v
+
+    hist = results_json.get("history")
+    if isinstance(hist, list):
+        best: float | None = None
+        for row in hist:
+            v = _from_dict(row)
+            if v is None:
+                continue
+            if best is None or v > best:
+                best = v
+        if best is not None:
+            return best
+    return None
 
 
 __all__ = ["TaskAdapter"]

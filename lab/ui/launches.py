@@ -28,6 +28,7 @@ from uuid import uuid4
 
 
 LAUNCH_DIR_REL = "experiments/launches"
+_TERMINAL_STUDY_STATUSES = frozenset({"completed", "failed", "aborted"})
 
 
 @dataclass
@@ -74,11 +75,33 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
-def _refresh_status(launch: Launch) -> str:
+def _study_status(study_id: str, repo_root: Path) -> str | None:
+    """Best-effort load of `study.json` status for launch reconciliation."""
+    path = repo_root / "experiments" / "studies" / study_id / "study.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    status = data.get("status")
+    if not isinstance(status, str):
+        return None
+    return status.strip().lower()
+
+
+def _refresh_status(launch: Launch, repo_root: Path) -> str:
     """Turn a stored ``running`` into ``completed`` when the PID is gone.
     Terminal states (``completed``, ``stopped``) are returned as-is."""
     if launch.status != "running":
         return launch.status
+    # Primary source of truth: if the linked study has a terminal status,
+    # the launch should no longer appear as running even if the PID check
+    # is stale (PID reuse) or a post-processing step kept the process alive.
+    if launch.study_id:
+        s = _study_status(launch.study_id, repo_root)
+        if s in _TERMINAL_STUDY_STATUSES:
+            return "completed"
     return "running" if _pid_alive(launch.pid) else "completed"
 
 
@@ -97,6 +120,7 @@ def spawn(
     report: bool = True,
     prompt_overrides: dict[str, str] | None = None,
     executor_backend: str = "",
+    primary_metrics: str = "",
 ) -> Launch:
     launch_id = (
         "launch_" + datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -120,6 +144,8 @@ def spawn(
     cmd.extend(["--launch-id", launch_id])
     if executor_backend:
         cmd.extend(["--executor", executor_backend])
+    if primary_metrics.strip():
+        cmd.extend(["--primary-metrics", primary_metrics.strip()])
     for k, v in (prompt_overrides or {}).items():
         cmd.extend(["--prompt", f"{k}={v}"])
 
@@ -166,7 +192,13 @@ def list_launches(repo_root: Path) -> list[Launch]:
         except TypeError:
             # Schema drift — skip rather than crash.
             continue
-        launch.status = _refresh_status(launch)
+        refreshed = _refresh_status(launch, repo_root)
+        if refreshed != launch.status:
+            launch.status = refreshed
+            try:
+                _write(launch, repo_root)
+            except OSError:
+                pass
         out.append(launch)
     return out
 
@@ -180,7 +212,13 @@ def load_launch(launch_id: str, repo_root: Path) -> Launch | None:
         launch = Launch(**data)
     except (OSError, json.JSONDecodeError, TypeError):
         return None
-    launch.status = _refresh_status(launch)
+    refreshed = _refresh_status(launch, repo_root)
+    if refreshed != launch.status:
+        launch.status = refreshed
+        try:
+            _write(launch, repo_root)
+        except OSError:
+            pass
     return launch
 
 

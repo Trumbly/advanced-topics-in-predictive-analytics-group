@@ -34,10 +34,20 @@ _Task: **{{ study.task_name }}** · Primary metric: **{{ study.primary_metric }}
 - {{ study.primary_metric }}: **{{ "%.4f"|format(best_experiment.primary_score) }}**
 - Duration: {{ "%.1f"|format(best_experiment.duration_seconds or 0) }} s
 - Other metrics:
-{% for k, v in best_experiment.metrics.items() %}  - `{{ k }}` = {{ "%.4f"|format(v) }}
+{% for k, v in best_experiment.metrics.items() %}  - `{{ k }}` = {% if v is number %}{{ "%.4f"|format(v) }}{% elif v is none %}—{% else %}{{ v }}{% endif %}
 {% endfor %}
 
 {% if has_learning_curve %}![learning curve](figures/best_learning_curve.png){% endif %}
+
+{% if best_experiment.history %}
+### Best experiment — epoch-wise metrics
+
+| Epoch | Loss | f1_macro | roc_auc_macro |
+|---:|---:|---:|---:|
+{% for h in best_experiment.history %}
+| {{ h.get("epoch", loop.index) }} | {% if h.get("loss") is number %}{{ "%.4f"|format(h.get("loss")) }}{% else %}—{% endif %} | {% if h.get("f1_macro") is number %}{{ "%.4f"|format(h.get("f1_macro")) }}{% else %}—{% endif %} | {% if h.get("roc_auc_macro") is number %}{{ "%.4f"|format(h.get("roc_auc_macro")) }}{% else %}—{% endif %} |
+{% endfor %}
+{% endif %}
 
 ### Architecture proposal (JSON)
 
@@ -60,6 +70,13 @@ _Task: **{{ study.task_name }}** · Primary metric: **{{ study.primary_metric }}
 | Error type | Count | Example message |
 |---|---:|---|
 {% for row in failure_rows %}| {{ row.type }} | {{ row.count }} | `{{ row.example }}` |
+{% endfor %}
+
+## Pipeline diagnostics
+
+| Task | Runs | Completed | Failed | Avg validator attempts |
+|---|---:|---:|---:|---:|
+{% for row in task_rows %}| {{ row.name }} | {{ row.runs }} | {{ row.completed }} | {{ row.failed }} | {% if row.avg_attempts is not none %}{{ "%.2f"|format(row.avg_attempts) }}{% else %}—{% endif %} |
 {% endfor %}
 
 ## Prompt versions used
