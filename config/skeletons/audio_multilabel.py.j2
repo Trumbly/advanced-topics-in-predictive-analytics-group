@@ -84,6 +84,21 @@ def main():
     # ``BATCH_SIZE = BASE_BATCH_SIZE * N_GPUs``. No code change needed
     # downstream — DataParallel forwards + gathers transparently.
     if MULTI_GPU:
+        # Known interaction: torchvision's StochasticDepth layer (used
+        # inside EfficientNet/ConvNeXt blocks) produces a Bernoulli
+        # noise tensor whose alignment depends on batch/channel dims,
+        # which crashes with "CUDA error: misaligned address" when
+        # DataParallel dispatches the scatter+replica forward. Disable
+        # stochastic_depth before the DP wrap — costs a bit of
+        # regularisation, buys a run that doesn't crash.
+        _sd_disabled = 0
+        for _m in model.modules():
+            if _m.__class__.__name__ == "StochasticDepth":
+                _m.p = 0.0
+                _sd_disabled += 1
+        if _sd_disabled:
+            print(f"[skeleton] disabled {_sd_disabled} StochasticDepth layers "
+                  "for DataParallel compat", flush=True)
         model = nn.DataParallel(model)
         print(f"[skeleton] DataParallel across {_gpu_count} GPUs. "
               f"effective BATCH_SIZE={BATCH_SIZE} (per-GPU={BASE_BATCH_SIZE})",
