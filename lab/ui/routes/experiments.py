@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from lab.ui import launches, loaders
+from lab.ui.charts import history_to_series, line_chart_svg
 
 
 router = APIRouter()
@@ -54,6 +55,25 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
             text = log_path.read_text(errors="replace")
             launch_log_tail = "\n".join(text.splitlines()[-200:])
 
+    loss_chart_svg = line_chart_svg(
+        history_to_series(exp.history, ("loss",)),
+        y_label="train loss",
+    )
+    # Primary metric + whatever else is numeric in the history — pick the
+    # common audio/text metrics that the skeletons actually emit.
+    metric_names = tuple(dict.fromkeys([
+        exp.primary_metric,
+        "f1_macro",
+        "f1_binary",
+        "roc_auc_macro",
+        "roc_auc_binary",
+        "accuracy",
+    ]))
+    metric_chart_svg = line_chart_svg(
+        history_to_series(exp.history, metric_names),
+        y_label="validation metrics",
+    )
+
     return request.app.state.templates.TemplateResponse(
         request,
         "experiment.html",
@@ -65,5 +85,7 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
             "stdout_exists": stdout_path.exists(),
             "running_launch": running_launch,
             "launch_log_tail": launch_log_tail,
+            "loss_chart_svg": loss_chart_svg,
+            "metric_chart_svg": metric_chart_svg,
         },
     )

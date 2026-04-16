@@ -19,6 +19,7 @@ from lab.core.orchestrator import (
     _extract_build_model_block,
     _insert_local_import_into_build_model,
     _inject_model_block,
+    _proposal_hyperparam_env,
     _rewrite_torch_hub_load_to_torchvision,
     _strip_fences,
 )
@@ -380,7 +381,7 @@ def test_execute_with_recovery_skips_reruns_for_kaggle_backend(tmp_path):
         def __init__(self):
             self.calls = 0
 
-        def run(self, code: str, *, experiment_id: str):
+        def run(self, code: str, *, experiment_id: str, extra_env=None):
             self.calls += 1
             return ExecutionResult(
                 exit_code=-1,
@@ -406,3 +407,43 @@ def test_execute_with_recovery_skips_reruns_for_kaggle_backend(tmp_path):
     result = orch._execute_with_recovery("print('x')", exp)
     assert result.error is not None
     assert orch.executor.calls == 1
+
+
+# ---------------------------------------------------------------------------
+# Proposal hyperparameter env translation (Feature 7)
+# ---------------------------------------------------------------------------
+
+
+def test_proposal_hyperparam_env_passes_valid_lr_and_schedule():
+    env = _proposal_hyperparam_env(
+        {"lr": 5e-4, "lr_schedule": "cosine"}, env_prefix="AGENT",
+    )
+    assert env == {
+        "AGENT_LR": repr(5e-4),
+        "AGENT_LR_SCHEDULE": "cosine",
+    }
+
+
+def test_proposal_hyperparam_env_drops_out_of_range_lr():
+    # 10 is way outside [1e-5, 1e-1] — drop silently.
+    env = _proposal_hyperparam_env({"lr": 10.0}, env_prefix="AGENT")
+    assert "AGENT_LR" not in env
+
+
+def test_proposal_hyperparam_env_drops_unknown_schedule():
+    env = _proposal_hyperparam_env(
+        {"lr_schedule": "exponential_warmup"}, env_prefix="AGENT",
+    )
+    assert "AGENT_LR_SCHEDULE" not in env
+
+
+def test_proposal_hyperparam_env_passes_init_from_experiment_id():
+    env = _proposal_hyperparam_env(
+        {"init_from_experiment_id": "exp_abc123"}, env_prefix="AGENT",
+    )
+    assert env["AGENT_INIT_FROM_EXPERIMENT_ID"] == "exp_abc123"
+
+
+def test_proposal_hyperparam_env_handles_none():
+    assert _proposal_hyperparam_env(None, env_prefix="AGENT") == {}
+    assert _proposal_hyperparam_env("not a dict", env_prefix="AGENT") == {}

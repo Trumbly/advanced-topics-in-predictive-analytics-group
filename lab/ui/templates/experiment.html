@@ -94,6 +94,14 @@
   <pre id="live-stdout" class="scroll code">{{ live_stdout or "(no output yet — the script may not have started printing)" }}</pre>
 </section>
 
+{% if loss_chart_svg or metric_chart_svg %}
+<section class="card">
+  <h2>Learning curves</h2>
+  {% if loss_chart_svg %}<div class="chart">{{ loss_chart_svg|safe }}</div>{% endif %}
+  {% if metric_chart_svg %}<div class="chart">{{ metric_chart_svg|safe }}</div>{% endif %}
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Metrics</h2>
   {% if experiment.metrics %}

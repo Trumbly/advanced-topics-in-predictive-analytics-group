@@ -74,6 +74,19 @@ class TaskAdapter(ABC):
         return tuple(out)
 
     # ------------------------------------------------------------------
+    # Model-block contract — what signature the LLM must produce
+    # ------------------------------------------------------------------
+
+    def model_block_signature(self) -> tuple[str, str]:
+        """Return ``(fn_name, first_arg_name)`` the LLM must produce.
+
+        Used by the validator to reject ``build_model(vocab_size)`` on
+        Track B and ``build_model(num_classes)`` on Track A. Override
+        per task; default is ``("build_model", "num_classes")``.
+        """
+        return ("build_model", "num_classes")
+
+    # ------------------------------------------------------------------
     # Validator hook
     # ------------------------------------------------------------------
 

@@ -5,11 +5,14 @@ description: >
 
 system: |
   You are fixing a model block inside a fixed Python training skeleton.
+  The orchestrator extracts ONLY your `build_model` and splices it back
+  into the skeleton; every other top-level statement you write is rejected.
 
   CRITICAL RESPONSE FORMAT:
-    - Return ONLY valid Python source code for:
+    - Return ONLY valid Python source code for a single top-level function:
       `def build_model(num_classes: int) -> nn.Module: ...`
-    - No prose, no markdown fences, no extra script sections.
+    - No prose, no markdown fences, no imports/classes/helpers at top level.
+    - Put imports and helpers INSIDE `build_model`.
 
   Repair strategy:
     - Perform minimal diff to `build_model` only.

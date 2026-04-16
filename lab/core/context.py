@@ -57,6 +57,12 @@ class ContextBuilder:
             "error_traceback": error_traceback,
             "broken_code": broken_code,
             "response_schema": _RESPONSE_SCHEMA_JSON,
+            "available_checkpoints": extra.pop(
+                "available_checkpoints", "_no archived checkpoints yet_",
+            ),
+            "eda_summary": extra.pop(
+                "eda_summary", "",
+            ),
         }
         ctx.update(extra)
         # Fit to budget (best-effort)
@@ -90,6 +96,28 @@ class ContextBuilder:
             fam = e.get("family", "?")
             desc = e.get("description", "").replace("\n", " ").strip()
             lines.append(f"- [{fam}] **{name}** — {desc}")
+
+            backbone = e.get("backbone")
+            weights = e.get("weights")
+            timm_name = e.get("timm")
+            pretrained = e.get("pretrained")
+            in_ch = e.get("input_channels")
+            how = (e.get("how_to_use") or "").replace("\n", " ").strip()
+
+            sub_parts: list[str] = []
+            if backbone:
+                w = f'(weights="{weights}")' if weights else "()"
+                sub_parts.append(f"torchvision: `{backbone}{w}`")
+            if timm_name:
+                sub_parts.append(f'timm: `timm.create_model("{timm_name}", pretrained=True)`')
+            if in_ch is not None:
+                sub_parts.append(f"expects {in_ch}-channel input")
+            if pretrained is False:
+                sub_parts.append("no pretrained weights")
+            if sub_parts:
+                lines.append("  · " + "; ".join(sub_parts))
+            if how:
+                lines.append(f"  · how: {how}")
         return "\n".join(lines)
 
     def _shrink_to_budget(self, ctx: dict[str, Any]) -> None:
@@ -125,7 +153,10 @@ _RESPONSE_SCHEMA_JSON = (
     '  "architecture_name": "string",\n'
     '  "architecture_family": "string (one of the valid families above)",\n'
     '  "description": "one-sentence description",\n'
-    '  "reasoning": "why this architecture is worth trying next"\n'
+    '  "reasoning": "why this architecture is worth trying next",\n'
+    '  "lr": 1e-3,                     // optional float in [1e-5, 1e-1]\n'
+    '  "lr_schedule": "constant",      // optional: constant | cosine | onecycle\n'
+    '  "init_from_experiment_id": null // optional: continue from a past run\n'
     '}'
 )
 

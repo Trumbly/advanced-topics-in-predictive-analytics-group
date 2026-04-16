@@ -79,6 +79,11 @@ class KaggleExecutor:
     poll_timeout_seconds: int = 36_000  # 10 h safety net
     dataset_sources: list[str] = field(default_factory=list)
     competition_sources: list[str] = field(default_factory=list)
+    # Kaggle dataset slug (``<owner>/<name>``) containing pre-downloaded
+    # torchvision/timm/HF weight files. Attached to every kernel; bootstrap
+    # wires TORCH_HOME / HF_HOME / TIMM_HOME so ``weights="DEFAULT"`` works
+    # without internet access.
+    weights_dataset: str = ""
     sandbox_root: Path = Path("sandbox")
     repo_root: Path = field(default_factory=lambda: Path.cwd())
     training_env: dict[str, str] = field(default_factory=dict)
@@ -136,11 +141,18 @@ class KaggleExecutor:
         full_env.setdefault(f"{prefix}_NUM_WORKERS", "2")
         full_env.setdefault(f"{prefix}_PERSISTENT_WORKERS", "1")
         (kernel_dir / "code.py").write_text(
-            _wrap_with_bootstrap(code, full_env, lab_dataset_slug=lab_slug)
+            _wrap_with_bootstrap(
+                code,
+                full_env,
+                lab_dataset_slug=lab_slug,
+                weights_dataset_slug=self.weights_dataset or None,
+            )
         )
         dataset_sources = list(self.dataset_sources)
         if lab_slug:
             dataset_sources.append(lab_slug)
+        if self.weights_dataset and self.weights_dataset not in dataset_sources:
+            dataset_sources.append(self.weights_dataset)
 
         meta: dict[str, Any] = {
             "id": slug,
@@ -605,6 +617,8 @@ for _k, _v in _env.items():
 _input = "/kaggle/input"
 _lab_dir_name = {lab_dir_name!r}
 _lab_owner = {lab_owner!r}
+_weights_dir_name = {weights_dir_name!r}
+_weights_owner = {weights_owner!r}
 
 
 def _lab_bootstrap_find_lab_root():
@@ -747,7 +761,11 @@ def _lab_bootstrap_find_processed_dir():
     not at the dataset root."""
     if not _os.path.isdir(_input):
         return None
-    skip = {{_lab_dir_name}} if _lab_dir_name else set()
+    skip = set()
+    if _lab_dir_name:
+        skip.add(_lab_dir_name)
+    if _weights_dir_name:
+        skip.add(_weights_dir_name)
     candidates = []
     # Top-level entries first
     for entry in sorted(_os.listdir(_input)):
@@ -798,6 +816,38 @@ if "AGENT_PROCESSED_DIR" not in _os.environ:
         print("[lab bootstrap] AGENT_PROCESSED_DIR = " + _d)
     else:
         print("[lab bootstrap] no data directory found under " + _input)
+
+# Offline pretrained weights: mount + env. torchvision reads TORCH_HOME,
+# huggingface reads HF_HOME, timm reads TIMM_HOME. Setting all three to
+# the mounted weights dataset turns `weights="DEFAULT"` into a local file
+# lookup instead of a download — works with enable_internet=False.
+def _lab_bootstrap_find_weights_root():
+    if not _weights_dir_name:
+        return None
+    hints = [
+        _os.path.join(_input, _weights_dir_name),
+        _os.path.join(_input, "datasets", _weights_owner, _weights_dir_name)
+        if _weights_owner else "",
+    ]
+    for hint in hints:
+        if hint and _os.path.isdir(hint):
+            return hint
+    return None
+
+
+_weights_root = _lab_bootstrap_find_weights_root()
+if _weights_root:
+    _os.environ.setdefault("TORCH_HOME", _weights_root)
+    _hf_cache = _os.path.join(_weights_root, "huggingface")
+    _os.environ.setdefault("HF_HOME", _hf_cache)
+    _os.environ.setdefault("HUGGINGFACE_HUB_CACHE", _hf_cache)
+    _os.environ.setdefault("TRANSFORMERS_CACHE", _hf_cache)
+    _os.environ.setdefault("TIMM_HOME", _weights_root)
+    print("[lab bootstrap] offline weights mounted at " + _weights_root)
+elif _weights_dir_name:
+    print("[lab bootstrap] weights dataset '" + _weights_dir_name
+          + "' expected under " + _input + " but not found."
+          " Pretrained runs may fail if internet is disabled.")
 
 # Before importing torch, check whether the kernel's GPU is a P100.
 # Kaggle's current Python 3.12 image ships a PyTorch compiled WITHOUT
@@ -1140,6 +1190,7 @@ def _wrap_with_bootstrap(
     env: dict[str, str],
     *,
     lab_dataset_slug: str | None = None,
+    weights_dataset_slug: str | None = None,
 ) -> str:
     header, rest = _split_header(code)
     # The Kaggle mount path depends on the kernel-metadata version:
@@ -1153,10 +1204,19 @@ def _wrap_with_bootstrap(
             lab_owner, lab_dir_name = lab_dataset_slug.split("/", 1)
         else:
             lab_dir_name = lab_dataset_slug
+    weights_owner = ""
+    weights_dir_name = ""
+    if weights_dataset_slug:
+        if "/" in weights_dataset_slug:
+            weights_owner, weights_dir_name = weights_dataset_slug.split("/", 1)
+        else:
+            weights_dir_name = weights_dataset_slug
     bootstrap = _KAGGLE_BOOTSTRAP.format(
         env_json=json.dumps(env),
         lab_dir_name=lab_dir_name,
         lab_owner=lab_owner,
+        weights_dir_name=weights_dir_name,
+        weights_owner=weights_owner,
     )
     # Ensure a blank line between pieces so line numbers stay readable
     # in Kaggle's traceback output.

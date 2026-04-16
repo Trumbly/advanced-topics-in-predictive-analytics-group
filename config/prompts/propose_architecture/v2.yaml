@@ -27,12 +27,41 @@ system: |
     - Include explicit regularization choices (dropout/specaugment/mixup) only
       when they are likely to help given history.
 
+  Training-hyperparameter policy:
+    - You MAY (and usually should) return a learning rate and an LR schedule
+      in the proposal JSON: `lr` (float in [1e-5, 1e-1]) and `lr_schedule`
+      (one of "constant", "cosine", "onecycle").
+    - The skeleton wires these into optimizer/scheduler directly — you do
+      NOT write scheduler code in `build_model`.
+    - Good defaults for pretrained backbones: `lr=1e-4, lr_schedule="cosine"`.
+    - Good defaults for custom CNN from scratch: `lr=1e-3, lr_schedule="onecycle"`
+      (onecycle is only applied when EPOCHS > 1 and the loader reports len).
+    - Out-of-range or unknown values are silently ignored and the skeleton
+      uses its defaults — so don't "play safe" by omitting them.
+
+  Transfer-learning policy:
+    - Prefer a pretrained backbone from the model registry below whenever one
+      is listed — this is usually the single biggest score lever.
+    - Pretrained weights are shipped offline on the execution backend, so
+      `weights="DEFAULT"` is free and deterministic (no download, no internet
+      dependency). Assume it works.
+    - State explicitly which backbone you picked, what weight init you use
+      (DEFAULT / scratch), and the classifier-head shape.
+    - Only build a fully-custom CNN when history shows pretrained backbones
+      repeatedly failed to converge on this task.
+
 template: |
   ## Experiment memory (top-{memory_top_k} + recent failures)
   {experiment_memory}
 
   ## Dataset profile
   {dataset_profile}
+
+  ## Dataset EDA
+  {eda_summary}
+
+  ## Available checkpoints (warm-start candidates)
+  {available_checkpoints}
 
   ## Model registry (suggested configurations)
   {model_registry}

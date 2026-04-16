@@ -211,6 +211,18 @@ def _cmd_kaggle_sync_lab(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_eda(args: argparse.Namespace) -> int:
+    settings = load_settings(task=args.task)
+    telemetry.configure(settings)
+    log = telemetry.get("cli")
+    adapter = get_task_adapter(task_name=settings.task_config.get("name"), settings=settings)
+    from lab.tasks.eda import write_report
+    md_path, html_path = write_report(settings, adapter)
+    log.info("Wrote %s", md_path)
+    log.info("Wrote %s", html_path)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="lab", description=f"lab v{__version__} — LLM research agent")
     p.add_argument("--task", help="task name (default: from config/config.yaml)")
@@ -284,6 +296,12 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("validate", help="validate a Python file against validator rules")
     sp.add_argument("file")
     sp.set_defaults(fn=_cmd_validate)
+
+    sp = sub.add_parser(
+        "eda",
+        help="generate EDA markdown/html for a task (run once, checked in)",
+    )
+    sp.set_defaults(fn=_cmd_eda)
 
     # Kaggle helpers
     kaggle = sub.add_parser("kaggle", help="Kaggle utilities")
