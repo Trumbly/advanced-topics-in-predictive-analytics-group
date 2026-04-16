@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_93641ed0b1",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_specaugment",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "LLMError",
+      "error_message": "LLM call failed after 3 attempts",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

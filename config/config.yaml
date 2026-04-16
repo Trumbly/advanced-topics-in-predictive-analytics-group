@@ -15,20 +15,20 @@ paths:
   registry_dir: registry
   reports_dir: reports
 llm:
-  provider: anthropic
-  base_url: https://api.anthropic.com/v1
-  default_model: claude-opus-4-6
+  provider: ollama
+  base_url: http://localhost:11434/v1
+  default_model: devstral:latest
   api_key: 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
-  temperature: 0.7
+  temperature: 0.3
   max_tokens: 4096
   timeout_seconds: 120.0
   retry_attempts: 3
   retry_backoff_seconds: 5
 compute_budget:
-  max_experiments: 1
+  max_experiments: 10
   max_wallclock_minutes: 240
   max_experiment_seconds: 1800
-  max_epochs_per_run: 1
+  max_epochs_per_run: 10
   max_recovery_attempts: 5
   max_codegen_retries: 5
 context:
@@ -37,13 +37,13 @@ context:
   memory_format: markdown
 env_prefix: AGENT
 training:
-  device: auto
-  batch_size: 64
-  num_workers: 2
+  device: mps
+  batch_size: 128
+  num_workers: 4
   persistent_workers: true
-  prefetch_factor: 1
+  prefetch_factor: 2
 logging:
-  level: DEBUG
+  level: INFO
   console: true
   file: experiments/agent.log
   structured: true
@@ -79,17 +79,17 @@ executor:
     - numpy>=1.24
     - pandas>=2.0
     - pyyaml>=6.0
-    gpu: ""
-    cpu:
-    memory_mb:
+    gpu: ''
+    cpu: null
+    memory_mb: null
     timeout_seconds: 1800
     retries: 0
-    output_volume_name: ""
+    output_volume_name: ''
     output_mount_path: /mnt/output
-    s3_bucket_name: ""
-    s3_secret_name: ""
-    s3_endpoint_url: ""
+    s3_bucket_name: ''
+    s3_secret_name: ''
+    s3_endpoint_url: ''
     s3_mount_path: /mnt/data
-    s3_key_prefix: ""
+    s3_key_prefix: ''
     set_processed_dir_from_s3: true
     processed_subpath: processed

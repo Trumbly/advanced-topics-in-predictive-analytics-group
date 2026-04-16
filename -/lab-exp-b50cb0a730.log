@@ -1,0 +1,31 @@
+[{"stream_name":"stdout","time":1.079792934,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.079963682,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-ngsfgdjg\n"}
+,{"stream_name":"stdout","time":38.311624444,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stderr","time":43.140530653,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":43.140577572,"data":"    Found GPU0 Tesla P100-PCIE-16GB which is of cuda capability 6.0.\n"}
+,{"stream_name":"stderr","time":43.140584658,"data":"    Minimum and Maximum cuda capability supported by this version of PyTorch is\n"}
+,{"stream_name":"stderr","time":43.140590138,"data":"    (7.0) - (12.0)\n"}
+,{"stream_name":"stderr","time":43.140594461,"data":"    \n"}
+,{"stream_name":"stderr","time":43.140598638,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":43.140603685,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":43.140608642,"data":"    Please install PyTorch with a following CUDA\n"}
+,{"stream_name":"stderr","time":43.140614496,"data":"    configurations:  12.6 following instructions at\n"}
+,{"stream_name":"stderr","time":43.140618906,"data":"    https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":43.14063416,"data":"    \n"}
+,{"stream_name":"stderr","time":43.14063907,"data":"  queued_call()\n"}
+,{"stream_name":"stderr","time":43.140701056,"data":"/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:435: UserWarning: \n"}
+,{"stream_name":"stderr","time":43.140709435,"data":"Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the current PyTorch installation.\n"}
+,{"stream_name":"stderr","time":43.140714208,"data":"The current PyTorch install supports CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.\n"}
+,{"stream_name":"stderr","time":43.140719064,"data":"If you want to use the Tesla P100-PCIE-16GB GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/\n"}
+,{"stream_name":"stderr","time":43.140723731,"data":"\n"}
+,{"stream_name":"stderr","time":43.140727965,"data":"  queued_call()\n"}
+,{"stream_name":"stdout","time":43.142061834,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla P100-PCIE-16GB\n"}
+,{"stream_name":"stdout","time":43.142176069,"data":"[lab bootstrap] WARNING: Tesla P100-PCIE-16GB has CUDA capability sm_60 but the installed PyTorch only supports sm_10, sm_120, sm_70, sm_75, sm_80, sm_86, sm_90.\n"}
+,{"stream_name":"stdout","time":43.142185602,"data":"[lab bootstrap] Falling back to AGENT_DEVICE=cpu for THIS kernel. Training will be slow. To use GPU:\n"}
+,{"stream_name":"stdout","time":43.142192429,"data":"[lab bootstrap]   - in the Kaggle notebook settings, pick 'GPU T4 x2' instead of P100, OR\n"}
+,{"stream_name":"stdout","time":43.142200545,"data":"[lab bootstrap]   - pip install a CUDA-11.8 build of torch that retains sm_60 before training starts.\n"}
+,{"stream_name":"stdout","time":43.142204025,"data":"[lab bootstrap] NOTE: GPU available but AGENT_DEVICE='cpu'. See message above.\n"}
+,{"stream_name":"stdout","time":50.350160329,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":50.564666932,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 73%|███████▎  | 15.0M/20.5M [00:00\u003c00:00, 156MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 173MB/s]\n"}
+,{"stream_name":"stdout","time":50.617994648,"data":"[skeleton] device=cpu BATCH_SIZE=64 NUM_WORKERS=2\n"}
+]

@@ -29,14 +29,14 @@ def _resolve_exp_stdout(settings, study_id: str | None, exp_id: str) -> Path:
 
 
 @router.get("/live/{exp_id}")
-async def live_stdout(exp_id: str, request: Request):
+async def live_stdout(exp_id: str, request: Request, from_end: bool = False):
     settings = request.app.state.settings
     if not settings.ui.enable_live_sse:
         return {"error": "disabled"}, 404
     stdout_path = _resolve_exp_stdout(settings, None, exp_id)
 
     async def gen():
-        async for line in tail_file(stdout_path):
+        async for line in tail_file(stdout_path, from_end=from_end):
             if await request.is_disconnected():
                 break
             yield format_sse(line)
@@ -45,7 +45,12 @@ async def live_stdout(exp_id: str, request: Request):
 
 
 @router.get("/live/study/{study_id}/exp/{exp_id}")
-async def live_stdout_via_study(study_id: str, exp_id: str, request: Request):
+async def live_stdout_via_study(
+    study_id: str,
+    exp_id: str,
+    request: Request,
+    from_end: bool = False,
+):
     """Same as ``/live/<exp_id>`` but resolves the path through the
     experiment's stored ``sandbox_path``, which is authoritative."""
     settings = request.app.state.settings
@@ -54,7 +59,7 @@ async def live_stdout_via_study(study_id: str, exp_id: str, request: Request):
     stdout_path = _resolve_exp_stdout(settings, study_id, exp_id)
 
     async def gen():
-        async for line in tail_file(stdout_path):
+        async for line in tail_file(stdout_path, from_end=from_end):
             if await request.is_disconnected():
                 break
             yield format_sse(line)
@@ -63,7 +68,7 @@ async def live_stdout_via_study(study_id: str, exp_id: str, request: Request):
 
 
 @router.get("/live/launches/{launch_id}")
-async def live_launch(launch_id: str, request: Request):
+async def live_launch(launch_id: str, request: Request, from_end: bool = False):
     """SSE stream for an agent subprocess log (combined stdout + stderr)."""
     settings = request.app.state.settings
     if not settings.ui.enable_live_sse:
@@ -71,7 +76,7 @@ async def live_launch(launch_id: str, request: Request):
     log_path = settings.abspath(f"experiments/launches/{launch_id}.log")
 
     async def gen():
-        async for line in tail_file(log_path):
+        async for line in tail_file(log_path, from_end=from_end):
             if await request.is_disconnected():
                 break
             yield format_sse(line)

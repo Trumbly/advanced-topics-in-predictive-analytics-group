@@ -1,0 +1,18 @@
+[{"stream_name":"stdout","time":0.834869786,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":0.834905889,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-y6qckbp_\n"}
+,{"stream_name":"stdout","time":33.234550418,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":33.25957735,"data":"[lab bootstrap] detected P100 — swapping in sm_60-compatible torch (cu118 build, ~30-60s)\n"}
+,{"stream_name":"stdout","time":45.778030518,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 819.1/819.1 MB 2.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":51.976807959,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 2.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":52.796548474,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 74.5 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":53.456319398,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 875.6/875.6 kB 51.7 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":54.17527402,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.1/13.1 MB 101.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":62.733570543,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 728.5/728.5 MB 2.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":69.627160593,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 417.9/417.9 MB 4.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":73.427203674,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.4/168.4 MB 7.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":74.60101735,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.1/58.1 MB 35.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":76.203052337,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.2/128.2 MB 15.0 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":78.620391443,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 204.1/204.1 MB 9.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":81.121234906,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.3/135.3 MB 14.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":82.107604381,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 8.1 MB/s eta 0:00:00\n"}
+]

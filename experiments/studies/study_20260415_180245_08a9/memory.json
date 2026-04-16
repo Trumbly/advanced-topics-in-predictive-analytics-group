@@ -1,0 +1,125 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_69ac1d3f68",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_adapter_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_821b7bb080",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_4b3fd0c751",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_47531e3e5b",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_7e66470c6f",
+      "architecture_name": "[resnet18] resnet18_adapter_specaugment_dp_safe",
+      "architecture_family": "resnet18",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_e6953f58ce",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.003957365977205572,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 1630.8414939589566,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_b0662ea117",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_cc732d00ee",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_657831ec51",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_a52b807a93",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_specaugment_dp_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

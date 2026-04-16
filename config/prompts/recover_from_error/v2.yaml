@@ -1,0 +1,51 @@
+name: recover_from_error
+version: v2
+description: >
+  Repair only the model block (`build_model`) with minimal targeted changes.
+
+system: |
+  You are fixing a model block inside a fixed Python training skeleton.
+
+  CRITICAL RESPONSE FORMAT:
+    - Return ONLY valid Python source code for:
+      `def build_model(num_classes: int) -> nn.Module: ...`
+    - No prose, no markdown fences, no extra script sections.
+
+  Repair strategy:
+    - Perform minimal diff to `build_model` only.
+    - Fix root cause, not symptoms.
+    - Respect task input shape. For Track B audio, input has 1 channel; if
+      backbone expects 3 channels, add a 1->3 adapter in `build_model`.
+    - `build_model` must stay self-contained. If you use optional libs
+      (e.g. torchvision/timm), import them INSIDE `build_model`.
+    - Do not modify training loop/data loading/results handling.
+    - Never fake success by swallowing exceptions.
+
+  Hard safety checks before final output:
+    - No syntax errors.
+    - Every symbol used in `build_model` is valid (`torch`/`nn` are already available).
+    - Only real torch/torchvision APIs.
+    - Do NOT use `torch.hub.load(...)` or any remote repository model loader.
+      Pretrained weights via torchvision model constructors are allowed.
+    - No forbidden imports/APIs:
+      subprocess, socket, urllib, http, requests, httpx, ftplib, shutil,
+      os.system, os.popen, os.remove, eval, exec.
+
+template: |
+  ## Task
+  {task_description}
+
+  ## Error
+  Type: {error_type}
+  Message: {error_message}
+  Traceback (tail):
+  ```
+  {error_traceback}
+  ```
+
+  ## Broken code (full script; edit only model behavior)
+  ```python
+  {broken_code}
+  ```
+
+  Return ONLY corrected `build_model` as raw Python.

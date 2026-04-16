@@ -42,6 +42,15 @@ class FailureRow:
     example: str
 
 
+@dataclass
+class TaskRow:
+    name: str
+    runs: int
+    completed: int
+    failed: int
+    avg_attempts: float | None
+
+
 def generate_report(
     study: Study,
     settings: Settings,
@@ -98,6 +107,36 @@ def generate_report(
         for k, msgs in sorted(by_err.items(), key=lambda kv: -len(kv[1]))
     ]
 
+    # Pipeline/task-level summary (helps when reports are short due
+    # very few epochs by still surfacing process diagnostics).
+    task_rows: list[TaskRow] = []
+    task_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "runs": 0, "completed": 0, "failed": 0, "attempts": [],
+    })
+    for e in study.experiments:
+        for t in e.tasks:
+            s = task_stats[t.name]
+            s["runs"] += 1
+            if str(t.status.value) == "completed":
+                s["completed"] += 1
+            if str(t.status.value) == "failed":
+                s["failed"] += 1
+            attempts = (t.output or {}).get("validator_attempts")
+            if isinstance(attempts, int) and attempts > 0:
+                s["attempts"].append(float(attempts))
+    for name in sorted(task_stats):
+        s = task_stats[name]
+        avg_attempts = (
+            statistics.fmean(s["attempts"]) if s["attempts"] else None
+        )
+        task_rows.append(TaskRow(
+            name=name,
+            runs=int(s["runs"]),
+            completed=int(s["completed"]),
+            failed=int(s["failed"]),
+            avg_attempts=avg_attempts,
+        ))
+
     exec_summary = ""
     if write_exec_summary:
         exec_summary = _render_exec_summary(study, settings, family_rows, n_success, n_failed)
@@ -114,6 +153,7 @@ def generate_report(
         best_experiment=best_experiment,
         n_success=n_success, n_failed=n_failed,
         family_rows=family_rows, failure_rows=failure_rows,
+        task_rows=task_rows,
         has_learning_curve=(fig_dir / "best_learning_curve.png").exists(),
         has_family_box=(fig_dir / "per_family_box.png").exists(),
     )
@@ -171,12 +211,13 @@ def _render_exec_summary(
     except (LLMError, Exception) as exc:  # noqa: BLE001
         logger.info("Using deterministic exec summary fallback: %s", exc)
         return (
-            f"Across {len(study.experiments)} experiments ({n_success} successful, "
-            f"{n_failed} failed), the best configuration achieved "
-            f"{study.primary_metric} = {best_score:.4f}"
-            + (f" with architecture `{best.architecture_name}`" if best else "")
-            + ". See the per-family breakdown below for which architecture families "
-              "dominated and which failed modes were most common."
+            f"This study ran {len(study.experiments)} experiment(s): {n_success} completed "
+            f"and {n_failed} failed. The top run reached {study.primary_metric}={best_score:.4f}"
+            + (f" with `{best.architecture_name}`" if best else "")
+            + ". The report below breaks down task-pipeline reliability, failure modes, and "
+              "per-family performance so you can separate model-quality issues from execution "
+              "issues. For the next iteration, keep the strongest family, adjust batch/runtime "
+              "stability knobs first, and only then broaden architecture search."
         )
 
 

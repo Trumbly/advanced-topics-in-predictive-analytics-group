@@ -27,6 +27,16 @@
     <h4>Task</h4>
     <p class="big">{{ study.task_name }}</p>
     <p class="muted">Primary: <code>{{ study.primary_metric }}</code></p>
+    {% if metric_options %}
+    <form method="post" action="/studies/{{ study.id }}/primary-metric" class="inline" style="margin-top: 8px;">
+      <select name="primary_metric">
+        {% for m in metric_options %}
+          <option value="{{ m }}" {% if m == study.primary_metric %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn" type="submit">Set study metric</button>
+    </form>
+    {% endif %}
   </div>
   <div class="card">
     <h4>Status</h4>
@@ -73,6 +83,21 @@
 </section>
 {% endif %}
 
+{% if running_experiment %}
+<section class="card">
+  <h2>
+    Live training stdout
+    <span class="muted small">· running experiment <a href="/studies/{{ study.id }}/experiments/{{ running_experiment.id }}"><code>{{ running_experiment.id }}</code></a></span>
+    <span id="train-sse-status" class="muted small">· tailing…</span>
+  </h2>
+  <p class="muted small">
+    Source: <code>{{ running_stdout_path_display }}</code>
+    {% if not running_stdout_exists %}<span class="status status-pending">file not yet written</span>{% endif %}
+  </p>
+  <pre id="running-stdout" class="scroll code">{{ running_stdout or "(no output yet — waiting for Kaggle kernel logs)" }}</pre>
+</section>
+{% endif %}
+
 <section class="card">
   <h2>Experiments</h2>
   <table>
@@ -83,7 +108,8 @@
         <th>Architecture</th>
         <th>Family</th>
         <th>Status</th>
-        <th>{{ study.primary_metric }}</th>
+        <th>Primary metric</th>
+        <th>Primary score</th>
         <th>Duration</th>
         <th>Error</th>
       </tr>
@@ -106,6 +132,20 @@
           <span class="status status-{{ estat }}">{{ estat }}</span>
           {% if ns.current %}
             <span class="muted small">[{{ ns.current.name }}]</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if metric_options %}
+          <form method="post" action="/studies/{{ study.id }}/experiments/{{ e.id }}/primary-metric" class="inline">
+            <select name="primary_metric">
+              {% for m in metric_options %}
+                <option value="{{ m }}" {% if m == e.primary_metric %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn" type="submit">Save</button>
+          </form>
+          {% else %}
+            <code>{{ e.primary_metric or "—" }}</code>
           {% endif %}
         </td>
         <td class="num">{% if e.primary_score is not none %}{{ "%.4f"|format(e.primary_score) }}{% else %}—{% endif %}</td>
@@ -176,12 +216,35 @@
   if (log.textContent.trim().startsWith("(")) {
     log.textContent = "";
   }
-  const es = new EventSource("/live/launches/{{ running_launch.id }}");
+  const es = new EventSource("/live/launches/{{ running_launch.id }}?from_end=1");
   es.onmessage = (ev) => {
     log.textContent += (log.textContent && !log.textContent.endsWith("\n") ? "\n" : "") + ev.data;
     log.scrollTop = log.scrollHeight;
   };
   es.onerror = () => { es.close(); };
+})();
+</script>
+{% endif %}
+{% if running_experiment %}
+<script>
+(function () {
+  const log = document.getElementById("running-stdout");
+  const status = document.getElementById("train-sse-status");
+  if (!log) return;
+  if (log.textContent.trim().startsWith("(")) {
+    log.textContent = "";
+  }
+  const url = "/live/study/{{ study.id }}/exp/{{ running_experiment.id }}?from_end=1";
+  const es = new EventSource(url);
+  es.onopen = () => { if (status) status.textContent = "· live"; };
+  es.onmessage = (ev) => {
+    log.textContent += (log.textContent && !log.textContent.endsWith("\n") ? "\n" : "") + ev.data;
+    log.scrollTop = log.scrollHeight;
+  };
+  es.onerror = () => {
+    if (status) status.textContent = "· stream closed";
+    es.close();
+  };
 })();
 </script>
 {% endif %}

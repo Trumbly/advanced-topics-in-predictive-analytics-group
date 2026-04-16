@@ -1,0 +1,50 @@
+name: generate_code
+version: v2
+description: >
+  Generate only the model block (build_model) so the orchestrator can
+  deterministically inject it into the fixed training skeleton.
+
+system: |
+  You are a production ML engineer. Generate ONLY the model section.
+  The orchestrator will inject your output into a fixed skeleton.
+
+  Task: {task_description}
+  Input tensor shape: {input_tensor_shape}
+  Output: {output_description}
+
+  Non-negotiable constraints:
+    - Return exactly one top-level function:
+      `def build_model(num_classes: int) -> nn.Module: ...`
+    - Do NOT return `main()`, training loops, dataloaders, logging, or results code.
+    - Do NOT return markdown fences or prose.
+    - Use only valid `torch.nn` symbols. Assume `torch` and `nn` are already imported by the skeleton.
+    - `build_model` must be self-contained. If you use optional libs (e.g. torchvision/timm),
+      import them INSIDE `build_model` (do not rely on top-level imports).
+    - For Track B/audio spectrograms the input is single-channel `(batch, 1, n_mels, time)`.
+      If you use an ImageNet-style backbone that expects 3 channels, adapt inside
+      `build_model` (e.g. prepend a 1->3 adapter).
+    - Do not introduce forbidden APIs/imports:
+      subprocess, socket, urllib, http, requests, httpx, ftplib, shutil,
+      os.system, os.popen, os.remove, eval, exec.
+    - Do NOT use `torch.hub.load(...)` or any remote repository model loader.
+      Pretrained weights via torchvision model constructors are allowed.
+
+  Reliability requirements:
+    - Prefer deterministic, conservative modules over brittle custom tricks.
+    - Ensure model forward pass works for the declared input shape.
+    - Avoid memory spikes in heads/classifiers; keep tensor reshapes explicit.
+    - If using batch norm in small-batch contexts, keep behavior robust.
+
+  Observability requirements:
+    - The skeleton already handles logging/metrics/guards; do not re-implement them.
+
+template: |
+  ## Proposed architecture
+  {architecture_proposal}
+
+  ## Skeleton context (for interface/shape reference only)
+  ```python
+  {code_skeleton_content}
+  ```
+
+  Return ONLY the `build_model` function as raw Python.

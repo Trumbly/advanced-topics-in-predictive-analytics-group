@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import platform
+import re
 import signal
 import subprocess
 import sys
@@ -55,6 +56,7 @@ ERROR_PATTERNS: list[tuple[str, tuple[str, ...]]] = [
     ("ImportError", ("ModuleNotFoundError", "ImportError")),
     ("FileNotFound", ("FileNotFoundError",)),
     ("ValueError", ("ValueError",)),
+    ("NotImplementedError", ("NotImplementedError",)),
     ("RuntimeError", ("RuntimeError",)),
 ]
 
@@ -66,10 +68,19 @@ def _tail(text: str, n: int) -> str:
 
 def _extract_error_line(stderr: str, patterns: tuple[str, ...]) -> str:
     lines = [line for line in stderr.splitlines() if line.strip()]
+    if not lines:
+        return ""
     for line in lines:
         if any(p in line for p in patterns):
             return line.strip()
-    return lines[-1].strip() if lines else ""
+    # For unknown patterns, prefer the last `XxxError: ...` traceback line over
+    # trailing notebook-conversion noise (NbConvertApp warnings).
+    if not patterns:
+        for line in reversed(lines):
+            s = line.strip()
+            if re.match(r"^[A-Za-z_][\w.]*Error:\s+.+", s):
+                return s
+    return lines[-1].strip()
 
 
 def classify_error(stderr: str, *, timed_out: bool) -> TaskError | None:

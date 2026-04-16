@@ -14,6 +14,11 @@ def test_list_available_tasks_includes_both_tracks():
     names = {t["name"] for t in tasks}
     assert "track_a" in names
     assert "track_b" in names
+    by_name = {t["name"]: t for t in tasks}
+    assert by_name["track_a"]["primary_metric"] == "f1_binary"
+    assert "roc_auc_binary" in by_name["track_a"]["metrics"]
+    assert by_name["track_b"]["primary_metric"] == "f1_macro"
+    assert "roc_auc_macro" in by_name["track_b"]["metrics"]
 
 
 def test_track_a_adapter_loads():
@@ -30,6 +35,8 @@ def test_track_b_adapter_loads():
     adapter = get_task_adapter(task_name="track_b")
     assert adapter.name == "track_b"
     assert adapter.primary_metric == "f1_macro"
+    assert "f1_macro" in adapter.available_primary_metrics()
+    assert "roc_auc_macro" in adapter.available_primary_metrics()
 
 
 def test_track_a_spawn_triggers_include_loader():
@@ -124,6 +131,33 @@ def test_track_b_loader_accepts_sample_id_class_id_schema(tmp_path):
         "sample_id,class_id\na,7\nb,7\nc,3\n",
     )
     assert n == 2  # classes 7 and 3
+
+
+def test_validate_training_output_accepts_expected_metric_from_metrics_dict():
+    adapter = get_task_adapter(task_name="track_b")
+    errors = adapter.validate_training_output(
+        {
+            "primary_metric": "f1_macro",
+            "primary_score": 0.11,
+            "metrics": {"f1_macro": 0.11, "roc_auc_macro": 0.77},
+        },
+        expected_primary_metric="roc_auc_macro",
+    )
+    assert errors == []
+
+
+def test_validate_training_output_rejects_missing_expected_metric():
+    adapter = get_task_adapter(task_name="track_b")
+    errors = adapter.validate_training_output(
+        {
+            "primary_metric": "f1_macro",
+            "primary_score": 0.11,
+            "metrics": {"f1_macro": 0.11},
+        },
+        expected_primary_metric="roc_auc_macro",
+    )
+    assert errors
+    assert "roc_auc_macro" in errors[0]
 
 
 def test_load_profile_tolerates_legacy_cache_without_task_name(tmp_path):

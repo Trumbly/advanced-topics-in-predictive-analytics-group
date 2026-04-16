@@ -1,0 +1,11 @@
+[{"stream_name":"stdout","time":1.168324352,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.16838914,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-knlh242t\n"}
+,{"stream_name":"stdout","time":44.771411266,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":51.309093601,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\n"}
+,{"stream_name":"stderr","time":62.371019727,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":62.371066103,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":62.65967293,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":62.659702016,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":63.363956199,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":64.762286133,"data":"[NbConvertApp] Writing 378850 bytes to __results__.html\n"}
+]

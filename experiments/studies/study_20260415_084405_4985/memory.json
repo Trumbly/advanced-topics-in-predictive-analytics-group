@@ -1,0 +1,17 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_848f47dab1",
+      "architecture_name": "[efficientnet_b0] efficientnet_b0_mixup_focal",
+      "architecture_family": "efficientnet_b0",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.5538582942860514,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 1250.607418541913,
+      "takeaway": ""
+    }
+  ]
+}

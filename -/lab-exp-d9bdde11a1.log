@@ -1,0 +1,111 @@
+[{"stream_name":"stdout","time":1.492082521,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.492128678,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-w6d3x7rk\n"}
+,{"stream_name":"stdout","time":89.111491808,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":94.896863902,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla T4\n"}
+,{"stream_name":"stdout","time":101.986565219,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":102.163776506,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 97%|█████████▋| 19.9M/20.5M [00:00\u003c00:00, 208MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 208MB/s]\n"}
+,{"stream_name":"stdout","time":102.47404468,"data":"[skeleton] DataParallel across 2 GPUs. effective BATCH_SIZE=512 (per-GPU=256)\n"}
+,{"stream_name":"stderr","time":109.458790087,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":109.458847496,"data":"  File \"/kaggle/src/script.py\", line 486, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":109.459235306,"data":"    main()\n"}
+,{"stream_name":"stderr","time":109.459255,"data":"  File \"/kaggle/src/script.py\", line 464, in main\n"}
+,{"stream_name":"stderr","time":109.459610541,"data":"    loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n"}
+,{"stream_name":"stderr","time":109.459785966,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.459823103,"data":"  File \"/kaggle/src/script.py\", line 397, in train_one_epoch\n"}
+,{"stream_name":"stderr","time":109.460165259,"data":"    logits = model(x_mixed)\n"}
+,{"stream_name":"stderr","time":109.460232031,"data":"             ^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.460243592,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.461326941,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.461353221,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.46136045,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.461366426,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.461371535,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.461376899,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/data_parallel.py\", line 197, in forward\n"}
+,{"stream_name":"stderr","time":109.462214894,"data":"    outputs = self.parallel_apply(replicas, inputs, module_kwargs)\n"}
+,{"stream_name":"stderr","time":109.462382345,"data":"              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.462409523,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/data_parallel.py\", line 214, in parallel_apply\n"}
+,{"stream_name":"stderr","time":109.462568155,"data":"    return parallel_apply(\n"}
+,{"stream_name":"stderr","time":109.462599151,"data":"           ^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.462618063,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/parallel_apply.py\", line 133, in parallel_apply\n"}
+,{"stream_name":"stderr","time":109.462785209,"data":"    output.reraise()\n"}
+,{"stream_name":"stderr","time":109.462826042,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/_utils.py\", line 775, in reraise\n"}
+,{"stream_name":"stderr","time":109.464577284,"data":"    raise exception\n"}
+,{"stream_name":"stderr","time":109.464598729,"data":"torch.AcceleratorError: Caught AcceleratorError in replica 0 on device 0.\n"}
+,{"stream_name":"stderr","time":109.46460388,"data":"Original Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":109.464607655,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/parallel/parallel_apply.py\", line 103, in _worker\n"}
+,{"stream_name":"stderr","time":109.464611859,"data":"    output = module(*input, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464615503,"data":"             ^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464619149,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464623022,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464626854,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464631031,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.464636135,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.46464029,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464644384,"data":"  File \"/kaggle/src/script.py\", line 368, in forward\n"}
+,{"stream_name":"stderr","time":109.464647994,"data":"    return self.backbone(x)\n"}
+,{"stream_name":"stderr","time":109.464651618,"data":"           ^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464655378,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464659349,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464663074,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464666913,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.464671515,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464674747,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464678488,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/models/efficientnet.py\", line 344, in forward\n"}
+,{"stream_name":"stderr","time":109.464700547,"data":"    return self._forward_impl(x)\n"}
+,{"stream_name":"stderr","time":109.464704947,"data":"           ^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464708834,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/models/efficientnet.py\", line 334, in _forward_impl\n"}
+,{"stream_name":"stderr","time":109.464712594,"data":"    x = self.features(x)\n"}
+,{"stream_name":"stderr","time":109.464717692,"data":"        ^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464725022,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464727605,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464730035,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464740011,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.464742637,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464745139,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464747507,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":109.464749956,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":109.464753615,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464756325,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464775923,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464779734,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464782951,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.464788465,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464791973,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.46479587,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/container.py\", line 253, in forward\n"}
+,{"stream_name":"stderr","time":109.464800347,"data":"    input = module(input)\n"}
+,{"stream_name":"stderr","time":109.4648043,"data":"            ^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.46480769,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464811908,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464815397,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464818875,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.46482239,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464826402,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464829977,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/models/efficientnet.py\", line 167, in forward\n"}
+,{"stream_name":"stderr","time":109.464834013,"data":"    result = self.stochastic_depth(result)\n"}
+,{"stream_name":"stderr","time":109.464838909,"data":"             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464842539,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1776, in _wrapped_call_impl\n"}
+,{"stream_name":"stderr","time":109.464846854,"data":"    return self._call_impl(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464850759,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464854466,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/module.py\", line 1787, in _call_impl\n"}
+,{"stream_name":"stderr","time":109.464858699,"data":"    return forward_call(*args, **kwargs)\n"}
+,{"stream_name":"stderr","time":109.464862561,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.464866713,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/ops/stochastic_depth.py\", line 62, in forward\n"}
+,{"stream_name":"stderr","time":109.464875575,"data":"    return stochastic_depth(input, self.p, self.mode, self.training)\n"}
+,{"stream_name":"stderr","time":109.464880385,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":109.46488446,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torchvision/ops/stochastic_depth.py\", line 44, in stochastic_depth\n"}
+,{"stream_name":"stderr","time":109.464889048,"data":"    return input * noise\n"}
+,{"stream_name":"stderr","time":109.464892951,"data":"           ~~~~~~^~~~~~~\n"}
+,{"stream_name":"stderr","time":109.464896904,"data":"torch.AcceleratorError: CUDA error: misaligned address\n"}
+,{"stream_name":"stderr","time":109.464901744,"data":"Search for `cudaErrorMisalignedAddress' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.\n"}
+,{"stream_name":"stderr","time":109.464906019,"data":"CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\n"}
+,{"stream_name":"stderr","time":109.464910167,"data":"For debugging consider passing CUDA_LAUNCH_BLOCKING=1\n"}
+,{"stream_name":"stderr","time":109.464914679,"data":"Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n"}
+,{"stream_name":"stderr","time":109.464919083,"data":"\n"}
+,{"stream_name":"stderr","time":109.464922959,"data":"\n"}
+,{"stream_name":"stderr","time":114.445818848,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":114.44585345,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":114.700846931,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":114.700899841,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":115.328159476,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":116.593632319,"data":"[NbConvertApp] Writing 355342 bytes to __results__.html\n"}
+]

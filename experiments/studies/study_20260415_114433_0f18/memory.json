@@ -1,0 +1,53 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_e4bf2ca68b",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "[NbConvertApp] Writing 364386 bytes to __results__.html",
+      "duration_seconds": 126.59240416600369,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_9432f9bd67",
+      "architecture_name": "[custom_cnn] cnn_small_v1_mixup_safe",
+      "architecture_family": "[custom_cnn]",
+      "status": "completed",
+      "primary_metric": "f1_macro",
+      "primary_score": 0.0,
+      "error_type": null,
+      "error_message": null,
+      "duration_seconds": 588.9542427910492,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_1e5b1ff231",
+      "architecture_name": "[resnet18] resnet18_safe_adapter",
+      "architecture_family": "[resnet18]",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_5494c9e4ea",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 246.43145508295856,
+      "takeaway": ""
+    }
+  ]
+}

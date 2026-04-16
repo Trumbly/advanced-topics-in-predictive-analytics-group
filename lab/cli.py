@@ -38,6 +38,15 @@ def _parse_prompt_overrides(raw: list[str] | None) -> dict[str, str]:
     return out
 
 
+def _parse_primary_metrics(raw: str | None) -> list[str]:
+    vals = [v.strip() for v in (raw or "").split(",") if v.strip()]
+    out: list[str] = []
+    for v in vals:
+        if v not in out:
+            out.append(v)
+    return out
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     settings = load_settings(task=args.task)
     telemetry.configure(settings)
@@ -62,6 +71,19 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     adapter = get_task_adapter(task_name=settings.task_config.get("name"), settings=settings)
     log.info("Task %s | primary metric %s", adapter.name, adapter.primary_metric)
+    metric_schedule = _parse_primary_metrics(args.primary_metrics)
+    if metric_schedule:
+        allowed = set(adapter.available_primary_metrics())
+        unknown = [m for m in metric_schedule if m not in allowed]
+        if unknown:
+            log.error(
+                "Unknown primary metric(s): %s. Allowed for %s: %s",
+                ", ".join(unknown),
+                adapter.name,
+                ", ".join(sorted(allowed)) or "(none)",
+            )
+            return 2
+        log.info("Per-experiment primary metrics: %s", ", ".join(metric_schedule))
 
     # Import here so the CLI loads fast when the user only runs non-orchestrator
     # commands on a Python without torch installed.
@@ -74,6 +96,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         prompt_overrides=prompt_overrides,
         launch_id=args.launch_id,
         executor_backend=args.executor,
+        primary_metrics=metric_schedule,
     )
     tags = [t.strip() for t in (args.tags or "").split(",") if t.strip()]
     study = orch.run_study(name=args.name or "", tags=tags)
@@ -222,6 +245,13 @@ def build_parser() -> argparse.ArgumentParser:
             "executor.backend from config.yaml. `kaggle` requires the "
             "kaggle CLI + credentials + a configured username. `modal` "
             "requires `pip install modal`, `modal setup`, and executor.modal config."
+        ),
+    )
+    sp.add_argument(
+        "--primary-metrics", default="",
+        help=(
+            "comma-separated objective metrics schedule for experiments "
+            "(round-robin). Example: f1_macro,roc_auc_macro"
         ),
     )
     sp.set_defaults(fn=_cmd_run)

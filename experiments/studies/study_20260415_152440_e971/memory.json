@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_4476420e78",
+      "architecture_name": "[efficientnet_b0] effnet_b0_mixup_dp_safe",
+      "architecture_family": "efficientnet_b0",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_4325a0853b",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_adapter_dropout",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 65.55068666604348,
+      "takeaway": ""
+    }
+  ]
+}

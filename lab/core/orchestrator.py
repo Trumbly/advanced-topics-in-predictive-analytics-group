@@ -24,6 +24,7 @@ import logging
 import re
 import signal
 import time
+import ast
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -62,6 +63,7 @@ _HARD_FAILURE_ERROR_TYPES = frozenset({
     "FileNotFound",
     "Aborted",
 })
+_NO_RUNTIME_RECOVERY_BACKENDS = frozenset({"kaggle", "modal"})
 
 
 def _now() -> datetime:
@@ -94,6 +96,7 @@ class Orchestrator:
         prompt_overrides: dict[str, str] | None = None,
         launch_id: str | None = None,
         executor_backend: str | None = None,
+        primary_metrics: list[str] | None = None,
     ):
         self.settings = settings
         self.adapter = adapter
@@ -126,6 +129,7 @@ class Orchestrator:
 
         skeleton_path = settings.abspath(adapter.code_skeleton_path())
         skeleton_content = skeleton_path.read_text() if skeleton_path.exists() else ""
+        self._code_skeleton = skeleton_content
         slots = dict(adapter.prompt_slot_values())
         slots["code_skeleton_content"] = skeleton_content
 
@@ -137,6 +141,13 @@ class Orchestrator:
             dataset_profile=adapter.load_profile(),
             model_registry=model_reg,
             task_slots=slots,
+        )
+        schedule = [m.strip() for m in (primary_metrics or []) if m and m.strip()]
+        self._primary_metric_schedule: list[str] = schedule or [adapter.primary_metric]
+        self._study_primary_metric: str = self._primary_metric_schedule[0]
+        self._validator_smoke_input_shape = _resolve_validator_smoke_input_shape(adapter)
+        self._validator_smoke_num_classes = _resolve_validator_smoke_num_classes(
+            self.context.dataset_profile,
         )
 
         sandbox_root = settings.abspath(settings.paths.sandbox)
@@ -164,7 +175,7 @@ class Orchestrator:
         study = Study(
             name=name or f"{self.adapter.name}-{_now().strftime('%Y%m%d_%H%M%S')}",
             task_name=self.adapter.name,
-            primary_metric=self.adapter.primary_metric,
+            primary_metric=self._study_primary_metric,
             predecessor_id=self.predecessor.id if self.predecessor else None,
             prompt_template_paths=self._resolve_prompt_paths(),
             publish=self.settings.publishing.default_publish,
@@ -205,7 +216,7 @@ class Orchestrator:
                 exp = Experiment(
                     study_id=study.id,
                     index=i,
-                    primary_metric=self.adapter.primary_metric,
+                    primary_metric=self._metric_for_experiment(i),
                 )
                 logger.info("── experiment %d/%d: %s", i + 1, budget.max_experiments, exp.id)
                 self._fire(self.hooks.on_experiment_start, exp)
@@ -280,7 +291,7 @@ class Orchestrator:
         # 1) Propose architecture
         propose_task = self._begin_task(exp, "propose_architecture")
         try:
-            proposal_text = self._propose_architecture()
+            proposal_text = self._propose_architecture(primary_metric=exp.primary_metric)
             proposal_data = self._parse_proposal(proposal_text)
             exp.architecture_name = proposal_data.get("architecture_name", "unknown")
             exp.architecture_family = proposal_data.get("architecture_family")
@@ -299,7 +310,10 @@ class Orchestrator:
         # 2) Generate code with Layer-1 retry (codegen + validator)
         gen_task = self._begin_task(exp, "generate_code")
         try:
-            code = self._generate_code(exp.architecture_proposal or "")
+            code = self._generate_code(
+                exp.architecture_proposal or "",
+                primary_metric=exp.primary_metric,
+            )
         except LLMError as exc:
             err = TaskError(error_type="LLMError", message=str(exc))
             self._finish_task(gen_task, status=TaskStatus.FAILED, error=err)
@@ -308,20 +322,44 @@ class Orchestrator:
             exp.completed_at = _now()
             self._persist()
             return
+        self._finish_task(gen_task, status=TaskStatus.COMPLETED, code=code)
 
+        # 2b) Validate generated code with Layer-1 retry (validator + repair)
+        validate_task = self._begin_task(exp, "validate_code")
         val_ok = False
         gen_err: TaskError | None = None
+        validator_attempts = 0
         for attempt in range(1, self.settings.compute_budget.max_codegen_retries + 1):
+            validator_attempts = attempt
             result = validator_mod.validate(
                 code,
                 extra_spawn_triggers=self.adapter.spawn_triggering_calls(),
+                require_build_model=True,
+                require_training_contract=True,
+                smoke_input_shape=self._validator_smoke_input_shape,
+                smoke_num_classes=self._validator_smoke_num_classes,
             )
             if result.ok:
                 val_ok = True
                 break
+            auto_fixed = _apply_validator_autofix(code, result)
+            if auto_fixed is not None and auto_fixed != code:
+                logger.info(
+                    "Applied validator auto-fix (%s): %s",
+                    result.error_type,
+                    result.message[:140],
+                )
+                code = auto_fixed
+                continue
             logger.warning("Validator rejected code (attempt %d): %s", attempt, result.message)
             try:
-                code = self._recover_code(code, result.error_type, result.message, traceback="")
+                code = self._recover_code(
+                    code,
+                    result.error_type,
+                    result.message,
+                    traceback="",
+                    primary_metric=exp.primary_metric,
+                )
             except LLMError as exc:
                 gen_err = TaskError(error_type="LLMError", message=str(exc))
                 break
@@ -333,13 +371,19 @@ class Orchestrator:
                     error_type="ValidationFailed",
                     message="Codegen retries exhausted",
                 )
-            self._finish_task(gen_task, status=TaskStatus.FAILED, error=gen_err, code=code)
+            self._finish_task(
+                validate_task, status=TaskStatus.FAILED, error=gen_err, code=code,
+                output={"validator_attempts": validator_attempts},
+            )
             exp.status = ExperimentStatus.FAILED
             exp.error = gen_err
             exp.completed_at = _now()
             self._persist()
             return
-        self._finish_task(gen_task, status=TaskStatus.COMPLETED, code=code)
+        self._finish_task(
+            validate_task, status=TaskStatus.COMPLETED, code=code,
+            output={"validator_attempts": validator_attempts},
+        )
 
         # 3) Execute with Layer-2 retry (runtime error recovery)
         run_task = self._begin_task(exp, "execute_training")
@@ -370,13 +414,20 @@ class Orchestrator:
         # 4) Capture metrics
         metrics_task = self._begin_task(exp, "capture_metrics")
         try:
-            metrics = self._capture_metrics(exec_result)
+            metrics = self._capture_metrics(
+                exec_result,
+                expected_primary_metric=exp.primary_metric,
+            )
+            exp.primary_metric = str(metrics.get("primary_metric") or exp.primary_metric)
             exp.metrics = metrics.get("metrics", {})
             exp.history = metrics.get("history", [])
             exp.primary_score = metrics.get("primary_score")
             raw = metrics.get("raw", {}) or {}
             in_band_error = raw.get("error")
-            extra_errors = self.adapter.validate_training_output(raw)
+            extra_errors = self.adapter.validate_training_output(
+                raw,
+                expected_primary_metric=exp.primary_metric,
+            )
             if in_band_error:
                 err = TaskError(
                     error_type="ScriptReportedError",
@@ -409,6 +460,12 @@ class Orchestrator:
 
     def _execute_with_recovery(self, code: str, exp: Experiment) -> ExecutionResult:
         max_attempts = self.settings.compute_budget.max_recovery_attempts
+        # Remote executors already run full jobs out-of-process; blindly
+        # re-pushing the same experiment on failure burns quota and keeps
+        # the local orchestrator alive even though the remote run is over.
+        # For these backends, one execute attempt per experiment is enough.
+        if getattr(self.executor, "backend", "") in _NO_RUNTIME_RECOVERY_BACKENDS:
+            max_attempts = 1
         for attempt in range(1, max_attempts + 1):
             if self._abort_requested:
                 # User hit Stop — don't spawn another training subprocess.
@@ -437,6 +494,7 @@ class Orchestrator:
                     error_type=result.error.error_type,
                     error_message=result.error.message,
                     traceback=result.error.traceback or "",
+                    primary_metric=exp.primary_metric,
                 )
                 # Re-validate the recovered code BEFORE shipping it to the
                 # executor. The recovery LLM occasionally returns prose
@@ -475,10 +533,24 @@ class Orchestrator:
         """
         for revalidation_attempt in range(1, 4):
             val = validator_mod.validate(
-                code, extra_spawn_triggers=self.adapter.spawn_triggering_calls(),
+                code,
+                extra_spawn_triggers=self.adapter.spawn_triggering_calls(),
+                require_build_model=True,
+                require_training_contract=True,
+                smoke_input_shape=self._validator_smoke_input_shape,
+                smoke_num_classes=self._validator_smoke_num_classes,
             )
             if val.ok:
                 return code
+            auto_fixed = _apply_validator_autofix(code, val)
+            if auto_fixed is not None and auto_fixed != code:
+                logger.info(
+                    "Applied validator auto-fix during runtime recovery (%s): %s",
+                    val.error_type,
+                    val.message[:120],
+                )
+                code = auto_fixed
+                continue
             logger.warning(
                 "Recovered code rejected by validator (%s): %s — re-prompting (%d/3)",
                 val.error_type, val.message[:120], revalidation_attempt,
@@ -489,6 +561,7 @@ class Orchestrator:
                     error_type=val.error_type,
                     error_message=val.message,
                     traceback="",
+                    primary_metric=exp.primary_metric,
                 )
             except LLMError:
                 break
@@ -498,55 +571,117 @@ class Orchestrator:
     # LLM calls — thin wrappers around prompt engine + llm client
     # ------------------------------------------------------------------
 
-    def _propose_architecture(self) -> str:
-        slots = self.context.build()
+    def _metric_for_experiment(self, index: int) -> str:
+        schedule = self._primary_metric_schedule
+        if not schedule:
+            return self.adapter.primary_metric
+        return schedule[index % len(schedule)]
+
+    def _propose_architecture(self, *, primary_metric: str) -> str:
+        slots = self.context.build(primary_metric=primary_metric)
         system, user = self.engine.render(
             "propose_architecture", slots,
             version=self.prompt_overrides.get("propose_architecture"),
         )
         return self.llm.chat(format_messages(system, user))
 
-    def _generate_code(self, architecture_proposal: str) -> str:
-        slots = self.context.build(architecture_proposal=architecture_proposal)
+    def _generate_code(self, architecture_proposal: str, *, primary_metric: str) -> str:
+        slots = self.context.build(
+            architecture_proposal=architecture_proposal,
+            primary_metric=primary_metric,
+        )
         system, user = self.engine.render(
             "generate_code", slots,
             version=self.prompt_overrides.get("generate_code"),
         )
         raw = self.llm.chat(format_messages(system, user))
-        return _strip_fences(raw)
+        return _compose_code_from_model_response(raw, template_code=self._code_skeleton)
 
-    def _recover_code(self, code: str, error_type: str, error_message: str, traceback: str) -> str:
+    def _recover_code(
+        self,
+        code: str,
+        error_type: str,
+        error_message: str,
+        traceback: str,
+        *,
+        primary_metric: str | None = None,
+    ) -> str:
         slots = self.context.build(
             error_type=error_type,
             error_message=error_message,
             error_traceback=traceback,
             broken_code=code,
+            primary_metric=primary_metric or self._study_primary_metric,
         )
         system, user = self.engine.render(
             "recover_from_error", slots,
             version=self.prompt_overrides.get("recover_from_error"),
         )
         raw = self.llm.chat(format_messages(system, user))
-        return _strip_fences(raw)
+        return _compose_code_from_model_response(raw, template_code=code)
 
     # ------------------------------------------------------------------
     # Metrics + helpers
     # ------------------------------------------------------------------
 
-    def _capture_metrics(self, exec_result: ExecutionResult) -> dict:
+    def _capture_metrics(
+        self,
+        exec_result: ExecutionResult,
+        *,
+        expected_primary_metric: str | None = None,
+    ) -> dict:
         assert exec_result.results_json_path is not None
         raw = json.loads(exec_result.results_json_path.read_text())
-        primary_metric = raw.get("primary_metric", self.adapter.primary_metric)
-        primary_score = raw.get("primary_score")
+        primary_metric = (
+            str(expected_primary_metric).strip()
+            if expected_primary_metric
+            else str(raw.get("primary_metric") or self.adapter.primary_metric)
+        )
+        raw_primary_metric = str(raw.get("primary_metric") or "")
+        raw_primary_score = raw.get("primary_score")
+        primary_score = (
+            float(raw_primary_score)
+            if (
+                raw_primary_metric == primary_metric
+                and isinstance(raw_primary_score, (int, float))
+            )
+            else None
+        )
         history = raw.get("history", [])
         final = raw.get("final", history[-1] if history else {})
+        top_metrics = raw.get("metrics", {})
+        best = raw.get("best", {})
         metrics: dict[str, float] = {}
-        for k, v in final.items():
-            if isinstance(v, (int, float)):
-                metrics[k] = float(v)
-        if primary_score is None and primary_metric in metrics:
-            primary_score = metrics[primary_metric]
+        if isinstance(top_metrics, dict):
+            for k, v in top_metrics.items():
+                if isinstance(v, (int, float)):
+                    metrics[k] = float(v)
+        if isinstance(final, dict):
+            for k, v in final.items():
+                if isinstance(v, (int, float)):
+                    metrics[k] = float(v)
+        if not metrics and isinstance(history, list) and history:
+            last_hist = history[-1] if isinstance(history[-1], dict) else {}
+            if isinstance(last_hist, dict):
+                for k, v in last_hist.items():
+                    if isinstance(v, (int, float)):
+                        metrics[k] = float(v)
+        if isinstance(best, dict):
+            for k, v in best.items():
+                if isinstance(v, (int, float)):
+                    metrics.setdefault(k, float(v))
+        if primary_score is None:
+            score_from_best = _extract_metric_from_dict(best, primary_metric)
+            if score_from_best is None:
+                score_from_best = _extract_metric_from_history(history, primary_metric)
+            if score_from_best is None:
+                score_from_best = metrics.get(primary_metric)
+            if isinstance(score_from_best, (int, float)):
+                primary_score = float(score_from_best)
+        if primary_score is None and isinstance(raw_primary_score, (int, float)):
+            primary_score = float(raw_primary_score)
         return {
+            "primary_metric": primary_metric,
             "metrics": metrics,
             "history": history,
             "primary_score": primary_score,
@@ -554,7 +689,14 @@ class Orchestrator:
         }
 
     def _update_best(self, study: Study) -> None:
-        ok = [e for e in study.experiments if e.primary_score is not None]
+        ok = [
+            e
+            for e in study.experiments
+            if e.primary_score is not None
+            and (not study.primary_metric or e.primary_metric == study.primary_metric)
+        ]
+        if not ok:
+            ok = [e for e in study.experiments if e.primary_score is not None]
         if not ok:
             return
         best = max(ok, key=lambda e: e.primary_score)  # type: ignore[arg-type]
@@ -691,6 +833,23 @@ class Orchestrator:
 # We grab the FIRST fenced block — when the LLM wraps its prose with
 # code in the middle, we want the code, not the prose.
 _FENCED_BLOCK_RE = re.compile(r"```(?:python|py)?\s*\n(.*?)```", re.DOTALL)
+_MODEL_BLOCK_RE = re.compile(
+    r"(?s)(^### MODEL ###\s*\n)(.*?)(\n^### END MODEL ###)",
+    re.MULTILINE,
+)
+_TORCH_HUB_LOAD_RE = re.compile(
+    r"torch\.hub\.load\(\s*['\"][^'\"]+['\"]\s*,\s*['\"]([A-Za-z0-9_]+)['\"](?P<rest>\s*,[^)]*)?\)",
+)
+_TORCHVISION_MODEL_ALLOWLIST = frozenset({
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "efficientnet_b0",
+    "efficientnet_b1",
+    "mobilenet_v3_small",
+    "mobilenet_v3_large",
+})
 
 
 def _strip_fences(text: str) -> str:
@@ -717,6 +876,210 @@ def _strip_fences(text: str) -> str:
         if stripped.endswith("```"):
             stripped = stripped[:-3]
     return stripped.strip()
+
+
+def _extract_build_model_block(text: str) -> str | None:
+    """Extract just the `build_model` function from an LLM response."""
+    code = _strip_fences(text).strip()
+    if not code:
+        return None
+
+    # If the model returned a whole skeleton/script, prefer the MODEL block.
+    m = _MODEL_BLOCK_RE.search(code)
+    if m:
+        block = m.group(2).strip()
+        return block or None
+
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == "build_model":
+            segment = ast.get_source_segment(code, node)
+            if segment:
+                return segment.strip()
+            lines = code.splitlines()
+            start = max(0, node.lineno - 1)
+            end = node.end_lineno if node.end_lineno is not None else start + 1
+            return "\n".join(lines[start:end]).strip()
+    return None
+
+
+def _inject_model_block(template_code: str, model_block: str) -> str | None:
+    """Replace content between `### MODEL ###` markers."""
+    m = _MODEL_BLOCK_RE.search(template_code)
+    if not m:
+        return None
+    block = model_block.strip()
+    if not block:
+        return None
+    return (
+        template_code[:m.start(2)]
+        + block
+        + template_code[m.end(2):]
+    )
+
+
+def _compose_code_from_model_response(raw: str, *, template_code: str) -> str:
+    """Compose runnable script by injecting model block into skeleton/template.
+
+    Falls back to legacy behavior (raw stripped response) if extraction/injection
+    fails; validator then handles any malformed output.
+    """
+    model_block = _extract_build_model_block(raw)
+    if model_block:
+        injected = _inject_model_block(template_code, model_block)
+        if injected is not None:
+            return injected
+    return _strip_fences(raw)
+
+
+def _insert_local_import_into_build_model(code: str, import_stmt: str) -> str | None:
+    """Insert `import_stmt` at top of build_model body when missing."""
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    build_fn = next(
+        (n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "build_model"),
+        None,
+    )
+    if build_fn is None:
+        return None
+    start = build_fn.lineno - 1
+    end = (build_fn.end_lineno or build_fn.lineno) - 1
+    lines = code.splitlines()
+    block_text = "\n".join(lines[start:end + 1])
+    if import_stmt in block_text:
+        return code
+
+    indent = 4
+    if build_fn.body:
+        indent = max(4, build_fn.body[0].col_offset)
+    line = (" " * indent) + import_stmt
+
+    insert_at = build_fn.lineno
+    if (
+        build_fn.body
+        and isinstance(build_fn.body[0], ast.Expr)
+        and isinstance(build_fn.body[0].value, ast.Constant)
+        and isinstance(build_fn.body[0].value.value, str)
+    ):
+        insert_at = build_fn.body[0].end_lineno or build_fn.body[0].lineno
+
+    if insert_at < 0 or insert_at > len(lines):
+        return None
+    lines.insert(insert_at, line)
+    out = "\n".join(lines)
+    if code.endswith("\n"):
+        out += "\n"
+    return out
+
+
+def _apply_validator_autofix(code: str, result: validator_mod.ValidationResult) -> str | None:
+    """Deterministic fixes for common validator failures.
+
+    Keep this conservative: only apply mechanical, low-risk rewrites that we
+    can validate immediately on the next loop iteration.
+    """
+    msg = result.message or ""
+    if result.error_type == "DryRunFailed":
+        if "NameError: name 'torchvision' is not defined" in msg:
+            return _insert_local_import_into_build_model(code, "import torchvision")
+        if "NameError: name 'timm' is not defined" in msg:
+            return _insert_local_import_into_build_model(code, "import timm")
+    if result.error_type == "ForbiddenModelSource":
+        rewritten = _rewrite_torch_hub_load_to_torchvision(code)
+        if rewritten is not None and rewritten != code:
+            rewritten = _insert_local_import_into_build_model(
+                rewritten,
+                "import torchvision",
+            ) or rewritten
+            return rewritten
+    return None
+
+
+def _rewrite_torch_hub_load_to_torchvision(code: str) -> str | None:
+    """Rewrite simple `torch.hub.load(..., '<model>', ...)` calls.
+
+    We only rewrite known torchvision model names to avoid creating
+    unsupported constructors.
+    """
+    changed = False
+
+    def _replace(match: re.Match[str]) -> str:
+        nonlocal changed
+        model_name = match.group(1)
+        if model_name not in _TORCHVISION_MODEL_ALLOWLIST:
+            return match.group(0)
+        changed = True
+        rest = (match.group("rest") or "").strip()
+        if rest.startswith(","):
+            rest = rest[1:].strip()
+        args = rest
+        if args:
+            return f"torchvision.models.{model_name}({args})"
+        return f"torchvision.models.{model_name}()"
+
+    out = _TORCH_HUB_LOAD_RE.sub(_replace, code)
+    return out if changed else None
+
+
+def _resolve_validator_smoke_input_shape(adapter: TaskAdapter) -> tuple[int, ...] | None:
+    """Best-effort input shape for validator forward smoke checks.
+
+    Keep this conservative: we currently only enable it for audio tensor tasks
+    where a float `(batch, C, H, W)` dummy input is unambiguous.
+    """
+    if adapter.kind != "audio_multilabel":
+        return None
+    raw = adapter.task_cfg.get("model", {}).get("input_shape")
+    if not isinstance(raw, (list, tuple)) or not raw:
+        return None
+    try:
+        dims = tuple(int(d) for d in raw)
+    except (TypeError, ValueError):
+        return None
+    if any(d <= 0 for d in dims):
+        return None
+    return dims
+
+
+def _resolve_validator_smoke_num_classes(profile) -> int | None:
+    """Return class-count hint for build_model(num_classes) smoke calls."""
+    if profile is None:
+        return None
+    n = getattr(profile, "num_classes", None)
+    if isinstance(n, int) and n > 0:
+        return n
+    return None
+
+
+def _extract_metric_from_dict(obj: object, metric: str) -> float | None:
+    if not isinstance(obj, dict):
+        return None
+    v = obj.get(metric)
+    if isinstance(v, (int, float)):
+        return float(v)
+    return None
+
+
+def _extract_metric_from_history(history: object, metric: str) -> float | None:
+    if not isinstance(history, list):
+        return None
+    best: float | None = None
+    for row in history:
+        if not isinstance(row, dict):
+            continue
+        v = row.get(metric)
+        if not isinstance(v, (int, float)):
+            continue
+        fv = float(v)
+        if best is None or fv > best:
+            best = fv
+    return best
 
 
 def _build_executor(
@@ -785,4 +1148,11 @@ def _build_executor(
     )
 
 
-__all__ = ["Orchestrator", "OrchestratorHooks"]
+__all__ = [
+    "Orchestrator",
+    "OrchestratorHooks",
+    "_strip_fences",
+    "_extract_build_model_block",
+    "_inject_model_block",
+    "_compose_code_from_model_response",
+]

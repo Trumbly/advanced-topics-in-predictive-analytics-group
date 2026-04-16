@@ -27,11 +27,22 @@ def list_available_tasks(settings: Settings | None = None) -> list[dict[str, str
             data = yaml.safe_load(path.read_text()) or {}
         except yaml.YAMLError:
             continue
+        metrics_cfg = data.get("metrics", {}) or {}
+        primary_metric = metrics_cfg.get("primary") or ""
+        others = metrics_cfg.get("others", []) or []
+        all_metrics: list[str] = []
+        if isinstance(primary_metric, str) and primary_metric.strip():
+            all_metrics.append(primary_metric.strip())
+        for m in others:
+            if isinstance(m, str) and m.strip() and m.strip() not in all_metrics:
+                all_metrics.append(m.strip())
         out.append({
             "name": data.get("name", path.stem),
             "kind": data.get("kind", ""),
             "description": (data.get("description") or "").strip(),
             "yaml_path": str(path),
+            "primary_metric": primary_metric,
+            "metrics": ",".join(all_metrics),
         })
     return out
 

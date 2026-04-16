@@ -1,8 +1,4 @@
-"""Server-Sent Events (SSE) for live stdout tailing.
-
-Each connection tails one ``sandbox/<exp_id>/stdout.log`` file with a tiny
-poll loop. SSE is simpler than WebSockets for read-only streams.
-"""
+"""Server-Sent Events (SSE) helpers for live log tailing."""
 from __future__ import annotations
 
 import asyncio
@@ -10,19 +6,29 @@ from pathlib import Path
 from typing import AsyncIterator
 
 
-async def tail_file(path: Path, *, poll_seconds: float = 0.5) -> AsyncIterator[str]:
+async def tail_file(
+    path: Path,
+    *,
+    poll_seconds: float = 0.5,
+    from_end: bool = False,
+) -> AsyncIterator[str]:
     """Async generator that yields new lines from ``path`` as they appear.
 
     Starts by yielding the existing content, then polls for new lines. Stops
     when the client disconnects (consumer breaks the iteration).
     """
-    # 1) Prime with existing content
+    # 1) Prime with existing content unless the caller explicitly wants to
+    # follow only NEW lines (useful when the page already rendered an initial
+    # tail and SSE should not duplicate it).
     if path.exists():
         with path.open() as fh:
-            existing = fh.read()
-            if existing:
-                for line in existing.splitlines():
-                    yield line
+            if not from_end:
+                existing = fh.read()
+                if existing:
+                    for line in existing.splitlines():
+                        yield line
+            else:
+                fh.seek(0, 2)
             pos = fh.tell()
     else:
         pos = 0

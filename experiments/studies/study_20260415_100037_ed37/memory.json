@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_c6c4438c73",
+      "architecture_name": "cnn_small_v1",
+      "architecture_family": "custom_cnn",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "]",
+      "duration_seconds": 95.7661425829865,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_e2286230a7",
+      "architecture_name": "cnn_gru_hybrid_small",
+      "architecture_family": "cnn_gru_hybrid",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 88.91913875006139,
+      "takeaway": ""
+    }
+  ]
+}

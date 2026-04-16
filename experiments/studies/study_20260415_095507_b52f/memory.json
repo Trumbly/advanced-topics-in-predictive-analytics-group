@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_67e05accfd",
+      "architecture_name": "specaugment_cnn_small",
+      "architecture_family": "[specaugment_cnn]",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "UnknownError",
+      "error_message": "]",
+      "duration_seconds": 96.16252712509595,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_c2802957e8",
+      "architecture_name": "mobilenet_v3_small_adapter",
+      "architecture_family": "[mobilenet_v3_small]",
+      "status": "aborted",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "Aborted",
+      "error_message": "User requested abort",
+      "duration_seconds": 115.19179212499876,
+      "takeaway": ""
+    }
+  ]
+}

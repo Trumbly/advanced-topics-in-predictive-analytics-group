@@ -22,7 +22,7 @@
 
 <div class="grid-3">
   <div class="card">
-    <h4>{{ study.primary_metric }}</h4>
+    <h4>{{ experiment.primary_metric or study.primary_metric }}</h4>
     <p class="big">
       {% if experiment.primary_score is not none %}{{ "%.4f"|format(experiment.primary_score) }}{% else %}—{% endif %}
     </p>
@@ -133,7 +133,7 @@
   const status = document.getElementById("sse-status");
   if (log) {
     if (log.textContent.trim().startsWith("(")) log.textContent = "";
-    const url = "/live/study/{{ study.id }}/exp/{{ experiment.id }}";
+    const url = "/live/study/{{ study.id }}/exp/{{ experiment.id }}?from_end=1";
     const es = new EventSource(url);
     es.onopen = () => { if (status) status.textContent = "· live"; };
     es.onmessage = (ev) => {
@@ -150,7 +150,7 @@
   const agent = document.getElementById("agent-log");
   if (agent) {
     if (agent.textContent.trim().startsWith("(")) agent.textContent = "";
-    const aes = new EventSource("/live/launches/{{ running_launch.id }}");
+    const aes = new EventSource("/live/launches/{{ running_launch.id }}?from_end=1");
     aes.onmessage = (ev) => {
       agent.textContent += (agent.textContent && !agent.textContent.endsWith("\n") ? "\n" : "") + ev.data;
       agent.scrollTop = agent.scrollHeight;

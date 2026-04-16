@@ -1,0 +1,29 @@
+{
+  "score_metric": "f1_macro",
+  "entries": [
+    {
+      "experiment_id": "exp_9e88259f1c",
+      "architecture_name": "[mobilenet_v3_small] mobilenet_v3_small_safe",
+      "architecture_family": "mobilenet_v3_small",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    },
+    {
+      "experiment_id": "exp_8f00519ecb",
+      "architecture_name": "[custom_cnn] cnn_small_v1_specaugment_safe",
+      "architecture_family": "custom_cnn",
+      "status": "failed",
+      "primary_metric": "f1_macro",
+      "primary_score": null,
+      "error_type": "ValidationFailed",
+      "error_message": "Codegen retries exhausted",
+      "duration_seconds": null,
+      "takeaway": ""
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+[{"stream_name":"stdout","time":1.009340515,"data":"[lab bootstrap] staged flattened lab package from /kaggle/input/datasets/maxnoellewying/lab-agent-src\n"}
+,{"stream_name":"stdout","time":1.009390867,"data":"[lab bootstrap] lab source on sys.path from /tmp/lab-staged-mat1ucvf\n"}
+,{"stream_name":"stdout","time":33.665216605,"data":"[lab bootstrap] AGENT_PROCESSED_DIR = /kaggle/input/datasets/maxnoellewying/birdclef-2026-preprocessed/processed\n"}
+,{"stream_name":"stdout","time":33.690669377,"data":"[lab bootstrap] detected P100 — swapping in sm_60-compatible torch (cu118 build, ~30-60s)\n"}
+,{"stream_name":"stdout","time":45.846100732,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 819.1/819.1 MB 2.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":52.33558602,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.2/6.2 MB 2.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":53.152750804,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 23.2/23.2 MB 76.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":53.853622881,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 875.6/875.6 kB 48.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":54.565094358,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.1/13.1 MB 101.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":62.518598759,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 728.5/728.5 MB 2.6 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":70.30175462,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 417.9/417.9 MB 3.4 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":77.99966652,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.4/168.4 MB 2.0 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":79.663651268,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.1/58.1 MB 28.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":81.559477566,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.2/128.2 MB 15.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":84.350748377,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 204.1/204.1 MB 9.3 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":86.724269366,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 135.3/135.3 MB 14.2 MB/s eta 0:00:00\n"}
+,{"stream_name":"stdout","time":87.722389585,"data":"     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 99.1/99.1 kB 8.1 MB/s eta 0:00:00\n"}
+,{"stream_name":"stderr","time":164.73656013,"data":"ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.\n"}
+,{"stream_name":"stderr","time":164.736616274,"data":"torchaudio 2.10.0+cu128 requires torch==2.10.0, but you have torch 2.2.2+cu118 which is incompatible.\n"}
+,{"stream_name":"stdout","time":165.244103265,"data":"[lab bootstrap] torch 2.2.2+cu118 installed for P100\n"}
+,{"stream_name":"stderr","time":166.333291205,"data":"\n"}
+,{"stream_name":"stderr","time":166.333328998,"data":"A module that was compiled using NumPy 1.x cannot be run in\n"}
+,{"stream_name":"stderr","time":166.333335631,"data":"NumPy 2.0.2 as it may crash. To support both 1.x and 2.x\n"}
+,{"stream_name":"stderr","time":166.333339933,"data":"versions of NumPy, modules must be compiled with NumPy 2.0.\n"}
+,{"stream_name":"stderr","time":166.333344371,"data":"Some module may need to rebuild instead e.g. with 'pybind11\u003e=2.12'.\n"}
+,{"stream_name":"stderr","time":166.333348952,"data":"\n"}
+,{"stream_name":"stderr","time":166.333353052,"data":"If you are a user of the module, the easiest solution will be to\n"}
+,{"stream_name":"stderr","time":166.333357159,"data":"downgrade to 'numpy\u003c2' or try to upgrade the affected module.\n"}
+,{"stream_name":"stderr","time":166.333361323,"data":"We expect that some modules will need time to support NumPy 2.\n"}
+,{"stream_name":"stderr","time":166.333364773,"data":"\n"}
+,{"stream_name":"stderr","time":166.333367948,"data":"Traceback (most recent call last):  File \"/kaggle/src/script.py\", line 248, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.333371842,"data":"    import torch as _torch\n"}
+,{"stream_name":"stderr","time":166.333375125,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/__init__.py\", line 1477, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.333378808,"data":"    from .functional import *  # noqa: F403\n"}
+,{"stream_name":"stderr","time":166.33338219,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/functional.py\", line 9, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.333387362,"data":"    import torch.nn.functional as F\n"}
+,{"stream_name":"stderr","time":166.333391027,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/__init__.py\", line 1, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.333393557,"data":"    from .modules import *  # noqa: F403\n"}
+,{"stream_name":"stderr","time":166.333395805,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/__init__.py\", line 35, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.333398326,"data":"    from .transformer import TransformerEncoder, TransformerDecoder, \\\n"}
+,{"stream_name":"stderr","time":166.33340086,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py\", line 20, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":166.33340368,"data":"    device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),\n"}
+,{"stream_name":"stderr","time":166.333407193,"data":"/usr/local/lib/python3.12/dist-packages/torch/nn/modules/transformer.py:20: UserWarning: Failed to initialize NumPy: _ARRAY_API not found (Triggered internally at ../torch/csrc/utils/tensor_numpy.cpp:84.)\n"}
+,{"stream_name":"stderr","time":166.333413954,"data":"  device: torch.device = torch.device(torch._C._get_default_device()),  # torch.device('cpu'),\n"}
+,{"stream_name":"stdout","time":167.013894452,"data":"[lab bootstrap] AGENT_DEVICE=cuda | torch.cuda.is_available=True | gpu=Tesla P100-PCIE-16GB\n"}
+,{"stream_name":"stderr","time":180.683743001,"data":"Downloading: \"https://download.pytorch.org/models/efficientnet_b0_rwightman-7f5810bc.pth\" to /root/.cache/torch/hub/checkpoints/efficientnet_b0_rwightman-7f5810bc.pth\n"}
+,{"stream_name":"stderr","time":180.895406476,"data":"\r  0%|          | 0.00/20.5M [00:00\u003c?, ?B/s]\r 86%|████████▌ | 17.6M/20.5M [00:00\u003c00:00, 185MB/s]\r100%|██████████| 20.5M/20.5M [00:00\u003c00:00, 187MB/s]\n"}
+,{"stream_name":"stdout","time":181.047491533,"data":"[skeleton] device=cuda BATCH_SIZE=256 NUM_WORKERS=4\n"}
+,{"stream_name":"stderr","time":181.134856265,"data":"Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":181.134899632,"data":"  File \"/kaggle/src/script.py\", line 498, in \u003cmodule\u003e\n"}
+,{"stream_name":"stderr","time":181.135310628,"data":"    main()\n"}
+,{"stream_name":"stderr","time":181.135331591,"data":"  File \"/kaggle/src/script.py\", line 476, in main\n"}
+,{"stream_name":"stderr","time":181.135736138,"data":"    loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)\n"}
+,{"stream_name":"stderr","time":181.137530364,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137554383,"data":"  File \"/kaggle/src/script.py\", line 407, in train_one_epoch\n"}
+,{"stream_name":"stderr","time":181.137560358,"data":"    for x, y in loader:\n"}
+,{"stream_name":"stderr","time":181.137564211,"data":"                ^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137568236,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/dataloader.py\", line 631, in __next__\n"}
+,{"stream_name":"stderr","time":181.137572284,"data":"    data = self._next_data()\n"}
+,{"stream_name":"stderr","time":181.137575725,"data":"           ^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137579226,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/dataloader.py\", line 1346, in _next_data\n"}
+,{"stream_name":"stderr","time":181.137584486,"data":"    return self._process_data(data)\n"}
+,{"stream_name":"stderr","time":181.137588082,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137593293,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/dataloader.py\", line 1372, in _process_data\n"}
+,{"stream_name":"stderr","time":181.137597316,"data":"    data.reraise()\n"}
+,{"stream_name":"stderr","time":181.137601149,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/_utils.py\", line 722, in reraise\n"}
+,{"stream_name":"stderr","time":181.13760678,"data":"    raise exception\n"}
+,{"stream_name":"stderr","time":181.137676219,"data":"RuntimeError: Caught RuntimeError in DataLoader worker process 0.\n"}
+,{"stream_name":"stderr","time":181.137684034,"data":"Original Traceback (most recent call last):\n"}
+,{"stream_name":"stderr","time":181.137686746,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/_utils/worker.py\", line 308, in _worker_loop\n"}
+,{"stream_name":"stderr","time":181.13769001,"data":"    data = fetcher.fetch(index)\n"}
+,{"stream_name":"stderr","time":181.13769247,"data":"           ^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137694691,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/_utils/fetch.py\", line 49, in fetch\n"}
+,{"stream_name":"stderr","time":181.137697261,"data":"    data = self.dataset.__getitems__(possibly_batched_index)\n"}
+,{"stream_name":"stderr","time":181.137699624,"data":"           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137701886,"data":"  File \"/usr/local/lib/python3.12/dist-packages/torch/utils/data/dataset.py\", line 399, in __getitems__\n"}
+,{"stream_name":"stderr","time":181.137704321,"data":"    return [self.dataset[self.indices[idx]] for idx in indices]\n"}
+,{"stream_name":"stderr","time":181.137706592,"data":"            ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137708847,"data":"  File \"/tmp/lab-staged-mat1ucvf/lab/tasks/track_b_birdclef.py\", line 223, in __getitem__\n"}
+,{"stream_name":"stderr","time":181.13773734,"data":"    x = torch.from_numpy(arr).float()\n"}
+,{"stream_name":"stderr","time":181.137742051,"data":"        ^^^^^^^^^^^^^^^^^^^^^\n"}
+,{"stream_name":"stderr","time":181.137745795,"data":"RuntimeError: Numpy is not available\n"}
+,{"stream_name":"stderr","time":181.137749131,"data":"\n"}
+,{"stream_name":"stderr","time":184.088445085,"data":"/usr/local/lib/python3.12/dist-packages/mistune.py:435: SyntaxWarning: invalid escape sequence '\\|'\n"}
+,{"stream_name":"stderr","time":184.08848245,"data":"  cells[i][c] = re.sub('\\\\\\\\\\|', '|', cell)\n"}
+,{"stream_name":"stderr","time":184.303041101,"data":"/usr/local/lib/python3.12/dist-packages/nbconvert/filters/filter_links.py:36: SyntaxWarning: invalid escape sequence '\\_'\n"}
+,{"stream_name":"stderr","time":184.303073317,"data":"  text = re.sub(r'_', '\\_', text) # Escape underscores in display text\n"}
+,{"stream_name":"stderr","time":185.526313189,"data":"[NbConvertApp] Converting notebook __script__.ipynb to html\n"}
+,{"stream_name":"stderr","time":186.689734693,"data":"[NbConvertApp] Writing 354405 bytes to __results__.html\n"}
+]

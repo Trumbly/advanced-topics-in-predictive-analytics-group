@@ -95,15 +95,29 @@ class ContextBuilder:
     def _shrink_to_budget(self, ctx: dict[str, Any]) -> None:
         """Best-effort trim to stay under settings.context.max_prompt_tokens."""
         budget = self.settings.context.max_prompt_tokens
-        rendered = json.dumps(ctx, default=str)
-        approx_tokens = max(1, len(rendered) // 4)
-        if approx_tokens <= budget:
-            return
-        # Truncate large free-form fields first
-        for field_name in ("code_skeleton_content", "broken_code", "error_traceback"):
-            v = ctx.get(field_name, "")
-            if isinstance(v, str) and len(v) > 2000:
-                ctx[field_name] = v[:2000] + "\n# ... [truncated] ..."
+        trimmed = True
+        while trimmed:
+            rendered = json.dumps(ctx, default=str)
+            approx_tokens = max(1, len(rendered) // 4)
+            if approx_tokens <= budget:
+                return
+            trimmed = False
+            # IMPORTANT: never trim `code_skeleton_content` here. If we chop the
+            # skeleton, model-generation can regress to tiny scripts that define
+            # only `build_model()` and never run training.
+            for field_name, hard_cap in (
+                ("broken_code", 4000),
+                ("error_traceback", 3000),
+                ("experiment_memory", 2500),
+                ("model_registry", 2500),
+                ("last_result", 1500),
+                ("dataset_profile", 1200),
+            ):
+                v = ctx.get(field_name, "")
+                if isinstance(v, str) and len(v) > hard_cap:
+                    ctx[field_name] = v[:hard_cap] + "\n# ... [truncated] ..."
+                    trimmed = True
+                    break
 
 
 _RESPONSE_SCHEMA_JSON = (

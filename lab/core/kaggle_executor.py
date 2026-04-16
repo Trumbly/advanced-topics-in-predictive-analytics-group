@@ -28,12 +28,12 @@ Failure modes are translated into ``TaskError`` via ``classify_error``
 — same taxonomy the local executor uses (OOM, ShapeMismatch, etc.) so
 the recovery prompt can react uniformly.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
-import os
 import shutil
 import subprocess
 import tempfile
@@ -44,7 +44,6 @@ from typing import Any
 
 from lab.core.executor import ExecutionResult, classify_error
 from lab.core.models import TaskError
-
 
 logger = logging.getLogger("lab.kaggle_executor")
 
@@ -71,12 +70,13 @@ class KaggleExecutor:
     kernel_prefix: str = "lab-exp"
     enable_gpu: bool = True
     enable_internet: bool = False
-    # Accelerator ID passed as `--accelerator <X>` to `kaggle kernels
-    # push`. Valid IDs: NvidiaTeslaT4, NvidiaTeslaP100, TpuV6E8.
-    # Empty = Kaggle picks (currently P100).
+    # Accelerator name (e.g. "GPU T4 x2", "GPU P100", "TPU VM v3-8").
+    # Empty string = let Kaggle pick whatever's default, which is
+    # historically P100 and currently incompatible with Kaggle's own
+    # PyTorch image. Strongly recommended: "GPU T4 x2".
     accelerator: str = ""
     poll_interval_seconds: int = 30
-    poll_timeout_seconds: int = 36_000       # 10 h safety net
+    poll_timeout_seconds: int = 36_000  # 10 h safety net
     dataset_sources: list[str] = field(default_factory=list)
     competition_sources: list[str] = field(default_factory=list)
     sandbox_root: Path = Path("sandbox")
@@ -107,7 +107,8 @@ class KaggleExecutor:
             cli = _require_kaggle_cli()
         except KaggleCLIUnavailable as exc:
             return self._failed(
-                workdir, start,
+                workdir,
+                start,
                 TaskError(error_type="SpawnError", message=str(exc)),
             )
 
@@ -128,7 +129,7 @@ class KaggleExecutor:
         # actually available inside the kernel. AGENT_DEVICE is one of
         # the env vars the skeleton reads directly, so getting this
         # wrong silently trains on CPU even when enable_gpu=true.
-        prefix = (full_env.get("AGENT_ENV_PREFIX") or "AGENT")
+        prefix = full_env.get("AGENT_ENV_PREFIX") or "AGENT"
         full_env[f"{prefix}_DEVICE"] = "cuda" if self.enable_gpu else "cpu"
         # Kaggle's kernels have ~4 vCPUs; num_workers=0 serialises I/O
         # which is catastrophic on BirdCLEF-sized datasets.
@@ -164,14 +165,16 @@ class KaggleExecutor:
         logger.info("Pushing kernel %s from %s", slug, kernel_dir)
         push_argv = ["kernels", "push", "-p", str(kernel_dir)]
         if self.accelerator:
-            # Valid IDs per `kaggle kernels push --help`:
-            #   NvidiaTeslaT4 · NvidiaTeslaP100 · TpuV6E8
+            # Kaggle CLI >= ~0.18 accepts this flag. Valid IDs:
+            #   NvidiaTeslaT4 / NvidiaTeslaP100 / NvidiaTeslaV100 /
+            #   NvidiaTeslaA100 / TpuV6E8  (per `kaggle kernels push --help`)
             push_argv.extend(["--accelerator", self.accelerator])
         logger.info("push argv: %s", " ".join(push_argv))
         push = self._run_kaggle(cli, push_argv, timeout=300)
         if push.returncode != 0:
             return self._failed(
-                workdir, start,
+                workdir,
+                start,
                 TaskError(
                     error_type="SpawnError",
                     message=f"kaggle kernels push failed: {push.stderr.strip()[:200]}",
@@ -186,14 +189,23 @@ class KaggleExecutor:
             logger.info("kernels push output:\n%s", _push_out[:1200])
 
         # Poll
-        status, logs = self._poll_until_done(cli, slug)
-        # Stream logs to workdir for UI consistency
-        (workdir / "stdout.log").write_text(logs or "")
+        status, logs = self._poll_until_done(
+            cli,
+            slug,
+            live_stdout_path=workdir / "stdout.log",
+        )
+        # Keep the live-appended stdout stream intact. Only create the file
+        # when it doesn't exist yet (for very early failures).
+        stdout_path = workdir / "stdout.log"
+        if not stdout_path.exists():
+            stdout_path.write_text(logs or "")
         (workdir / "stderr.log").write_text("")
 
         # Fetch output (results.json etc.)
         out = self._run_kaggle(
-            cli, ["kernels", "output", slug, "-p", str(workdir)], timeout=300,
+            cli,
+            ["kernels", "output", slug, "-p", str(workdir)],
+            timeout=300,
         )
         if out.returncode != 0:
             logger.warning("kaggle kernels output failed: %s", out.stderr.strip()[:200])
@@ -271,38 +283,57 @@ class KaggleExecutor:
         # leading 'exp-' from the id in that case.
         prefix = self.kernel_prefix.rstrip("-")
         if prefix.endswith("exp") and safe_exp.startswith("exp-"):
-            safe_exp = safe_exp[len("exp-"):]
+            safe_exp = safe_exp[len("exp-") :]
         name = f"{prefix}-{safe_exp}".strip("-")
         return f"{self.username}/{name}" if self.username else name
 
-    def _run_kaggle(self, cli: str, argv: list[str], *, timeout: int) -> subprocess.CompletedProcess:
+    def _run_kaggle(
+        self, cli: str, argv: list[str], *, timeout: int
+    ) -> subprocess.CompletedProcess:
         try:
             return subprocess.run(
-                [cli, *argv], capture_output=True, text=True, timeout=timeout,
+                [cli, *argv],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:
             # Shape a synthetic CompletedProcess so callers never have
             # to branch on timeout — keeps the poll loop alive.
             return subprocess.CompletedProcess(
-                args=list(exc.cmd or []), returncode=-1,
-                stdout=(exc.stdout or b"").decode("utf-8", "replace") if isinstance(exc.stdout, bytes) else (exc.stdout or ""),
+                args=list(exc.cmd or []),
+                returncode=-1,
+                stdout=(
+                    (exc.stdout or b"").decode("utf-8", "replace")
+                    if isinstance(exc.stdout, bytes)
+                    else (exc.stdout or "")
+                ),
                 stderr=f"kaggle CLI timeout after {timeout}s",
             )
 
-    def _poll_until_done(self, cli: str, slug: str) -> tuple[str, str]:
+    def _poll_until_done(
+        self,
+        cli: str,
+        slug: str,
+        *,
+        live_stdout_path: Path | None = None,
+    ) -> tuple[str, str]:
         """Return (final_status, log_text). ``final_status`` is one of
         'complete', 'error', 'cancelled', 'timeout', 'aborted'."""
         deadline = time.monotonic() + self.poll_timeout_seconds
         last_status = "unknown"
         poll_count = 0
+        log_text = ""
         while time.monotonic() < deadline:
             if self._aborted:
                 last_status = "aborted"
                 break
             status_proc = self._run_kaggle(
-                cli, ["kernels", "status", slug], timeout=60,
+                cli,
+                ["kernels", "status", slug],
+                timeout=60,
             )
-            raw = (status_proc.stdout + "\n" + status_proc.stderr)
+            raw = status_proc.stdout + "\n" + status_proc.stderr
             classified = _classify_kaggle_status(raw)
             poll_count += 1
             # Log the actual CLI output every ~10 polls so the user can
@@ -312,8 +343,28 @@ class KaggleExecutor:
                 sample = raw.strip().splitlines()
                 logger.info(
                     "Kaggle kernel %s poll #%d → %s. Raw: %s",
-                    slug, poll_count, classified,
+                    slug,
+                    poll_count,
+                    classified,
                     " | ".join(sample[-3:]) if sample else "<empty>",
+                )
+            if live_stdout_path is not None:
+                _append_live_stdout_line(
+                    live_stdout_path,
+                    f"[kaggle poll #{poll_count}] status={classified}",
+                )
+            # Pull the remote kernel output and stream only the delta
+            # into our own logs so the UI can show Kaggle progress live.
+            latest = self._fetch_kernel_log(
+                cli,
+                slug,
+                target_dir=(live_stdout_path.parent if live_stdout_path else None),
+            )
+            if latest:
+                log_text = _stream_kaggle_log_delta(
+                    previous=log_text,
+                    current=latest,
+                    live_stdout_path=live_stdout_path,
                 )
             if classified in ("complete", "error", "cancelled"):
                 last_status = classified
@@ -328,12 +379,82 @@ class KaggleExecutor:
         else:
             last_status = "timeout"
 
-        # Fetch run log
-        log_proc = self._run_kaggle(
-            cli, ["kernels", "output", slug, "-w", "-p", "-"], timeout=120,
+        # Final fetch so we don't miss the tail between last poll and exit.
+        latest = self._fetch_kernel_log(
+            cli,
+            slug,
+            target_dir=(live_stdout_path.parent if live_stdout_path else None),
         )
-        log_text = log_proc.stdout or ""
+        if latest:
+            log_text = _stream_kaggle_log_delta(
+                previous=log_text,
+                current=latest,
+                live_stdout_path=live_stdout_path,
+            )
         return last_status, log_text
+
+    def _fetch_kernel_log(
+        self,
+        cli: str,
+        slug: str,
+        *,
+        target_dir: Path | None = None,
+    ) -> str:
+        """Fetch current Kaggle kernel console log text.
+
+        Kaggle CLI writes the actual kernel console stream into
+        ``<path>/<kernel_slug>.log``; CLI stdout only contains download
+        status lines. So we trigger ``kernels output`` into a real dir and
+        read back that log file.
+        """
+        out_dir = target_dir or (self.sandbox_root / ".kaggle_logs")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        log_proc = self._run_kaggle(
+            cli,
+            [
+                "kernels",
+                "output",
+                slug,
+                "-p",
+                str(out_dir),
+                "-o",  # force refresh so we can see live progress
+                "-q",
+            ],
+            timeout=20,
+        )
+        kernel_slug = slug.split("/", 1)[-1]
+        candidate_paths = [
+            out_dir / f"{kernel_slug}.log",
+            out_dir / f"{slug.replace('/', '-')}.log",
+        ]
+        for log_path in candidate_paths:
+            if not log_path.exists():
+                continue
+            try:
+                raw = log_path.read_text(errors="replace")
+                return _normalize_kaggle_log_text(raw)
+            except OSError:
+                continue
+        # Fallback: any .log file in the output dir.
+        try:
+            for any_log in sorted(
+                out_dir.glob("*.log"), key=lambda p: p.stat().st_mtime, reverse=True
+            ):
+                raw = any_log.read_text(errors="replace")
+                return _normalize_kaggle_log_text(raw)
+        except OSError:
+            pass
+        # Some CLI builds print log chunks directly to stdout/stderr.
+        stdout_text = _normalize_kaggle_log_text(log_proc.stdout or "")
+        if stdout_text:
+            return stdout_text
+        stderr_text = _normalize_kaggle_log_text(log_proc.stderr or "")
+        if stderr_text and "kaggle CLI timeout" not in stderr_text:
+            return stderr_text
+        if log_proc.returncode != 0:
+            # Keep polling even if one log fetch fails transiently.
+            return ""
+        return ""
 
     def _ensure_lab_dataset(self, cli: str) -> str | None:
         """Ensure a ``<username>/lab-agent-src`` dataset exists with the
@@ -353,7 +474,9 @@ class KaggleExecutor:
             logger.warning("lab-src upload failed: %s", err)
         return slug
 
-    def ensure_lab_dataset_verbose(self, cli: str | None = None) -> tuple[str | None, str | None]:
+    def ensure_lab_dataset_verbose(
+        self, cli: str | None = None
+    ) -> tuple[str | None, str | None]:
         """Same contract as ``_ensure_lab_dataset`` but also returns a
         human-readable error string so the CLI can surface it.
 
@@ -389,14 +512,20 @@ class KaggleExecutor:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             shutil.copytree(
-                lab_src, tmp_path / "lab",
+                lab_src,
+                tmp_path / "lab",
                 ignore=shutil.ignore_patterns("__pycache__", "ui", "*.pyc"),
             )
-            (tmp_path / "dataset-metadata.json").write_text(json.dumps({
-                "title": "lab-agent-src",
-                "id": slug,
-                "licenses": [{"name": "CC0-1.0"}],
-            }, indent=2))
+            (tmp_path / "dataset-metadata.json").write_text(
+                json.dumps(
+                    {
+                        "title": "lab-agent-src",
+                        "id": slug,
+                        "licenses": [{"name": "CC0-1.0"}],
+                    },
+                    indent=2,
+                )
+            )
 
             # `--dir-mode zip` is critical: Kaggle's default `skip` mode
             # silently drops subdirectories (= our entire lab/ tree).
@@ -414,8 +543,16 @@ class KaggleExecutor:
                 msg = f"lab src {digest[:8]}"
                 version = self._run_kaggle(
                     cli,
-                    ["datasets", "version", "-p", str(tmp_path), "-m", msg,
-                     "--dir-mode", "zip"],
+                    [
+                        "datasets",
+                        "version",
+                        "-p",
+                        str(tmp_path),
+                        "-m",
+                        msg,
+                        "--dir-mode",
+                        "zip",
+                    ],
                     timeout=600,
                 )
                 if version.returncode != 0:
@@ -775,8 +912,17 @@ def _classify_kaggle_status(raw: str) -> str:
     state: str | None = None
     for m in _re.finditer(r'"([a-z_.]+)"', t):
         candidate = m.group(1).rsplit(".", 1)[-1]
-        if candidate in {"complete", "succeeded", "error", "failed",
-                         "cancelled", "canceled", "queued", "running"}:
+        if candidate in {
+            "complete",
+            "succeeded",
+            "error",
+            "failed",
+            "cancelled",
+            "canceled",
+            "cancel_acknowledged",
+            "queued",
+            "running",
+        }:
             state = candidate
 
     def _word_hit(phrases: tuple[str, ...]) -> bool:
@@ -784,17 +930,30 @@ def _classify_kaggle_status(raw: str) -> str:
 
     # Order matters: failure states win over "complete" when both show
     # up (e.g. "completed with errors" hypothetical).
-    if state in {"error", "failed"} or _word_hit((
-        'status: error', 'status=error', 'has failed', 'failed to run',
-    )):
+    if state in {"error", "failed"} or _word_hit(
+        (
+            "status: error",
+            "status=error",
+            "has failed",
+            "failed to run",
+        )
+    ):
         return "error"
-    if state in {"cancelled", "canceled"} or _word_hit((
-        'status: cancelled', 'status: canceled',
-    )):
+    if state in {"cancelled", "canceled", "cancel_acknowledged"} or _word_hit(
+        (
+            "status: cancelled",
+            "status: canceled",
+            "cancel_acknowledged",
+        )
+    ):
         return "cancelled"
-    if state in {"complete", "succeeded"} or _word_hit((
-        'status: complete', 'status: succeeded', 'status=complete',
-    )):
+    if state in {"complete", "succeeded"} or _word_hit(
+        (
+            "status: complete",
+            "status: succeeded",
+            "status=complete",
+        )
+    ):
         return "complete"
     return "running"
 
@@ -828,6 +987,81 @@ def _kaggle_safe_env(env: dict[str, str]) -> dict[str, str]:
         if v.startswith("/kaggle/"):
             safe[k] = v
     return safe
+
+
+def _stream_kaggle_log_delta(
+    *,
+    previous: str,
+    current: str,
+    live_stdout_path: Path | None = None,
+) -> str:
+    """Emit only new Kaggle log lines and return normalized full text."""
+    prev = (previous or "").replace("\r", "\n")
+    curr = (current or "").replace("\r", "\n")
+    if curr.startswith(prev):
+        delta = curr[len(prev) :]
+    else:
+        # If Kaggle output format changes/reset occurs, stream fresh text.
+        delta = curr
+    new_lines = [ln for ln in delta.splitlines() if ln.strip()]
+    if not new_lines:
+        return curr
+    for line in new_lines:
+        logger.info("[kaggle] %s", line)
+    if live_stdout_path is not None:
+        try:
+            live_stdout_path.parent.mkdir(parents=True, exist_ok=True)
+            with live_stdout_path.open("a") as fh:
+                for line in new_lines:
+                    fh.write(line + "\n")
+        except OSError:
+            pass
+    return curr
+
+
+def _append_live_stdout_line(path: Path, line: str) -> None:
+    """Best-effort append into the UI-tailed stdout log file."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as fh:
+            fh.write(line + "\n")
+    except OSError:
+        pass
+
+
+def _normalize_kaggle_log_text(raw: str) -> str:
+    """Normalize Kaggle kernel log payload to plain line-oriented text.
+
+    Kaggle stores logs as JSON events like:
+      [{"stream_name":"stdout","time":...,"data":"...\\n"}, ...]
+    We flatten this into plain text lines so the UI can tail them naturally.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    if text.startswith("["):
+        try:
+            payload = json.loads(text)
+            if isinstance(payload, list):
+                out_lines: list[str] = []
+                for evt in payload:
+                    if not isinstance(evt, dict):
+                        continue
+                    data = evt.get("data")
+                    if not isinstance(data, str):
+                        continue
+                    out_lines.extend(
+                        [
+                            ln
+                            for ln in data.replace("\r", "\n").splitlines()
+                            if ln.strip()
+                        ]
+                    )
+                if out_lines:
+                    return "\n".join(out_lines) + "\n"
+        except Exception:
+            pass
+    return text.replace("\r", "\n")
 
 
 def _hash_directory(path: Path) -> str:
