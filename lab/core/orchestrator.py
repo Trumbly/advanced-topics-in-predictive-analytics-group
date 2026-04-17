@@ -1319,6 +1319,7 @@ def _build_executor(
 
 _LR_MIN = 1e-5
 _LR_MAX = 1e-1
+_MAX_PROPOSAL_EPOCHS = 10
 _VALID_LR_SCHEDULES = frozenset({"constant", "cosine", "onecycle"})
 
 
@@ -1342,6 +1343,9 @@ def _proposal_hyperparam_env(
     sched = proposal.get("lr_schedule")
     if isinstance(sched, str) and sched.strip().lower() in _VALID_LR_SCHEDULES:
         out[f"{env_prefix}_LR_SCHEDULE"] = sched.strip().lower()
+    epochs = proposal.get("epochs")
+    if isinstance(epochs, int) and 1 <= epochs <= _MAX_PROPOSAL_EPOCHS:
+        out[f"{env_prefix}_EPOCHS"] = str(epochs)
     init_exp = proposal.get("init_from_experiment_id")
     if isinstance(init_exp, str) and init_exp.strip():
         out[f"{env_prefix}_INIT_FROM_EXPERIMENT_ID"] = init_exp.strip()

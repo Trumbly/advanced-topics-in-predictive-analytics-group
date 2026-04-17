@@ -156,7 +156,8 @@ _RESPONSE_SCHEMA_JSON = (
     '  "reasoning": "why this architecture is worth trying next",\n'
     '  "lr": 1e-3,                     // optional float in [1e-5, 1e-1]\n'
     '  "lr_schedule": "constant",      // optional: constant | cosine | onecycle\n'
-    '  "init_from_experiment_id": null // optional: continue from a past run\n'
+    '  "epochs": 1,                    // optional int 1-10; override per-experiment epoch count\n'
+    '  "init_from_experiment_id": null // optional: warm-start from a previous run\'s checkpoint\n'
     '}'
 )
 

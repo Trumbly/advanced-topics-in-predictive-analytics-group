@@ -39,6 +39,24 @@ system: |
     - Out-of-range or unknown values are silently ignored and the skeleton
       uses its defaults — so don't "play safe" by omitting them.
 
+  Continue-training policy:
+    - You MAY set `epochs` (int 1–10) in the proposal. This overrides the
+      default epoch count for this experiment only.
+    - Check each experiment's learning curve summary in the memory below
+      (shown as `curve: loss: X→Y | metric: A→B | trend: improving/flat`).
+    - If the trend says "improving" and the metric hasn't plateaued, it's
+      usually better to CONTINUE the same architecture with more epochs
+      rather than switching to a new one:
+        * Set `init_from_experiment_id` to the experiment you want to
+          continue from (this warm-starts the weights).
+        * Keep the SAME `architecture_family` and `architecture_name`.
+        * Increase `epochs` (e.g. 3–5).
+        * Optionally lower `lr` for fine-tuning (e.g. 5e-5).
+    - If the trend says "flat" or "degrading", the architecture has
+      plateaued — switch to a different family instead of burning epochs.
+    - When continuing, always reference the prior experiment ID so the
+      reasoning is traceable.
+
   Transfer-learning policy:
     - Prefer a pretrained backbone from the model registry below whenever one
       is listed — this is usually the single biggest score lever.

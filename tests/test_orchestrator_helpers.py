@@ -447,3 +447,18 @@ def test_proposal_hyperparam_env_passes_init_from_experiment_id():
 def test_proposal_hyperparam_env_handles_none():
     assert _proposal_hyperparam_env(None, env_prefix="AGENT") == {}
     assert _proposal_hyperparam_env("not a dict", env_prefix="AGENT") == {}
+
+
+def test_proposal_hyperparam_env_passes_valid_epochs():
+    env = _proposal_hyperparam_env({"epochs": 5}, env_prefix="AGENT")
+    assert env["AGENT_EPOCHS"] == "5"
+
+
+def test_proposal_hyperparam_env_clamps_epochs_at_max():
+    env = _proposal_hyperparam_env({"epochs": 99}, env_prefix="AGENT")
+    assert "AGENT_EPOCHS" not in env
+
+
+def test_proposal_hyperparam_env_rejects_non_int_epochs():
+    env = _proposal_hyperparam_env({"epochs": 3.5}, env_prefix="AGENT")
+    assert "AGENT_EPOCHS" not in env
