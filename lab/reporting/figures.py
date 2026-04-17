@@ -78,7 +78,7 @@ def _best_learning_curve(study: Study, path: Path) -> Path | None:
     if not study.best_experiment_id:
         return None
     best = next((e for e in study.experiments if e.id == study.best_experiment_id), None)
-    if best is None or not best.history or len(best.history) < 2:
+    if best is None or not best.history:
         return None
 
     import matplotlib.pyplot as plt
@@ -89,13 +89,19 @@ def _best_learning_curve(study: Study, path: Path) -> Path | None:
     loss = [h.get("loss") for h in best.history]
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 4))
-    a1.plot(xs, ys, marker="o", color="#60a5fa")
+
+    marker = "o" if len(xs) <= 30 else None
+    a1.plot(xs, ys, marker=marker, color="#60a5fa")
+    if len(xs) == 1:
+        a1.scatter(xs, ys, color="#60a5fa", s=60, zorder=5)
     a1.set_title(f"Best — {metric}")
     a1.set_xlabel("epoch")
     a1.set_ylabel(metric)
     a1.grid(True, alpha=0.2)
 
-    a2.plot(xs, loss, marker="o", color="#f87171")
+    a2.plot(xs, loss, marker=marker, color="#f87171")
+    if len(xs) == 1:
+        a2.scatter(xs, loss, color="#f87171", s=60, zorder=5)
     a2.set_title("Best — training loss")
     a2.set_xlabel("epoch")
     a2.set_ylabel("loss")
