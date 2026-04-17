@@ -110,6 +110,10 @@ class KaggleConfig(BaseModel):
     #   NvidiaTeslaT4 · NvidiaTeslaP100 · TpuV6E8
     accelerator: str = "NvidiaTeslaT4"
     poll_interval_seconds: int = 30
+    # Shorter-cadence tick for console-log streaming via the Python API
+    # (cheap, in-process). Decoupled from the heavier status-poll so the
+    # UI can tail stdout near-real-time without burning subprocess cost.
+    log_poll_interval_seconds: int = 5
     poll_timeout_seconds: int = 36_000
     dataset_sources: list[str] = Field(default_factory=list)
     competition_sources: list[str] = Field(default_factory=list)
