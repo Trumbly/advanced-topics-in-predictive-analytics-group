@@ -149,6 +149,12 @@ class Orchestrator:
         self._validator_smoke_num_classes = _resolve_validator_smoke_num_classes(
             self.context.dataset_profile,
         )
+        try:
+            fn_name, first_arg = adapter.model_block_signature()
+        except Exception:  # noqa: BLE001
+            fn_name, first_arg = ("build_model", "num_classes")
+        self._model_block_fn_name = fn_name
+        self._model_block_first_arg = first_arg
 
         sandbox_root = settings.abspath(settings.paths.sandbox)
         backend = (executor_backend or settings.executor.backend or "local").strip().lower()
@@ -387,7 +393,34 @@ class Orchestrator:
 
         # 3) Execute with Layer-2 retry (runtime error recovery)
         run_task = self._begin_task(exp, "execute_training")
-        exec_result = self._execute_with_recovery(code, exp)
+        extra_env = _proposal_hyperparam_env(
+            proposal_data,
+            env_prefix=self.settings.env_prefix,
+        )
+        # Resolve a prior-experiment warm-start reference, if any. Only
+        # wired on local backend today — remote kernels can't reach the
+        # orchestrator's filesystem and staging checkpoints into Kaggle
+        # datasets is a larger change we haven't landed.
+        init_exp_id = extra_env.pop(
+            f"{self.settings.env_prefix}_INIT_FROM_EXPERIMENT_ID",
+            "",
+        )
+        if init_exp_id and self.executor.backend == "local":
+            ckpt = self._resolve_checkpoint_path(init_exp_id)
+            if ckpt is not None:
+                extra_env[f"{self.settings.env_prefix}_INIT_FROM_CHECKPOINT"] = str(ckpt)
+                logger.info("Warm-starting from %s (%s)", init_exp_id, ckpt)
+            else:
+                logger.warning(
+                    "Warm-start requested from %s but no checkpoint found; skipping",
+                    init_exp_id,
+                )
+        elif init_exp_id:
+            logger.info(
+                "Warm-start from %s ignored on %s backend (not yet supported).",
+                init_exp_id, self.executor.backend,
+            )
+        exec_result = self._execute_with_recovery(code, exp, extra_env=extra_env)
         exp.sandbox_path = str(exec_result.workdir)
         exp.duration_seconds = exec_result.duration_seconds
         run_status = TaskStatus.COMPLETED if exec_result.succeeded else TaskStatus.FAILED
@@ -450,6 +483,7 @@ class Orchestrator:
             else:
                 self._finish_task(metrics_task, status=TaskStatus.COMPLETED)
                 exp.status = ExperimentStatus.COMPLETED
+                self._archive_best_checkpoint(exp, exec_result)
         except Exception as exc:  # noqa: BLE001
             err = TaskError(error_type="MetricsError", message=str(exc))
             self._finish_task(metrics_task, status=TaskStatus.FAILED, error=err)
@@ -458,7 +492,13 @@ class Orchestrator:
         exp.completed_at = _now()
         self._persist()
 
-    def _execute_with_recovery(self, code: str, exp: Experiment) -> ExecutionResult:
+    def _execute_with_recovery(
+        self,
+        code: str,
+        exp: Experiment,
+        *,
+        extra_env: dict[str, str] | None = None,
+    ) -> ExecutionResult:
         max_attempts = self.settings.compute_budget.max_recovery_attempts
         # Remote executors already run full jobs out-of-process; blindly
         # re-pushing the same experiment on failure burns quota and keeps
@@ -470,7 +510,7 @@ class Orchestrator:
             if self._abort_requested:
                 # User hit Stop — don't spawn another training subprocess.
                 return self._aborted_result(exp)
-            result = self.executor.run(code, experiment_id=exp.id)
+            result = self.executor.run(code, experiment_id=exp.id, extra_env=extra_env)
             if result.succeeded:
                 return result
             if self._abort_requested:
@@ -578,7 +618,11 @@ class Orchestrator:
         return schedule[index % len(schedule)]
 
     def _propose_architecture(self, *, primary_metric: str) -> str:
-        slots = self.context.build(primary_metric=primary_metric)
+        slots = self.context.build(
+            primary_metric=primary_metric,
+            available_checkpoints=self._available_checkpoints_markdown(),
+            eda_summary=self._eda_summary_markdown(),
+        )
         system, user = self.engine.render(
             "propose_architecture", slots,
             version=self.prompt_overrides.get("propose_architecture"),
@@ -595,7 +639,12 @@ class Orchestrator:
             version=self.prompt_overrides.get("generate_code"),
         )
         raw = self.llm.chat(format_messages(system, user))
-        return _compose_code_from_model_response(raw, template_code=self._code_skeleton)
+        return _compose_code_from_model_response(
+            raw,
+            template_code=self._code_skeleton,
+            fn_name=self._model_block_fn_name,
+            first_arg_name=self._model_block_first_arg,
+        )
 
     def _recover_code(
         self,
@@ -618,7 +667,12 @@ class Orchestrator:
             version=self.prompt_overrides.get("recover_from_error"),
         )
         raw = self.llm.chat(format_messages(system, user))
-        return _compose_code_from_model_response(raw, template_code=code)
+        return _compose_code_from_model_response(
+            raw,
+            template_code=code,
+            fn_name=self._model_block_fn_name,
+            first_arg_name=self._model_block_first_arg,
+        )
 
     # ------------------------------------------------------------------
     # Metrics + helpers
@@ -703,6 +757,81 @@ class Orchestrator:
         study.best_experiment_id = best.id
         study.best_score = best.primary_score
 
+    def _archive_best_checkpoint(self, exp: Experiment, exec_result: ExecutionResult) -> None:
+        """Copy ``best.pt`` from the sandbox into the study's checkpoint dir.
+
+        No-op when the skeleton didn't save a file (e.g. all-zero history)
+        or the copy fails — we never want a successful training run to be
+        flipped to failed because of a checkpoint bookkeeping issue.
+        """
+        try:
+            src = Path(exec_result.workdir) / "best.pt"
+            if not src.is_file():
+                return
+            dest_dir = self.settings.abspath(self.settings.paths.checkpoints) / exp.study_id
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            dest = dest_dir / f"{exp.id}.pt"
+            import shutil as _sh
+            _sh.copy2(src, dest)
+            try:
+                exp.checkpoint_path = str(dest.relative_to(self.settings.repo_root))
+            except ValueError:
+                exp.checkpoint_path = str(dest)
+        except Exception:  # noqa: BLE001
+            logger.exception("checkpoint archive failed for %s", exp.id)
+
+    def _resolve_checkpoint_path(self, experiment_id: str) -> Path | None:
+        """Find the archived checkpoint file for a prior experiment id."""
+        for entry in self.memory.entries:
+            candidate = entry.checkpoint_path if hasattr(entry, "checkpoint_path") else None
+            if entry.experiment_id == experiment_id and candidate:
+                p = self.settings.abspath(candidate)
+                if p.is_file():
+                    return p
+        # Predecessor study's experiments: walk the study file if present.
+        if self.predecessor is not None:
+            for e in self.predecessor.experiments:
+                if e.id == experiment_id and e.checkpoint_path:
+                    p = self.settings.abspath(e.checkpoint_path)
+                    if p.is_file():
+                        return p
+        # Fall back to scanning this study's live list — memory is added
+        # only after the experiment completes, so the very next experiment
+        # in the same study has to look here instead.
+        ck_dir = self.settings.abspath(self.settings.paths.checkpoints)
+        for study_dir in (ck_dir.iterdir() if ck_dir.is_dir() else ()):
+            candidate = study_dir / f"{experiment_id}.pt"
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def _eda_summary_markdown(self) -> str:
+        """Return the checked-in EDA summary for this task, or empty."""
+        try:
+            from lab.tasks.eda import load_summary
+            summary = load_summary(self.settings, self.adapter.name)
+        except Exception:  # noqa: BLE001
+            return ""
+        return summary.strip()
+
+    def _available_checkpoints_markdown(self) -> str:
+        """Render a short markdown list of checkpoints the LLM may reference."""
+        rows: list[str] = []
+        for entry in self.memory.entries:
+            ckpt = entry.checkpoint_path if hasattr(entry, "checkpoint_path") else None
+            if not ckpt:
+                continue
+            score = entry.primary_score
+            score_str = f"{score:.4f}" if isinstance(score, (int, float)) else "—"
+            arch = entry.architecture_name or "unknown"
+            rows.append(
+                f"- `{entry.experiment_id}` — [{arch}] score={score_str}"
+                f" (set `init_from_experiment_id` to warm-start from here)"
+            )
+        if not rows:
+            return "_no archived checkpoints yet_"
+        return "\n".join(rows)
+
     def _resolve_prompt_paths(self) -> dict[str, str]:
         """Record which prompt file was actually used for each prompt task.
 
@@ -736,6 +865,18 @@ class Orchestrator:
             f"{prefix}_PREFETCH_FACTOR": str(t.prefetch_factor),
         }
         env.update(self.adapter.env_vars(self.settings))
+        # Offline pretrained weights — turn `weights="DEFAULT"` into a
+        # local file lookup. Only applied when the path exists; absent
+        # directory is a silent no-op so first-run users aren't forced
+        # to pre-populate the cache before running locally.
+        weights_dir = self.settings.abspath(self.settings.paths.offline_weights)
+        if weights_dir.is_dir():
+            env.setdefault("TORCH_HOME", str(weights_dir))
+            hf_cache = weights_dir / "huggingface"
+            env.setdefault("HF_HOME", str(hf_cache))
+            env.setdefault("HUGGINGFACE_HUB_CACHE", str(hf_cache))
+            env.setdefault("TRANSFORMERS_CACHE", str(hf_cache))
+            env.setdefault("TIMM_HOME", str(weights_dir))
         return env
 
     @staticmethod
@@ -878,8 +1019,8 @@ def _strip_fences(text: str) -> str:
     return stripped.strip()
 
 
-def _extract_build_model_block(text: str) -> str | None:
-    """Extract just the `build_model` function from an LLM response."""
+def _extract_build_model_block(text: str, *, fn_name: str = "build_model") -> str | None:
+    """Extract just the ``fn_name`` function from an LLM response."""
     code = _strip_fences(text).strip()
     if not code:
         return None
@@ -896,7 +1037,7 @@ def _extract_build_model_block(text: str) -> str | None:
         return None
 
     for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == "build_model":
+        if isinstance(node, ast.FunctionDef) and node.name == fn_name:
             segment = ast.get_source_segment(code, node)
             if segment:
                 return segment.strip()
@@ -922,17 +1063,43 @@ def _inject_model_block(template_code: str, model_block: str) -> str | None:
     )
 
 
-def _compose_code_from_model_response(raw: str, *, template_code: str) -> str:
-    """Compose runnable script by injecting model block into skeleton/template.
+def _compose_code_from_model_response(
+    raw: str,
+    *,
+    template_code: str,
+    fn_name: str = "build_model",
+    first_arg_name: str | None = None,
+) -> str:
+    """Compose runnable script by injecting the model block into the skeleton.
 
-    Falls back to legacy behavior (raw stripped response) if extraction/injection
-    fails; validator then handles any malformed output.
+    Contract: the LLM must return ONLY ``fn_name``. We (a) extract that one
+    function from the response, (b) validate it via ``validate_model_block``,
+    and (c) inject it between the skeleton's ``### MODEL ###`` markers. Any
+    deviation (extra classes, top-level imports, wrong first arg) is rejected
+    here so the orchestrator's validator gets a clean reason to trigger
+    recovery instead of executing whatever the LLM tried to smuggle in.
+
+    If extraction/validation fails, we fall back to the raw stripped response
+    so the downstream validator produces a specific SyntaxError / missing-fn
+    message.
     """
-    model_block = _extract_build_model_block(raw)
+    model_block = _extract_build_model_block(raw, fn_name=fn_name)
     if model_block:
-        injected = _inject_model_block(template_code, model_block)
-        if injected is not None:
-            return injected
+        block_check = validator_mod.validate_model_block(
+            model_block,
+            fn_name=fn_name,
+            first_arg_name=first_arg_name,
+        )
+        if block_check.ok:
+            injected = _inject_model_block(template_code, model_block)
+            if injected is not None:
+                return injected
+        else:
+            logger.warning(
+                "Model block rejected (%s): %s",
+                block_check.error_type,
+                block_check.message,
+            )
     return _strip_fences(raw)
 
 
@@ -1105,9 +1272,11 @@ def _build_executor(
             enable_internet=k.enable_internet,
             accelerator=k.accelerator,
             poll_interval_seconds=k.poll_interval_seconds,
+            log_poll_interval_seconds=k.log_poll_interval_seconds,
             poll_timeout_seconds=min(k.poll_timeout_seconds, timeout * 10) or timeout,
             dataset_sources=list(k.dataset_sources),
             competition_sources=list(k.competition_sources),
+            weights_dataset=k.weights_dataset,
             sandbox_root=sandbox_root,
             repo_root=settings.repo_root,
             training_env=training_env,
@@ -1148,6 +1317,37 @@ def _build_executor(
     )
 
 
+_LR_MIN = 1e-5
+_LR_MAX = 1e-1
+_VALID_LR_SCHEDULES = frozenset({"constant", "cosine", "onecycle"})
+
+
+def _proposal_hyperparam_env(
+    proposal: dict | None,
+    *,
+    env_prefix: str,
+) -> dict[str, str]:
+    """Translate the LLM's proposal hyperparameters into ``AGENT_*`` env vars.
+
+    Silently drops invalid values — the skeleton has its own clamping, so
+    the worst case is a run with the default LR. We don't want an out-of-
+    range LR to fail the whole experiment.
+    """
+    if not isinstance(proposal, dict):
+        return {}
+    out: dict[str, str] = {}
+    lr = proposal.get("lr")
+    if isinstance(lr, (int, float)) and _LR_MIN <= float(lr) <= _LR_MAX:
+        out[f"{env_prefix}_LR"] = repr(float(lr))
+    sched = proposal.get("lr_schedule")
+    if isinstance(sched, str) and sched.strip().lower() in _VALID_LR_SCHEDULES:
+        out[f"{env_prefix}_LR_SCHEDULE"] = sched.strip().lower()
+    init_exp = proposal.get("init_from_experiment_id")
+    if isinstance(init_exp, str) and init_exp.strip():
+        out[f"{env_prefix}_INIT_FROM_EXPERIMENT_ID"] = init_exp.strip()
+    return out
+
+
 __all__ = [
     "Orchestrator",
     "OrchestratorHooks",
@@ -1155,4 +1355,5 @@ __all__ = [
     "_extract_build_model_block",
     "_inject_model_block",
     "_compose_code_from_model_response",
+    "_proposal_hyperparam_env",
 ]

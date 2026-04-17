@@ -76,9 +76,19 @@ class KaggleExecutor:
     # PyTorch image. Strongly recommended: "GPU T4 x2".
     accelerator: str = ""
     poll_interval_seconds: int = 30
+    # How often to pull new console output via the Python Kaggle API
+    # (as opposed to the CLI-based status poll). Kaggle returns the
+    # live log text on every call, so a short interval gives the UI
+    # near-real-time stdout without burning subprocess spawn cost.
+    log_poll_interval_seconds: int = 5
     poll_timeout_seconds: int = 36_000  # 10 h safety net
     dataset_sources: list[str] = field(default_factory=list)
     competition_sources: list[str] = field(default_factory=list)
+    # Kaggle dataset slug (``<owner>/<name>``) containing pre-downloaded
+    # torchvision/timm/HF weight files. Attached to every kernel; bootstrap
+    # wires TORCH_HOME / HF_HOME / TIMM_HOME so ``weights="DEFAULT"`` works
+    # without internet access.
+    weights_dataset: str = ""
     sandbox_root: Path = Path("sandbox")
     repo_root: Path = field(default_factory=lambda: Path.cwd())
     training_env: dict[str, str] = field(default_factory=dict)
@@ -87,6 +97,9 @@ class KaggleExecutor:
     # Flipped to True by kill_running() so the poll loop returns early
     # instead of waiting out a full poll_timeout_seconds.
     _aborted: bool = field(default=False, init=False, repr=False)
+    # Lazily-authenticated Kaggle Python client, reused across polls so
+    # we don't pay the authenticate() cost on every log tick.
+    _kaggle_api: object | None = field(default=None, init=False, repr=False)
 
     # ------------------------------------------------------------------
     # Executor protocol
@@ -136,11 +149,18 @@ class KaggleExecutor:
         full_env.setdefault(f"{prefix}_NUM_WORKERS", "2")
         full_env.setdefault(f"{prefix}_PERSISTENT_WORKERS", "1")
         (kernel_dir / "code.py").write_text(
-            _wrap_with_bootstrap(code, full_env, lab_dataset_slug=lab_slug)
+            _wrap_with_bootstrap(
+                code,
+                full_env,
+                lab_dataset_slug=lab_slug,
+                weights_dataset_slug=self.weights_dataset or None,
+            )
         )
         dataset_sources = list(self.dataset_sources)
         if lab_slug:
             dataset_sources.append(lab_slug)
+        if self.weights_dataset and self.weights_dataset not in dataset_sources:
+            dataset_sources.append(self.weights_dataset)
 
         meta: dict[str, Any] = {
             "id": slug,
@@ -319,59 +339,72 @@ class KaggleExecutor:
         live_stdout_path: Path | None = None,
     ) -> tuple[str, str]:
         """Return (final_status, log_text). ``final_status`` is one of
-        'complete', 'error', 'cancelled', 'timeout', 'aborted'."""
+        'complete', 'error', 'cancelled', 'timeout', 'aborted'.
+
+        Two cadences:
+          * every ``log_poll_interval_seconds`` we pull console output via
+            the Python Kaggle API (cheap, in-process, returns ``.log`` text)
+            and stream deltas to the UI log file.
+          * every ``poll_interval_seconds`` we hit ``kaggle kernels status``
+            (subprocess; nuanced regex classifier lives there) to decide
+            whether the kernel has completed / errored.
+
+        Decoupling the two means 30-second status polls no longer gate how
+        fast the user sees new ``print()`` output.
+        """
         deadline = time.monotonic() + self.poll_timeout_seconds
         last_status = "unknown"
-        poll_count = 0
+        status_poll_count = 0
         log_text = ""
+        next_status_at = 0.0  # force a status poll on the first iteration
+        log_tick = max(1, int(self.log_poll_interval_seconds))
         while time.monotonic() < deadline:
             if self._aborted:
                 last_status = "aborted"
                 break
-            status_proc = self._run_kaggle(
-                cli,
-                ["kernels", "status", slug],
-                timeout=60,
-            )
-            raw = status_proc.stdout + "\n" + status_proc.stderr
-            classified = _classify_kaggle_status(raw)
-            poll_count += 1
-            # Log the actual CLI output every ~10 polls so the user can
-            # see what Kaggle said when we're not matching. Always log
-            # the first poll too so there's immediate signal.
-            if poll_count == 1 or poll_count % 10 == 0:
-                sample = raw.strip().splitlines()
-                logger.info(
-                    "Kaggle kernel %s poll #%d → %s. Raw: %s",
-                    slug,
-                    poll_count,
-                    classified,
-                    " | ".join(sample[-3:]) if sample else "<empty>",
-                )
-            if live_stdout_path is not None:
-                _append_live_stdout_line(
-                    live_stdout_path,
-                    f"[kaggle poll #{poll_count}] status={classified}",
-                )
-            # Pull the remote kernel output and stream only the delta
-            # into our own logs so the UI can show Kaggle progress live.
-            latest = self._fetch_kernel_log(
-                cli,
-                slug,
-                target_dir=(live_stdout_path.parent if live_stdout_path else None),
-            )
+
+            # --- log tick: API-based, cheap, runs every iteration -------
+            latest = self._fetch_live_log_via_api(slug)
             if latest:
                 log_text = _stream_kaggle_log_delta(
                     previous=log_text,
                     current=latest,
                     live_stdout_path=live_stdout_path,
                 )
-            if classified in ("complete", "error", "cancelled"):
-                last_status = classified
-                break
-            last_status = "running"
-            # Sleep in small slices so kill_running() cuts in fast.
-            end_sleep = time.monotonic() + self.poll_interval_seconds
+
+            # --- status tick: CLI-based, runs every poll_interval_seconds
+            if time.monotonic() >= next_status_at:
+                status_proc = self._run_kaggle(
+                    cli,
+                    ["kernels", "status", slug],
+                    timeout=60,
+                )
+                raw = status_proc.stdout + "\n" + status_proc.stderr
+                classified = _classify_kaggle_status(raw)
+                status_poll_count += 1
+                if status_poll_count == 1 or status_poll_count % 10 == 0:
+                    sample = raw.strip().splitlines()
+                    logger.info(
+                        "Kaggle kernel %s status #%d → %s. Raw: %s",
+                        slug,
+                        status_poll_count,
+                        classified,
+                        " | ".join(sample[-3:]) if sample else "<empty>",
+                    )
+                if live_stdout_path is not None:
+                    _append_live_stdout_line(
+                        live_stdout_path,
+                        f"[kaggle status #{status_poll_count}] {classified}",
+                    )
+                if classified in ("complete", "error", "cancelled"):
+                    last_status = classified
+                    break
+                last_status = "running"
+                next_status_at = time.monotonic() + self.poll_interval_seconds
+
+            # Sleep until the next log tick in small slices so
+            # kill_running() cuts in fast.
+            end_sleep = time.monotonic() + log_tick
             while time.monotonic() < end_sleep:
                 if self._aborted:
                     break
@@ -379,19 +412,100 @@ class KaggleExecutor:
         else:
             last_status = "timeout"
 
-        # Final fetch so we don't miss the tail between last poll and exit.
-        latest = self._fetch_kernel_log(
-            cli,
-            slug,
-            target_dir=(live_stdout_path.parent if live_stdout_path else None),
-        )
+        # Final fetch: mop up anything that arrived between the last log
+        # tick and the terminal status. Try API first; if it's unavailable
+        # (or never returned any content) fall back to a single CLI fetch
+        # so we still have something to hand the error classifier.
+        latest = self._fetch_live_log_via_api(slug)
         if latest:
             log_text = _stream_kaggle_log_delta(
                 previous=log_text,
                 current=latest,
                 live_stdout_path=live_stdout_path,
             )
+        if not log_text:
+            cli_latest = self._fetch_kernel_log(
+                cli,
+                slug,
+                target_dir=(live_stdout_path.parent if live_stdout_path else None),
+            )
+            if cli_latest:
+                log_text = _stream_kaggle_log_delta(
+                    previous=log_text,
+                    current=cli_latest,
+                    live_stdout_path=live_stdout_path,
+                )
         return last_status, log_text
+
+    def _fetch_live_log_via_api(self, slug: str) -> str:
+        """Pull the kernel's current console log via the Python API.
+
+        Returns the full log text so far (or an empty string on any
+        failure — the caller treats empty as "no new output this tick").
+        The API call is cheap: no subprocess spawn, no file downloads.
+        """
+        if "/" not in slug:
+            return ""
+        owner, kernel = slug.split("/", 1)
+        api = self._get_kaggle_api()
+        if api is None:
+            return ""
+        try:
+            from kagglesdk.kernels.types.kernels_api_service import (
+                ApiListKernelSessionOutputRequest,
+            )
+        except Exception:  # noqa: BLE001
+            return ""
+        try:
+            with api.build_kaggle_client() as client:
+                req = ApiListKernelSessionOutputRequest()
+                req.user_name = owner
+                req.kernel_slug = kernel
+                resp = client.kernels.kernels_api_client.list_kernel_session_output(req)
+                return _normalize_kaggle_log_text(resp.log or "")
+        except Exception as exc:  # noqa: BLE001
+            # Network blips / rate limits / auth hiccups shouldn't kill
+            # the poll loop — log once and move on.
+            logger.debug("live log fetch failed for %s: %s", slug, exc)
+            return ""
+
+    # Sentinel: we tried once and failed — don't retry every log tick.
+    _kaggle_api_unavailable = object()
+
+    def _get_kaggle_api(self) -> object | None:
+        """Lazily authenticate the Kaggle Python client, reusing on re-entry.
+
+        Kaggle's ``api.authenticate()`` calls ``sys.exit(1)`` on missing
+        credentials instead of raising, so we catch ``SystemExit`` too.
+        Once we decide auth isn't available we cache the failure so we
+        don't spam the log every few seconds.
+        """
+        if self._kaggle_api is self._kaggle_api_unavailable:
+            return None
+        if self._kaggle_api is not None:
+            return self._kaggle_api
+        # Importing `kaggle` triggers its own module-level auto-auth which
+        # calls ``sys.exit(1)`` on missing creds — so SystemExit is a real
+        # possibility here, not just on .authenticate(). Catch both.
+        try:
+            from kaggle.api.kaggle_api_extended import KaggleApi
+        except (Exception, SystemExit) as exc:  # noqa: BLE001
+            logger.warning(
+                "kaggle Python API unavailable (%s) — live logs disabled, "
+                "fetching at status-poll cadence only.",
+                exc,
+            )
+            self._kaggle_api = self._kaggle_api_unavailable
+            return None
+        try:
+            api = KaggleApi()
+            api.authenticate()
+        except (Exception, SystemExit) as exc:  # noqa: BLE001
+            logger.warning("kaggle API auth failed: %s — live logs disabled.", exc)
+            self._kaggle_api = self._kaggle_api_unavailable
+            return None
+        self._kaggle_api = api
+        return api
 
     def _fetch_kernel_log(
         self,
@@ -605,6 +719,8 @@ for _k, _v in _env.items():
 _input = "/kaggle/input"
 _lab_dir_name = {lab_dir_name!r}
 _lab_owner = {lab_owner!r}
+_weights_dir_name = {weights_dir_name!r}
+_weights_owner = {weights_owner!r}
 
 
 def _lab_bootstrap_find_lab_root():
@@ -747,7 +863,11 @@ def _lab_bootstrap_find_processed_dir():
     not at the dataset root."""
     if not _os.path.isdir(_input):
         return None
-    skip = {{_lab_dir_name}} if _lab_dir_name else set()
+    skip = set()
+    if _lab_dir_name:
+        skip.add(_lab_dir_name)
+    if _weights_dir_name:
+        skip.add(_weights_dir_name)
     candidates = []
     # Top-level entries first
     for entry in sorted(_os.listdir(_input)):
@@ -798,6 +918,38 @@ if "AGENT_PROCESSED_DIR" not in _os.environ:
         print("[lab bootstrap] AGENT_PROCESSED_DIR = " + _d)
     else:
         print("[lab bootstrap] no data directory found under " + _input)
+
+# Offline pretrained weights: mount + env. torchvision reads TORCH_HOME,
+# huggingface reads HF_HOME, timm reads TIMM_HOME. Setting all three to
+# the mounted weights dataset turns `weights="DEFAULT"` into a local file
+# lookup instead of a download — works with enable_internet=False.
+def _lab_bootstrap_find_weights_root():
+    if not _weights_dir_name:
+        return None
+    hints = [
+        _os.path.join(_input, _weights_dir_name),
+        _os.path.join(_input, "datasets", _weights_owner, _weights_dir_name)
+        if _weights_owner else "",
+    ]
+    for hint in hints:
+        if hint and _os.path.isdir(hint):
+            return hint
+    return None
+
+
+_weights_root = _lab_bootstrap_find_weights_root()
+if _weights_root:
+    _os.environ.setdefault("TORCH_HOME", _weights_root)
+    _hf_cache = _os.path.join(_weights_root, "huggingface")
+    _os.environ.setdefault("HF_HOME", _hf_cache)
+    _os.environ.setdefault("HUGGINGFACE_HUB_CACHE", _hf_cache)
+    _os.environ.setdefault("TRANSFORMERS_CACHE", _hf_cache)
+    _os.environ.setdefault("TIMM_HOME", _weights_root)
+    print("[lab bootstrap] offline weights mounted at " + _weights_root)
+elif _weights_dir_name:
+    print("[lab bootstrap] weights dataset '" + _weights_dir_name
+          + "' expected under " + _input + " but not found."
+          " Pretrained runs may fail if internet is disabled.")
 
 # Before importing torch, check whether the kernel's GPU is a P100.
 # Kaggle's current Python 3.12 image ships a PyTorch compiled WITHOUT
@@ -1140,6 +1292,7 @@ def _wrap_with_bootstrap(
     env: dict[str, str],
     *,
     lab_dataset_slug: str | None = None,
+    weights_dataset_slug: str | None = None,
 ) -> str:
     header, rest = _split_header(code)
     # The Kaggle mount path depends on the kernel-metadata version:
@@ -1153,10 +1306,19 @@ def _wrap_with_bootstrap(
             lab_owner, lab_dir_name = lab_dataset_slug.split("/", 1)
         else:
             lab_dir_name = lab_dataset_slug
+    weights_owner = ""
+    weights_dir_name = ""
+    if weights_dataset_slug:
+        if "/" in weights_dataset_slug:
+            weights_owner, weights_dir_name = weights_dataset_slug.split("/", 1)
+        else:
+            weights_dir_name = weights_dataset_slug
     bootstrap = _KAGGLE_BOOTSTRAP.format(
         env_json=json.dumps(env),
         lab_dir_name=lab_dir_name,
         lab_owner=lab_owner,
+        weights_dir_name=weights_dir_name,
+        weights_owner=weights_owner,
     )
     # Ensure a blank line between pieces so line numbers stay readable
     # in Kaggle's traceback output.

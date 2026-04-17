@@ -66,6 +66,15 @@ class PathsConfig(BaseModel):
     skeletons_dir: str = "config/skeletons"
     registry_dir: str = "registry"
     reports_dir: str = "reports"
+    # Directory containing pre-downloaded torchvision / timm / HF weights
+    # so generated code can use `weights="DEFAULT"` offline. Exposed via
+    # TORCH_HOME / HF_HOME / TIMM_HOME in the training subprocess.
+    offline_weights: str = "data/offline_weights"
+    # Where best-per-experiment checkpoints are archived for continuation.
+    checkpoints: str = "experiments/checkpoints"
+    # Cached EDA reports (one per task). Rendered as a markdown slot into
+    # the propose_architecture prompt when present.
+    eda_dir: str = "docs/eda"
 
 
 class LoggingConfig(BaseModel):
@@ -101,9 +110,18 @@ class KaggleConfig(BaseModel):
     #   NvidiaTeslaT4 · NvidiaTeslaP100 · TpuV6E8
     accelerator: str = "NvidiaTeslaT4"
     poll_interval_seconds: int = 30
+    # Shorter-cadence tick for console-log streaming via the Python API
+    # (cheap, in-process). Decoupled from the heavier status-poll so the
+    # UI can tail stdout near-real-time without burning subprocess cost.
+    log_poll_interval_seconds: int = 5
     poll_timeout_seconds: int = 36_000
     dataset_sources: list[str] = Field(default_factory=list)
     competition_sources: list[str] = Field(default_factory=list)
+    # Kaggle dataset slug (``<owner>/<name>``) holding pre-downloaded
+    # torchvision/timm/HF weights. Attached to every kernel so the
+    # bootstrap can point TORCH_HOME / HF_HOME at the mount and
+    # ``weights="DEFAULT"`` works without internet. Blank = not attached.
+    weights_dataset: str = ""
 
 
 class ModalConfig(BaseModel):

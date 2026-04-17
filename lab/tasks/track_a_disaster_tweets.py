@@ -38,6 +38,10 @@ class DisasterTweetsAdapter(TaskAdapter):
     def spawn_triggering_calls(self) -> tuple[str, ...]:
         return ("load_text_dataset",)
 
+    def model_block_signature(self) -> tuple[str, str]:
+        """Track A skeleton calls ``build_model(vocab_size)``."""
+        return ("build_model", "vocab_size")
+
     def build_profile(self) -> DatasetProfile:
         raw = self.task_cfg.get("data", {}).get("raw", {})
         train_csv = self.settings.abspath(raw["train_csv"])

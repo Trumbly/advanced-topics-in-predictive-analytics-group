@@ -19,6 +19,14 @@ EPOCHS = int(os.environ.get("AGENT_EPOCHS", "1"))
 BASE_BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
 NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "4"))
 DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+# Learning-rate + schedule are the agent's main non-architectural levers.
+# Both come from the proposal JSON via env vars; the skeleton clamps and
+# whitelists them so a stray LR from the LLM can't blow up the run.
+LR = float(os.environ.get("AGENT_LR", "1e-3"))
+LR = min(max(LR, 1e-6), 1e-1)
+LR_SCHEDULE = os.environ.get("AGENT_LR_SCHEDULE", "constant").strip().lower()
+if LR_SCHEDULE not in {"constant", "cosine", "onecycle"}:
+    LR_SCHEDULE = "constant"
 LOG_EVERY_BATCHES = max(1, int(os.environ.get("AGENT_LOG_EVERY_BATCHES", "10")))
 LOG_GPU_EVERY_BATCHES = max(
     1, int(os.environ.get("AGENT_LOG_GPU_EVERY_BATCHES", str(LOG_EVERY_BATCHES))),
@@ -43,7 +51,7 @@ BATCH_SIZE = BASE_BATCH_SIZE
 ### END MODEL ###
 
 
-def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int):
+def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int, scheduler=None):
     model.train()
     total, n = 0.0, 0
     try:
@@ -58,6 +66,8 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int):
         loss = loss_fn(logits, y)
         loss.backward()
         optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
         total += loss.item() * x.size(0)
         n += x.size(0)
         should_log = (
@@ -185,7 +195,29 @@ def main():
     train_loader, val_loader, num_classes = load_audio_dataset(
         batch_size=BATCH_SIZE, num_workers=NUM_WORKERS,
     )
-    model = build_model(num_classes).to(DEVICE)
+    model = build_model(num_classes)
+    # Continue-from-checkpoint: the orchestrator may inject a path to a
+    # prior `best.pt` via AGENT_INIT_FROM_CHECKPOINT. Load with
+    # strict=False so architecture tweaks (e.g. adding a head) don't
+    # break the warm start. Missing file or key mismatch is logged, not
+    # fatal — fallback is training from scratch.
+    _init_ckpt = os.environ.get("AGENT_INIT_FROM_CHECKPOINT", "").strip()
+    if _init_ckpt and os.path.isfile(_init_ckpt):
+        try:
+            _state = torch.load(_init_ckpt, map_location="cpu")
+            _missing, _unexpected = model.load_state_dict(_state, strict=False)
+            print(
+                f"[skeleton] warm-start from {_init_ckpt}: "
+                f"missing={len(_missing)} unexpected={len(_unexpected)}",
+                flush=True,
+            )
+        except Exception as _e:
+            print(f"[skeleton] warm-start failed, continuing from scratch: {_e!r}",
+                  flush=True)
+    elif _init_ckpt:
+        print(f"[skeleton] AGENT_INIT_FROM_CHECKPOINT={_init_ckpt} not found; "
+              "training from scratch", flush=True)
+    model = model.to(DEVICE)
     if MULTI_GPU:
         # Known interaction: torchvision's StochasticDepth layer (used
         # inside EfficientNet/ConvNeXt blocks) produces a Bernoulli
@@ -228,16 +260,56 @@ def main():
                 flush=True,
             )
     loss_fn = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+
+    # Scheduler selection. OneCycle steps per-iteration (needs
+    # steps_per_epoch), the rest step per-epoch. The train loop already
+    # yields to the scheduler via the optional kwarg.
+    scheduler = None
+    per_step_scheduler = False
+    try:
+        steps_per_epoch = len(train_loader)
+    except TypeError:
+        steps_per_epoch = None
+    if LR_SCHEDULE == "cosine" and EPOCHS > 1:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=EPOCHS,
+        )
+    elif LR_SCHEDULE == "onecycle" and steps_per_epoch:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=LR,
+            epochs=EPOCHS,
+            steps_per_epoch=int(steps_per_epoch),
+        )
+        per_step_scheduler = True
+    print(f"[skeleton] LR={LR:.2e} LR_SCHEDULE={LR_SCHEDULE}", flush=True)
 
     history = []
+    best_score = float("-inf")
+    ckpt_path = Path("best.pt")
     for epoch in range(1, EPOCHS + 1):
         loss = train_one_epoch(
             model, train_loader, optimizer, loss_fn, DEVICE, epoch=epoch,
+            scheduler=scheduler if per_step_scheduler else None,
         )
+        if scheduler is not None and not per_step_scheduler:
+            scheduler.step()
         metrics = evaluate(model, val_loader, DEVICE)
         metrics.update(loss=loss, epoch=epoch)
         history.append(metrics)
+        # Save the best weights so far so the orchestrator can archive
+        # them and a later study can warm-start from here. Unwrap
+        # DataParallel (save the inner module's state_dict, not the
+        # replica) so loads round-trip on single-GPU kernels too.
+        score = metrics.get("f1_macro")
+        if isinstance(score, (int, float)) and score > best_score:
+            best_score = float(score)
+            _inner = model.module if isinstance(model, nn.DataParallel) else model
+            try:
+                torch.save(_inner.state_dict(), ckpt_path)
+            except Exception as _e:
+                print(f"[skeleton] checkpoint save failed: {_e!r}", flush=True)
         print(f"[epoch {epoch}] loss={loss:.4f} "
               f"f1_macro={metrics['f1_macro']:.4f} "
               f"roc_auc_macro={metrics['roc_auc_macro']:.4f} "
@@ -251,6 +323,7 @@ def main():
         "history": history,
         "final": history[-1],
         "best": best,
+        "checkpoint_path": str(ckpt_path) if ckpt_path.exists() else None,
     }
     Path("results.json").write_text(json.dumps(results, indent=2))
 

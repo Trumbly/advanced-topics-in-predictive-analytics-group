@@ -1019,9 +1019,94 @@ def _check_torch_nn_attributes(tree: ast.Module) -> str | None:
     return None
 
 
+def validate_model_block(
+    snippet: str,
+    *,
+    fn_name: str = "build_model",
+    first_arg_name: str | None = None,
+) -> ValidationResult:
+    """Check that ``snippet`` is ONLY a ``build_model`` function.
+
+    Accepted content at top level: the target FunctionDef plus optional
+    module docstring and optional ``from __future__`` imports. Everything
+    else (other functions, classes, imports, assignments, if/for/with)
+    is rejected so the skeleton contract stays tight.
+    """
+    try:
+        tree = ast.parse(snippet)
+    except SyntaxError as exc:
+        return ValidationResult(
+            ok=False,
+            error_type="SyntaxError",
+            message=f"Model block has SyntaxError: {exc.msg} at line {exc.lineno}",
+        )
+
+    target: ast.FunctionDef | None = None
+    for node in tree.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+            continue
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            continue
+        if isinstance(node, ast.FunctionDef) and node.name == fn_name:
+            if target is not None:
+                return ValidationResult(
+                    ok=False,
+                    error_type="ModelBlockExtraDefinitions",
+                    message=(
+                        f"Model block defines `{fn_name}` more than once. "
+                        f"Return exactly one top-level `{fn_name}` function."
+                    ),
+                )
+            target = node
+            continue
+        kind = type(node).__name__
+        name_hint = ""
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            name_hint = f" `{node.name}`"
+        return ValidationResult(
+            ok=False,
+            error_type="ModelBlockExtraDefinitions",
+            message=(
+                f"Model block contains a top-level {kind}{name_hint} at line {node.lineno}. "
+                f"Return ONLY `{fn_name}` — no extra imports, classes, or statements."
+            ),
+        )
+
+    if target is None:
+        return ValidationResult(
+            ok=False,
+            error_type="ModelBlockMissingFn",
+            message=f"Model block does not define `{fn_name}`.",
+        )
+
+    if first_arg_name is not None:
+        args = target.args.args
+        if not args:
+            return ValidationResult(
+                ok=False,
+                error_type="ModelBlockSignature",
+                message=(
+                    f"`{fn_name}` must take `{first_arg_name}` as its first positional arg "
+                    "but has no arguments."
+                ),
+            )
+        actual = args[0].arg
+        if actual != first_arg_name:
+            return ValidationResult(
+                ok=False,
+                error_type="ModelBlockSignature",
+                message=(
+                    f"`{fn_name}` first arg must be `{first_arg_name}`, got `{actual}`."
+                ),
+            )
+
+    return ValidationResult(ok=True)
+
+
 __all__ = [
     "ValidationResult",
     "validate",
+    "validate_model_block",
     "FORBIDDEN_IMPORTS",
     "FORBIDDEN_PATTERNS",
     "DEFAULT_SPAWN_TRIGGERING_CALLS",

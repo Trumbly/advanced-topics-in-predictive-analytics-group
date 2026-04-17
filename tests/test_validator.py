@@ -2,7 +2,7 @@
 verbatim from max_development."""
 from __future__ import annotations
 
-from lab.core.validator import validate
+from lab.core.validator import validate, validate_model_block
 
 
 def test_accepts_minimal_valid_script():
@@ -382,3 +382,80 @@ def test_accepts_training_contract_when_required():
         require_training_contract=True,
     )
     assert r.ok, r.message
+
+
+# ---------------------------------------------------------------------------
+# validate_model_block — skeleton lockdown
+# ---------------------------------------------------------------------------
+
+
+def test_model_block_accepts_single_build_model():
+    snippet = (
+        "def build_model(num_classes: int):\n"
+        "    import torchvision\n"
+        "    m = torchvision.models.resnet18(weights='DEFAULT')\n"
+        "    return m\n"
+    )
+    r = validate_model_block(snippet, first_arg_name="num_classes")
+    assert r.ok, r.message
+
+
+def test_model_block_rejects_extra_top_level_def():
+    snippet = (
+        "def helper():\n"
+        "    return 1\n"
+        "def build_model(num_classes: int):\n"
+        "    return None\n"
+    )
+    r = validate_model_block(snippet)
+    assert not r.ok
+    assert r.error_type == "ModelBlockExtraDefinitions"
+
+
+def test_model_block_rejects_top_level_import():
+    snippet = (
+        "import torchvision\n"
+        "def build_model(num_classes: int):\n"
+        "    return None\n"
+    )
+    r = validate_model_block(snippet)
+    assert not r.ok
+    assert r.error_type == "ModelBlockExtraDefinitions"
+
+
+def test_model_block_rejects_wrong_first_arg():
+    snippet = (
+        "def build_model(n_classes: int):\n"
+        "    return None\n"
+    )
+    r = validate_model_block(snippet, first_arg_name="num_classes")
+    assert not r.ok
+    assert r.error_type == "ModelBlockSignature"
+
+
+def test_model_block_rejects_missing_build_model():
+    r = validate_model_block("x = 1\n")
+    assert not r.ok
+
+
+def test_model_block_accepts_future_imports_and_docstring():
+    snippet = (
+        '"""Backbone builder."""\n'
+        "from __future__ import annotations\n"
+        "def build_model(num_classes: int):\n"
+        "    return None\n"
+    )
+    r = validate_model_block(snippet)
+    assert r.ok, r.message
+
+
+def test_model_block_rejects_main_guard_inclusion():
+    snippet = (
+        "def build_model(num_classes: int):\n"
+        "    return None\n"
+        "if __name__ == '__main__':\n"
+        "    build_model(1)\n"
+    )
+    r = validate_model_block(snippet)
+    assert not r.ok
+    assert r.error_type == "ModelBlockExtraDefinitions"

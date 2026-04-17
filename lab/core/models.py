@@ -92,6 +92,13 @@ class Experiment(BaseModel):
     duration_seconds: float | None = None
     sandbox_path: str | None = None
 
+    # Path (relative to repo root) of the best-epoch checkpoint archived
+    # after a successful run. ``None`` for failed/aborted experiments or
+    # when the skeleton produced no state_dict. Used by the continue-from-
+    # checkpoint path: the next proposal may reference this experiment id
+    # and the orchestrator translates it to ``AGENT_INIT_FROM_CHECKPOINT``.
+    checkpoint_path: str | None = None
+
 
 class DatasetProfile(BaseModel):
     """Task-owned dataset profile. Fields depend on the task kind."""

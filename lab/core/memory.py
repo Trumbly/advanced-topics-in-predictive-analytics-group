@@ -28,6 +28,7 @@ class MemoryEntry:
     error_message: str | None
     duration_seconds: float | None
     takeaway: str = ""
+    checkpoint_path: str | None = None
 
     @classmethod
     def from_experiment(cls, exp: Experiment) -> "MemoryEntry":
@@ -42,6 +43,7 @@ class MemoryEntry:
             error_type=err.error_type if err else None,
             error_message=err.message if err else None,
             duration_seconds=exp.duration_seconds,
+            checkpoint_path=exp.checkpoint_path,
         )
 
 

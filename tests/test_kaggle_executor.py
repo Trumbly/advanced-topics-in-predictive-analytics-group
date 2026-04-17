@@ -471,3 +471,84 @@ def test_kill_running_breaks_poll_loop(monkeypatch, tmp_path):
     duration = time.monotonic() - t0
     assert status == "aborted", status
     assert duration < 3.0, f"poll kept running for {duration:.1f}s after abort"
+
+
+# ---------------------------------------------------------------------------
+# Live log streaming via the Python API (decoupled from status poll)
+# ---------------------------------------------------------------------------
+
+
+def test_poll_loop_streams_live_log_between_status_polls(monkeypatch, tmp_path):
+    """The poll loop should emit stdout deltas from the API on every
+    `log_poll_interval_seconds` tick, not wait for the 30 s status poll."""
+    monkeypatch.setattr("lab.core.kaggle_executor.shutil.which", lambda _: "/usr/bin/kaggle")
+    # Deterministic + fast: 1 s between log ticks, 3 s between status polls.
+    ex = KaggleExecutor(
+        username="maxuser",
+        kernel_prefix="test",
+        sandbox_root=tmp_path,
+        repo_root=tmp_path,
+        poll_interval_seconds=3,
+        log_poll_interval_seconds=1,
+        poll_timeout_seconds=60,
+    )
+
+    live = tmp_path / "stdout.log"
+    # Sequence of log strings the fake API hands back on successive ticks.
+    log_script = iter([
+        "[epoch 1] loss=0.5\n",
+        "[epoch 1] loss=0.5\n[epoch 1] loss=0.4\n",
+        "[epoch 1] loss=0.5\n[epoch 1] loss=0.4\n[epoch 2] loss=0.3\n",
+    ])
+    ex._fetch_live_log_via_api = lambda slug: next(log_script, "")
+
+    # Status flips to 'complete' on the third status poll.
+    status_responses = iter([
+        _completed(stdout='has status "running"\n'),
+        _completed(stdout='has status "running"\n'),
+        _completed(stdout='has status "complete"\n'),
+    ])
+    monkeypatch.setattr(
+        KaggleExecutor,
+        "_run_kaggle",
+        lambda self, cli, argv, *, timeout: next(
+            status_responses, _completed(stdout='has status "complete"\n'),
+        ),
+    )
+
+    status, log_text = ex._poll_until_done(
+        "/usr/bin/kaggle", "maxuser/test-slug", live_stdout_path=live,
+    )
+    assert status == "complete"
+    # All three epochs must have streamed into the UI log file in order.
+    contents = live.read_text()
+    assert "[epoch 1] loss=0.5" in contents
+    assert "[epoch 1] loss=0.4" in contents
+    assert "[epoch 2] loss=0.3" in contents
+
+
+def test_get_kaggle_api_caches_unavailability(monkeypatch, tmp_path):
+    """Once auth has failed we should NOT re-attempt every poll tick —
+    otherwise the log spam makes the agent log unreadable."""
+    ex = KaggleExecutor(
+        username="u", kernel_prefix="t", sandbox_root=tmp_path, repo_root=tmp_path,
+    )
+    attempts: list[int] = []
+
+    def fake_import(name, *args, **kwargs):
+        attempts.append(1)
+        raise ImportError("no kaggle")
+
+    # First call fails and caches the failure; second call must NOT retry.
+    import builtins
+    real_import = builtins.__import__
+
+    def stub(name, *a, **kw):
+        if name.startswith("kaggle"):
+            return fake_import(name)
+        return real_import(name, *a, **kw)
+
+    monkeypatch.setattr(builtins, "__import__", stub)
+    assert ex._get_kaggle_api() is None
+    assert ex._get_kaggle_api() is None
+    assert len(attempts) == 1

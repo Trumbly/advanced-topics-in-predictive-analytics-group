@@ -23,6 +23,11 @@ EPOCHS = int(os.environ.get("AGENT_EPOCHS", "3"))
 BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "64"))
 NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "2"))
 DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+LR = float(os.environ.get("AGENT_LR", "1e-3"))
+LR = min(max(LR, 1e-6), 1e-1)
+LR_SCHEDULE = os.environ.get("AGENT_LR_SCHEDULE", "constant").strip().lower()
+if LR_SCHEDULE not in {"constant", "cosine", "onecycle"}:
+    LR_SCHEDULE = "constant"
 
 
 ### MODEL ###
@@ -32,7 +37,7 @@ DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
 ### END MODEL ###
 
 
-def train_one_epoch(model, loader, optimizer, loss_fn, device):
+def train_one_epoch(model, loader, optimizer, loss_fn, device, *, scheduler=None):
     model.train()
     total_loss, n = 0.0, 0
     for x, y in loader:
@@ -42,6 +47,8 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device):
         loss = loss_fn(logits, y)
         loss.backward()
         optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
         total_loss += loss.item() * x.size(0)
         n += x.size(0)
     return total_loss / max(n, 1)
@@ -72,17 +79,68 @@ def main():
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
     )
-    model = build_model(vocab_size).to(DEVICE)
+    model = build_model(vocab_size)
+    _init_ckpt = os.environ.get("AGENT_INIT_FROM_CHECKPOINT", "").strip()
+    if _init_ckpt and os.path.isfile(_init_ckpt):
+        try:
+            _state = torch.load(_init_ckpt, map_location="cpu")
+            _missing, _unexpected = model.load_state_dict(_state, strict=False)
+            print(
+                f"[skeleton] warm-start from {_init_ckpt}: "
+                f"missing={len(_missing)} unexpected={len(_unexpected)}",
+                flush=True,
+            )
+        except Exception as _e:
+            print(f"[skeleton] warm-start failed, continuing from scratch: {_e!r}",
+                  flush=True)
+    elif _init_ckpt:
+        print(f"[skeleton] AGENT_INIT_FROM_CHECKPOINT={_init_ckpt} not found; "
+              "training from scratch", flush=True)
+    model = model.to(DEVICE)
     loss_fn = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+
+    scheduler = None
+    per_step_scheduler = False
+    try:
+        steps_per_epoch = len(train_loader)
+    except TypeError:
+        steps_per_epoch = None
+    if LR_SCHEDULE == "cosine" and EPOCHS > 1:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=EPOCHS,
+        )
+    elif LR_SCHEDULE == "onecycle" and steps_per_epoch:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=LR,
+            epochs=EPOCHS,
+            steps_per_epoch=int(steps_per_epoch),
+        )
+        per_step_scheduler = True
+    print(f"[skeleton] LR={LR:.2e} LR_SCHEDULE={LR_SCHEDULE}", flush=True)
 
     history = []
+    best_score = float("-inf")
+    ckpt_path = Path("best.pt")
     for epoch in range(1, EPOCHS + 1):
-        train_loss = train_one_epoch(model, train_loader, optimizer, loss_fn, DEVICE)
+        train_loss = train_one_epoch(
+            model, train_loader, optimizer, loss_fn, DEVICE,
+            scheduler=scheduler if per_step_scheduler else None,
+        )
+        if scheduler is not None and not per_step_scheduler:
+            scheduler.step()
         metrics = evaluate(model, val_loader, DEVICE)
         metrics["loss"] = train_loss
         metrics["epoch"] = epoch
         history.append(metrics)
+        score = metrics.get("f1_binary")
+        if isinstance(score, (int, float)) and score > best_score:
+            best_score = float(score)
+            try:
+                torch.save(model.state_dict(), ckpt_path)
+            except Exception as _e:
+                print(f"[skeleton] checkpoint save failed: {_e!r}", flush=True)
         print(f"[epoch {epoch}] loss={train_loss:.4f} "
               f"f1={metrics['f1_binary']:.4f} "
               f"acc={metrics['accuracy']:.4f} "
@@ -96,6 +154,7 @@ def main():
         "history": history,
         "final": history[-1],
         "best": best,
+        "checkpoint_path": str(ckpt_path) if ckpt_path.exists() else None,
     }
     Path("results.json").write_text(json.dumps(results, indent=2))
 
