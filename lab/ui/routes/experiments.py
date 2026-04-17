@@ -58,10 +58,9 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
 
     loss_chart_svg = line_chart_svg(
         history_to_series(exp.history, ("loss",)),
-        y_label="train loss (per epoch)",
+        y_label="train loss",
+        x_label="epoch",
     )
-    # Primary metric + whatever else is numeric in the history — pick the
-    # common audio/text metrics that the skeletons actually emit.
     metric_names = tuple(dict.fromkeys([
         exp.primary_metric,
         "f1_macro",
@@ -73,13 +72,14 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
     metric_chart_svg = line_chart_svg(
         history_to_series(exp.history, metric_names),
         y_label="validation metrics",
+        x_label="epoch",
     )
-    # Per-batch loss curve: much more informative than a single dot when
-    # EPOCHS=1, and shows within-epoch convergence shape (noise, plateau,
-    # instability) even on multi-epoch runs.
     batch_loss_series = _batch_loss_series(exp.history)
     batch_loss_chart_svg = line_chart_svg(
         batch_loss_series,
+        y_label="train loss (per batch)",
+        x_label="step",
+    )
         y_label="train loss (per batch)",
     )
 
