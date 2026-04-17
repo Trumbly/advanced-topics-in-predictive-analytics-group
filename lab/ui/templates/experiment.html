@@ -125,10 +125,83 @@
   {% else %}<p class="muted">No metrics captured.</p>{% endif %}
 </section>
 
+{# ---- Architecture proposal (rich card) ---- #}
+{% if proposal %}
+<section class="card proposal-card">
+  <h2>
+    Architecture proposal
+    <button class="btn-ghost btn-xs toggle-raw" onclick="this.closest('.proposal-card').classList.toggle('show-raw')">
+      JSON
+    </button>
+  </h2>
+
+  <div class="proposal-rich">
+    {# Header: name + family pill #}
+    <div class="proposal-header">
+      <span class="proposal-name">{{ proposal.name }}</span>
+      {% if proposal.family %}
+        <span class="pill">{{ proposal.family }}</span>
+      {% endif %}
+    </div>
+
+    {# One-liner description #}
+    {% if proposal.description %}
+    <p class="proposal-desc">{{ proposal.description }}</p>
+    {% endif %}
+
+    {# Hyperparameter pills #}
+    {% if proposal.hyperparams %}
+    <div class="proposal-hparams">
+      {% for k, v in proposal.hyperparams.items() %}
+      <span class="hparam">
+        <span class="hparam-key">{{ k }}</span>
+        <span class="hparam-val">{{ v }}</span>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Reasoning / hypothesis — the core "why" #}
+    {% if proposal.reasoning %}
+    <div class="proposal-reasoning">
+      <div class="reasoning-label">Reasoning</div>
+      <p>{{ proposal.reasoning }}</p>
+    </div>
+    {% endif %}
+
+    {# Risk callout #}
+    {% if proposal.risk %}
+    <div class="proposal-risk">
+      <div class="risk-label">Risk</div>
+      <p>{{ proposal.risk }}</p>
+      {% if proposal.risk_mitigation %}
+      <p class="risk-mitigation">Mitigation: {{ proposal.risk_mitigation }}</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# Extra fields the LLM included #}
+    {% if proposal.extras %}
+    <div class="proposal-extras">
+      {% for k, v in proposal.extras.items() %}
+      <div class="extra-row">
+        <span class="extra-key">{{ k }}</span>
+        <span class="extra-val">{{ v }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# Raw JSON (toggled) #}
+  <pre class="scroll proposal-raw">{{ experiment.architecture_proposal }}</pre>
+</section>
+{% elif experiment.architecture_proposal %}
 <section class="card">
   <h2>Architecture proposal</h2>
-  <pre class="scroll">{{ experiment.architecture_proposal or "—" }}</pre>
+  <pre class="scroll">{{ experiment.architecture_proposal }}</pre>
 </section>
+{% endif %}
 
 <section class="card">
   <h2>Generated code</h2>

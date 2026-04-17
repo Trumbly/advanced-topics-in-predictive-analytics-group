@@ -1,6 +1,7 @@
 """Experiment detail pages."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
@@ -82,6 +83,8 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
         y_label="train loss (per batch)",
     )
 
+    proposal = _parse_proposal(exp.architecture_proposal)
+
     return request.app.state.templates.TemplateResponse(
         request,
         "experiment.html",
@@ -96,8 +99,50 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
             "loss_chart_svg": loss_chart_svg,
             "metric_chart_svg": metric_chart_svg,
             "batch_loss_chart_svg": batch_loss_chart_svg,
+            "proposal": proposal,
         },
     )
+
+
+def _parse_proposal(raw: str | None) -> dict | None:
+    """Parse the architecture_proposal JSON into a structured dict for
+    the template. Returns None when parsing fails — the template falls
+    back to the raw JSON pre-block."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    # Known hyperparameter keys → rendered as pills.
+    hp_keys = {"lr", "lr_schedule", "epochs", "init_from_experiment_id"}
+    hyperparams = {}
+    for k in hp_keys:
+        v = data.get(k)
+        if v is not None:
+            hyperparams[k] = v
+
+    # Everything that isn't a "known" top-level field goes into extras.
+    known = {
+        "architecture_name", "architecture_family", "description",
+        "reasoning", "hypothesis", "risk", "risk_note", "risk_mitigation",
+    } | hp_keys
+    extras = {k: v for k, v in data.items() if k not in known and v}
+
+    return {
+        "name": data.get("architecture_name", ""),
+        "family": data.get("architecture_family", ""),
+        "description": data.get("description", ""),
+        "reasoning": data.get("reasoning") or data.get("hypothesis") or "",
+        "risk": data.get("risk") or data.get("risk_note") or "",
+        "risk_mitigation": data.get("risk_mitigation") or "",
+        "hyperparams": hyperparams,
+        "extras": extras,
+        "raw": raw,
+    }
 
 
 def _batch_loss_series(history):
