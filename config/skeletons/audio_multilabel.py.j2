@@ -59,6 +59,11 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int, sc
     except TypeError:
         total_batches = None
 
+    # Per-batch loss trace so the UI can render a step-level curve —
+    # especially useful when EPOCHS=1 (otherwise the epoch-level chart
+    # is a single dot and tells you nothing about convergence shape).
+    batch_losses: list[float] = []
+
     for batch_idx, (x, y) in enumerate(loader, start=1):
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True).float()
         optimizer.zero_grad(set_to_none=True)
@@ -68,7 +73,9 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int, sc
         optimizer.step()
         if scheduler is not None:
             scheduler.step()
-        total += loss.item() * x.size(0)
+        loss_val = float(loss.item())
+        batch_losses.append(loss_val)
+        total += loss_val * x.size(0)
         n += x.size(0)
         should_log = (
             batch_idx == 1
@@ -93,18 +100,18 @@ def train_one_epoch(model, loader, optimizer, loss_fn, device, *, epoch: int, sc
             if total_batches is not None:
                 print(
                     f"[epoch {epoch}][batch {batch_idx}/{total_batches}] "
-                    f"loss={loss.item():.4f} running_loss={running_loss:.4f}"
+                    f"loss={loss_val:.4f} running_loss={running_loss:.4f}"
                     f"{gpu_suffix}",
                     flush=True,
                 )
             else:
                 print(
                     f"[epoch {epoch}][batch {batch_idx}] "
-                    f"loss={loss.item():.4f} running_loss={running_loss:.4f}"
+                    f"loss={loss_val:.4f} running_loss={running_loss:.4f}"
                     f"{gpu_suffix}",
                     flush=True,
                 )
-    return total / max(n, 1)
+    return total / max(n, 1), batch_losses
 
 
 def _gpu_stats_line() -> str:
@@ -289,14 +296,19 @@ def main():
     best_score = float("-inf")
     ckpt_path = Path("best.pt")
     for epoch in range(1, EPOCHS + 1):
-        loss = train_one_epoch(
+        loss, batch_losses = train_one_epoch(
             model, train_loader, optimizer, loss_fn, DEVICE, epoch=epoch,
             scheduler=scheduler if per_step_scheduler else None,
         )
         if scheduler is not None and not per_step_scheduler:
             scheduler.step()
         metrics = evaluate(model, val_loader, DEVICE)
-        metrics.update(loss=loss, epoch=epoch)
+        # Downsample very long batch traces so results.json doesn't blow
+        # up — 500 points is enough to eyeball convergence shape in the UI.
+        if len(batch_losses) > 500:
+            _stride = max(1, len(batch_losses) // 500)
+            batch_losses = batch_losses[::_stride]
+        metrics.update(loss=loss, epoch=epoch, batch_losses=batch_losses)
         history.append(metrics)
         # Save the best weights so far so the orchestrator can archive
         # them and a later study can warm-start from here. Unwrap

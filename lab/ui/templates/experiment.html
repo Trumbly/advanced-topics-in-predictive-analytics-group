@@ -94,9 +94,15 @@
   <pre id="live-stdout" class="scroll code">{{ live_stdout or "(no output yet — the script may not have started printing)" }}</pre>
 </section>
 
-{% if loss_chart_svg or metric_chart_svg %}
+{% if loss_chart_svg or metric_chart_svg or batch_loss_chart_svg %}
 <section class="card">
   <h2>Learning curves</h2>
+  {% if batch_loss_chart_svg %}
+  <div class="chart">{{ batch_loss_chart_svg|safe }}</div>
+  <p class="muted small">Per-batch training loss (global step). Shows
+    within-epoch convergence shape — especially useful when only one epoch
+    was trained or for spotting instability / divergence.</p>
+  {% endif %}
   {% if loss_chart_svg %}<div class="chart">{{ loss_chart_svg|safe }}</div>{% endif %}
   {% if metric_chart_svg %}<div class="chart">{{ metric_chart_svg|safe }}</div>{% endif %}
 </section>

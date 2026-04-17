@@ -57,7 +57,7 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
 
     loss_chart_svg = line_chart_svg(
         history_to_series(exp.history, ("loss",)),
-        y_label="train loss",
+        y_label="train loss (per epoch)",
     )
     # Primary metric + whatever else is numeric in the history — pick the
     # common audio/text metrics that the skeletons actually emit.
@@ -73,6 +73,14 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
         history_to_series(exp.history, metric_names),
         y_label="validation metrics",
     )
+    # Per-batch loss curve: much more informative than a single dot when
+    # EPOCHS=1, and shows within-epoch convergence shape (noise, plateau,
+    # instability) even on multi-epoch runs.
+    batch_loss_series = _batch_loss_series(exp.history)
+    batch_loss_chart_svg = line_chart_svg(
+        batch_loss_series,
+        y_label="train loss (per batch)",
+    )
 
     return request.app.state.templates.TemplateResponse(
         request,
@@ -87,5 +95,31 @@ async def experiment_detail(study_id: str, exp_id: str, request: Request):
             "launch_log_tail": launch_log_tail,
             "loss_chart_svg": loss_chart_svg,
             "metric_chart_svg": metric_chart_svg,
+            "batch_loss_chart_svg": batch_loss_chart_svg,
         },
     )
+
+
+def _batch_loss_series(history):
+    """Flatten per-epoch `batch_losses` into one series with cumulative step.
+
+    If multiple epochs carry batch_losses we concatenate them on a global
+    step counter so the chart shows the full training trajectory. If no
+    history row carries batch_losses we return an empty series and the
+    template skips the chart.
+    """
+    series: list[tuple[float, float]] = []
+    step = 0
+    for row in history or []:
+        if not isinstance(row, dict):
+            continue
+        bls = row.get("batch_losses")
+        if not isinstance(bls, list):
+            continue
+        for v in bls:
+            if isinstance(v, (int, float)):
+                step += 1
+                series.append((float(step), float(v)))
+    if not series:
+        return []
+    return [("loss", series)]
