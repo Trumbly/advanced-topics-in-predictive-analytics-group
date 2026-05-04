@@ -1,0 +1,49 @@
+# Study report — {{ study.id }}
+
+**Task:** {{ study.task_name }} · **Personality:** {{ study.personality }} · **Agent memory:** {{ study.agent_memory_enabled }}
+{% if study.predecessor_id %}**Predecessor:** {{ study.predecessor_id }}{% endif %}
+
+## Executive summary
+
+{{ executive_summary }}
+
+## Top experiments
+
+| # | id | architecture | family | score |
+|---|----|--------------|--------|-------|
+{% for exp in top_experiments -%}
+| {{ loop.index }} | {{ exp.id }} | {{ exp.proposal.architecture_name if exp.proposal else "?" }} | {{ exp.proposal.family if exp.proposal else "?" }} | {{ "%.4f"|format(exp.primary_score or 0.0) }} |
+{% endfor %}
+
+## Failure summary
+
+{% if failure_breakdown -%}
+{% for kind, count in failure_breakdown.items() -%}
+- **{{ kind }}**: {{ count }}
+{% endfor %}
+{% else -%}
+No failures recorded.
+{% endif %}
+
+## Verdicts
+
+{% if study.study_verdict -%}
+**Study verdict:** {{ study.study_verdict.verdict }} (score {{ "%.2f"|format(study.study_verdict.score) }}) — {{ study.study_verdict.rationale }}
+{% else -%}
+No study-level verdict.
+{% endif %}
+
+{% for exp in study.experiments -%}
+{% if exp.verdict -%}
+- {{ exp.id }} → **{{ exp.verdict.verdict }}** ({{ "%.2f"|format(exp.verdict.score) }}) — {{ exp.verdict.rationale }}
+{% endif -%}
+{% endfor %}
+
+## Figures
+
+{% for name, path in figures.items() -%}
+### {{ name | replace("_", " ") | title }}
+
+![{{ name }}]({{ path }})
+
+{% endfor %}
