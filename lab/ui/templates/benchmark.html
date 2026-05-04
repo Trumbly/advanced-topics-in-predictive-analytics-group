@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Benchmark{% endblock %}
+{% block content %}
+<h1>Model benchmark ({{ rows|length }} architectures)</h1>
+<table>
+  <thead>
+    <tr><th>family</th><th>architecture</th><th>runs</th><th>mean</th><th>best</th><th>studies</th></tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.family }}</td>
+      <td>{{ r.architecture_name }}</td>
+      <td>{{ r.runs }}</td>
+      <td>{{ "%.4f"|format(r.mean_score) }}</td>
+      <td>{{ "%.4f"|format(r.best_score) }}</td>
+      <td>{{ r.studies|join(", ") }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
