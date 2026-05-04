@@ -36,6 +36,7 @@ CHECKPOINT_OUT = os.environ.get("AGENT_CHECKPOINT_OUT", "checkpoint.pt")
 SEED = int(os.environ.get("AGENT_SEED", "42"))
 LR = float(os.environ.get("AGENT_LR", "1e-3"))
 LR_SCHEDULE = os.environ.get("AGENT_LR_SCHEDULE", "constant")
+WEIGHT_DECAY = float(os.environ.get("AGENT_WEIGHT_DECAY", "0.0"))
 
 torch.manual_seed(SEED)
 
@@ -147,7 +148,7 @@ def main():
         model.load_state_dict(torch.load(CHECKPOINT_IN, map_location="cpu"))
     model.to(DEVICE)
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     total_steps = max(1, EPOCHS * len(train_loader))
     sched = lr_scheduler(optimizer, LR_SCHEDULE, total_steps)
 
