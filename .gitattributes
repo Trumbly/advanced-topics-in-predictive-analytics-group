@@ -1,0 +1,5 @@
+# Each study is self-contained; never try to auto-merge two teammates'
+# concurrent study runs.
+experiments/studies/**/study.json  merge=ours
+experiments/studies/**/memory.json merge=ours
+experiments/studies/**/*.log       merge=ours
