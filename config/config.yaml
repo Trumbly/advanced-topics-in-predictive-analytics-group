@@ -1,0 +1,39 @@
+project: lab
+version: 2.0.0
+default_task: track_b
+llm:
+  provider: ollama
+  base_url: http://localhost:11434
+  model: gemma4:e4b
+  temperature: 0.2
+  max_tokens: 4096
+  retry_attempts: 3
+  retry_backoff_seconds: 5.0
+compute_budget:
+  max_experiments: 20
+  max_wallclock_minutes: 240
+  max_experiment_seconds: 1800
+  max_epochs_per_run: 10
+  max_codegen_retries: 5
+  max_recovery_attempts: 5
+  lr_min: 1.0e-5
+  lr_max: 1.0e-2
+agent:
+  memory_enabled: false
+  personality: exploratory
+context:
+  max_prompt_tokens: 6000
+  memory_top_k: 5
+  recent_failures: 5
+logging:
+  level: INFO
+  structured: true
+paths:
+  data_root: data
+  experiments_dir: experiments/studies
+  sandbox: sandbox
+  prompts_dir: config/prompts
+  offline_weights: data/offline_weights
+ui:
+  host: 127.0.0.1
+  port: 8000
