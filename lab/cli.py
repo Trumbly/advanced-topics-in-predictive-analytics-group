@@ -68,6 +68,8 @@ def _build_parser() -> argparse.ArgumentParser:
     preprocess.add_argument("--task", default="track_b")
     preprocess.add_argument("--synthetic", action="store_true")
 
+    sub.add_parser("benchmark", help="cross-study (family, arch) leaderboard")
+
     return p
 
 
@@ -279,6 +281,23 @@ def _apply_use_best_prompts(settings):
     return settings
 
 
+def cmd_benchmark(_args) -> int:
+    from lab.core.benchmark import benchmark
+
+    settings = load_settings()
+    rows = benchmark(Path(settings.paths.experiments_dir))
+    if not rows:
+        print("(no scored experiments yet)")
+        return 0
+    print(f"{'family':<28} {'architecture':<28} {'runs':>5} {'mean':>8} {'best':>8}")
+    for r in rows:
+        print(
+            f"{r.family:<28} {r.architecture_name:<28} {r.runs:>5} "
+            f"{r.mean_score:>8.4f} {r.best_score:>8.4f}"
+        )
+    return 0
+
+
 _DISPATCH = {
     "run": cmd_run,
     "report": cmd_report,
@@ -286,6 +305,7 @@ _DISPATCH = {
     "prompts": cmd_prompts,
     "ui": cmd_ui,
     "preprocess": cmd_preprocess,
+    "benchmark": cmd_benchmark,
 }
 
 
