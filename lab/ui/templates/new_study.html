@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}New study{% endblock %}
+{% block content %}
+<h1>Launch new study</h1>
+<form method="post" action="/run-form" style="display:flex;flex-direction:column;gap:10px;max-width:520px;">
+  <label>Task
+    <select name="task">
+    {% for t in tasks %}<option value="{{ t }}" {% if t == defaults.task %}selected{% endif %}>{{ t }}</option>{% endfor %}
+    </select>
+  </label>
+
+  <label>Personality
+    <select name="personality">
+    {% for p in personalities %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+    </select>
+  </label>
+
+  <label>Max experiments
+    <input type="number" name="max_experiments" min="1" value="{{ defaults.max_experiments }}" />
+  </label>
+
+  <label>Max wallclock (minutes)
+    <input type="number" name="max_wallclock_min" min="1" value="{{ defaults.max_wallclock_min }}" />
+  </label>
+
+  <label>Predecessor (resume from)
+    <select name="predecessor_id">
+      <option value="">— none —</option>
+      {% for sid in predecessors %}<option value="{{ sid }}">{{ sid }}</option>{% endfor %}
+    </select>
+  </label>
+
+  <label><input type="checkbox" name="use_best_prompts" value="true" /> use best prompts (per-task get_best_version, min 3 runs)</label>
+  <label><input type="checkbox" name="agent_memory" value="true" /> enable agent memory (cross-study transfer learning)</label>
+
+  <button type="submit" style="padding:8px 14px;background:#2c5cdd;color:white;border:0;border-radius:4px;cursor:pointer">Launch study</button>
+</form>
+
+<h2 style="margin-top:2em">Active prompt versions</h2>
+<table>
+  <thead><tr><th>task</th><th>versions on disk</th></tr></thead>
+  <tbody>
+  {% for task, versions in prompt_versions.items() %}
+    <tr><td>{{ task }}</td><td>{{ versions|join(", ") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
