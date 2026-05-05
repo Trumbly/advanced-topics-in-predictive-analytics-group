@@ -139,9 +139,12 @@ def test_new_study_form_renders(client):
     assert 'name="use_best_prompts"' in r.text
 
 
-def test_run_form_redirects_to_study_detail(client, monkeypatch):
-    """POST /run-form returns 303 to /studies/<new id>."""
-    # cmd_run is heavy; patch it to no-op in the spawned thread.
+def test_run_form_redirects_to_studies_list(client, monkeypatch):
+    """POST /run-form 303-redirects to /studies?launched=1.
+
+    cmd_run owns its own study id (via StudyRunner.run -> new_study_id), so
+    the launcher cannot point at a specific id without a heavier handoff.
+    """
     import lab.cli
 
     monkeypatch.setattr(lab.cli, "cmd_run", lambda args: 0)
@@ -157,4 +160,10 @@ def test_run_form_redirects_to_study_detail(client, monkeypatch):
         follow_redirects=False,
     )
     assert r.status_code == 303
-    assert r.headers["location"].startswith("/studies/study_")
+    assert r.headers["location"] == "/studies?launched=1"
+
+
+def test_studies_banner_shows_when_launched(client):
+    r = client.get("/studies?launched=1")
+    assert r.status_code == 200
+    assert "Study launched" in r.text
