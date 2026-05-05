@@ -91,6 +91,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="rewrite train.pt + val.pt even if present",
     )
     preprocess.add_argument(
+        "--train-audio",
+        action="store_true",
+        help=(
+            "build mel-spectrograms for every clip under "
+            "data/raw/train_audio/<class>/<sid>.ogg. Use this to recreate "
+            "the per-clip cache from scratch when the off-repo build_profile "
+            "output is missing."
+        ),
+    )
+    preprocess.add_argument(
         "--soundscapes",
         action="store_true",
         help=(
@@ -291,6 +301,12 @@ def cmd_preprocess(args) -> int:
         print(f"synthetic shards written to {target}")
         return 0
 
+    if getattr(args, "train_audio", False):
+        return _run_train_audio_mels(
+            settings,
+            overwrite=getattr(args, "overwrite", False),
+        )
+
     if getattr(args, "soundscapes", False):
         return _run_soundscape_mels(
             settings,
@@ -313,6 +329,32 @@ def cmd_preprocess(args) -> int:
         print(f"preprocess failed: {exc}", file=sys.stderr)
         return 2
     print(f"real shards written: {train_path}  +  {val_path}")
+    return 0
+
+
+def _run_train_audio_mels(settings, *, overwrite: bool) -> int:
+    """Recursive per-clip mel build over data/raw/train_audio/<class>/<sid>."""
+    from lab.tasks.audio_mels import build_train_audio_mels
+
+    processed_dir = Path(settings.task.processed_data_dir)
+    spectrograms_dir = processed_dir.parent / "spectrograms"
+    raw_dir = processed_dir.parent.parent / "raw"
+    if not raw_dir.exists():
+        print(f"raw dir missing: {raw_dir}", file=sys.stderr)
+        return 2
+    try:
+        counts = build_train_audio_mels(
+            raw_dir, spectrograms_dir, overwrite=overwrite
+        )
+    except (ImportError, FileNotFoundError) as exc:
+        print(f"train_audio mel build failed: {exc}", file=sys.stderr)
+        return 2
+    print(
+        f"train_audio mels: built={counts['built']}, "
+        f"skipped_existing={counts['skipped_existing']}, "
+        f"skipped_short={counts['skipped_short']}, "
+        f"files_processed={counts['files_processed']}"
+    )
     return 0
 
 
