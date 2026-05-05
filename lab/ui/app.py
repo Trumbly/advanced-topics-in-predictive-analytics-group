@@ -134,6 +134,21 @@ def create_app(settings: Settings) -> FastAPI:
             [r.model_dump(mode="json") for r in benchmark(studies_root)]
         )
 
+    @app.get("/dashboard", response_class=HTMLResponse)
+    def dashboard_view(request: Request):
+        from lab.core.dashboard import compute_kpis
+
+        kpis = compute_kpis(studies_root)
+        return templates.TemplateResponse(
+            request, "dashboard.html", {"kpis": kpis}
+        )
+
+    @app.get("/api/dashboard")
+    def api_dashboard():
+        from lab.core.dashboard import compute_kpis
+
+        return JSONResponse(compute_kpis(studies_root).model_dump(mode="json"))
+
     @app.get("/api/studies")
     def api_studies():
         ids = list_studies(studies_root)
