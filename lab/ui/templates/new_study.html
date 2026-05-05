@@ -9,6 +9,17 @@
     </select>
   </label>
 
+  <label>LLM model
+    {% if llm_models %}
+    <select name="llm_model">
+      {% for m in llm_models %}<option value="{{ m }}" {% if m == defaults.llm_model %}selected{% endif %}>{{ m }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <input type="text" name="llm_model" value="{{ defaults.llm_model }}" />
+    <span style="font-size:0.78em;opacity:0.7">Ollama not reachable; type the tag manually.</span>
+    {% endif %}
+  </label>
+
   <label>Personality
     <select name="personality">
     {% for p in personalities %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
