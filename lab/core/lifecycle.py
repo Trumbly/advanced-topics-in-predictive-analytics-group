@@ -71,6 +71,16 @@ class StudyRunner:
                 status="PROPOSED",
                 primary_metric=self.ctx.settings.task.primary_metric,
             )
+            # Make the experiment visible BEFORE run_experiment so the UI's
+            # pipeline view sees it the moment work starts. Wire a progress
+            # callback that re-saves study.json after every meaningful state
+            # change inside run_experiment.
+            study.experiments.append(exp)
+            studies_dir = Path(self.ctx.settings.paths.experiments_dir)
+            study.save(studies_dir)
+
+            previous_progress = self.ctx.on_progress
+            self.ctx.on_progress = lambda: study.save(studies_dir)
             try:
                 run_experiment(exp, self.ctx)
             except Exception as exc:  # pragma: no cover - defensive
@@ -78,8 +88,8 @@ class StudyRunner:
                     "error", phase="run_experiment", message=str(exc), level="error"
                 )
                 exp.status = "FAILED"
-
-            study.experiments.append(exp)
+            finally:
+                self.ctx.on_progress = previous_progress
 
             if exp.primary_score is not None and (
                 study.best_score is None or exp.primary_score > study.best_score
@@ -87,7 +97,7 @@ class StudyRunner:
                 study.best_score = exp.primary_score
                 study.best_experiment_id = exp.id
 
-            study.save(Path(self.ctx.settings.paths.experiments_dir))
+            study.save(studies_dir)
 
             if (
                 exp.verdict is not None
