@@ -16,7 +16,7 @@ from lab.core.watchdog import Watchdog
 
 
 _WATCHDOG_TIMEOUT_ENV = "AGENT_WATCHDOG_TIMEOUT_S"
-_WATCHDOG_DEFAULT_TIMEOUT_S = 600
+_WATCHDOG_DEFAULT_TIMEOUT_S = 1800
 
 
 class StudyRunner:
@@ -55,6 +55,7 @@ class StudyRunner:
             timeout_s=int(
                 os.environ.get(_WATCHDOG_TIMEOUT_ENV, _WATCHDOG_DEFAULT_TIMEOUT_S)
             ),
+            sandbox_root=Path(self.ctx.settings.paths.sandbox),
         )
         watchdog.start()
 

@@ -1,15 +1,21 @@
 """Background watchdog: flag stalled studies as FAILED.
 
-Runs alongside ``StudyRunner`` in a daemon thread. Polls the JSONL telemetry
-sink every few seconds; when no new lines have been written for
-``timeout_s``, it rewrites ``study.json`` with ``status="FAILED"`` and appends
-an ``error`` event so the UI surfaces the stall instead of showing a forever-
-RUNNING study.
+Runs alongside ``StudyRunner`` in a daemon thread. Polls activity files
+every few seconds; when no file has been touched for ``timeout_s``, it
+rewrites ``study.json`` with ``status="FAILED"`` and appends an ``error``
+event so the UI surfaces the stall instead of a forever-RUNNING study.
 
-The watchdog cannot terminate a thread that is hung in a C-level call (e.g.
-urllib waiting on a slow LLM socket); it only marks the on-disk state. The
-runner thread may continue spinning until the OS reclaims it, but the user
-gets a definitive FAILED status and a reason in the log.
+Activity is the freshest mtime across:
+- ``experiments/studies/<id>/run.log.jsonl`` (orchestrator telemetry)
+- every ``sandbox/*/stdout.log`` and ``stderr.log`` (training subprocess)
+
+The subprocess can pump stdout for minutes between JSONL events (per-batch
+prints from the skeleton), so checking only the JSONL would have killed
+real-but-slow runs. Watching stdout.log too keeps the watchdog aligned
+with what the user actually sees in the dashboard's stdout panel.
+
+The watchdog cannot terminate a thread hung in a C-level call (e.g.
+urllib waiting on a slow LLM socket); it only marks the on-disk state.
 """
 
 from __future__ import annotations
@@ -23,13 +29,14 @@ from pathlib import Path
 from lab.core.models import Study, StudyNotFoundError
 
 
-_DEFAULT_TIMEOUT_S = 600  # 10 minutes
+_DEFAULT_TIMEOUT_S = 1800  # 30 min — covers a long epoch on CPU
 _POLL_FLOOR_S = 5
 _POLL_CEILING_S = 30
 
 
 class Watchdog:
-    """Mark a study FAILED when its log goes silent for too long."""
+    """Mark a study FAILED when neither JSONL nor any sandbox stdout has
+    been touched for ``timeout_s``."""
 
     def __init__(
         self,
@@ -37,9 +44,11 @@ class Watchdog:
         studies_root: Path,
         *,
         timeout_s: int = _DEFAULT_TIMEOUT_S,
+        sandbox_root: Path | None = None,
     ):
         self.study_id = study_id
         self.studies_root = Path(studies_root)
+        self.sandbox_root = Path(sandbox_root) if sandbox_root else None
         self.timeout_s = max(_POLL_FLOOR_S * 2, timeout_s)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
@@ -71,26 +80,36 @@ class Watchdog:
     # ------------------------------------------------------------------
 
     def _loop(self) -> None:
-        log_path = self.studies_root / self.study_id / "run.log.jsonl"
-        # Bound poll interval so short timeouts react quickly but long ones
-        # do not waste CPU.
         interval = max(_POLL_FLOOR_S, min(_POLL_CEILING_S, self.timeout_s // 4))
-        deadline = time.time() + self.timeout_s
-
         while not self._stop.wait(interval):
-            try:
-                age = self._idle_seconds(log_path)
-            except FileNotFoundError:
-                age = self.timeout_s + 1  # nothing written yet either
+            age = self._idle_seconds()
             if age >= self.timeout_s:
                 self._mark_stalled(age)
                 return
-            deadline = time.time() + self.timeout_s
 
-    def _idle_seconds(self, log_path: Path) -> float:
-        if not log_path.exists():
-            raise FileNotFoundError(str(log_path))
-        return max(0.0, time.time() - log_path.stat().st_mtime)
+    def _activity_paths(self) -> list[Path]:
+        paths: list[Path] = [
+            self.studies_root / self.study_id / "run.log.jsonl"
+        ]
+        if self.sandbox_root and self.sandbox_root.exists():
+            for stdout_log in self.sandbox_root.glob("*/stdout.log"):
+                paths.append(stdout_log)
+            for stderr_log in self.sandbox_root.glob("*/stderr.log"):
+                paths.append(stderr_log)
+        return paths
+
+    def _idle_seconds(self) -> float:
+        latest = 0.0
+        any_present = False
+        for p in self._activity_paths():
+            try:
+                latest = max(latest, p.stat().st_mtime)
+                any_present = True
+            except FileNotFoundError:
+                continue
+        if not any_present:
+            return self.timeout_s + 1.0  # nothing on disk yet → treat as stalled
+        return max(0.0, time.time() - latest)
 
     def _mark_stalled(self, age: float) -> None:
         self._stalled = True
