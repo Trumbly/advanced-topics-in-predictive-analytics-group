@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import signal
 import time
 from datetime import datetime, timezone
@@ -11,6 +12,11 @@ from typing import Optional
 from lab.core import telemetry
 from lab.core.experiment import RunContext, run_experiment
 from lab.core.models import Experiment, Study, new_study_id
+from lab.core.watchdog import Watchdog
+
+
+_WATCHDOG_TIMEOUT_ENV = "AGENT_WATCHDOG_TIMEOUT_S"
+_WATCHDOG_DEFAULT_TIMEOUT_S = 600
 
 
 class StudyRunner:
@@ -41,6 +47,15 @@ class StudyRunner:
         self._wire_agent_memory(study, predecessor)
 
         self._install_sigint(study)
+
+        watchdog = Watchdog(
+            study.id,
+            Path(self.ctx.settings.paths.experiments_dir),
+            timeout_s=int(
+                os.environ.get(_WATCHDOG_TIMEOUT_ENV, _WATCHDOG_DEFAULT_TIMEOUT_S)
+            ),
+        )
+        watchdog.start()
 
         deadline = time.monotonic() + cb.max_wallclock_minutes * 60
         for index in range(cb.max_experiments):
@@ -82,6 +97,18 @@ class StudyRunner:
                     "study_end", reason="judge_abort", level="warn"
                 )
                 break
+
+        watchdog.stop()
+        if watchdog.stalled:
+            telemetry.log_event(
+                "study_end",
+                reason="watchdog_stalled",
+                level="error",
+            )
+            study.status = "FAILED"
+            study.finished_at = datetime.now(timezone.utc)
+            study.save(Path(self.ctx.settings.paths.experiments_dir))
+            return study
 
         study.status = "ABORTED" if self._aborted else "COMPLETED"
         study.finished_at = datetime.now(timezone.utc)
