@@ -69,8 +69,13 @@ class LocalExecutor:
         timeout_s: int,
         heartbeat_interval_s: float = 30.0,
         on_heartbeat: "callable[[float, int, str], None] | None" = None,
+        study_id: str | None = None,
     ) -> ExecutionResult:
-        sandbox_dir = self.sandbox_root / experiment_id
+        sandbox_dir = (
+            self.sandbox_root / study_id / experiment_id
+            if study_id
+            else self.sandbox_root / experiment_id
+        )
         sandbox_dir.mkdir(parents=True, exist_ok=True)
 
         code_path = sandbox_dir / "code.py"

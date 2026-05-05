@@ -67,6 +67,7 @@ class RunContext:
     eda_summary: str = ""
     hooks: Hooks | None = None
     on_progress: Callable[[], None] | None = None  # called whenever exp state changes
+    study_id: str | None = None  # set by StudyRunner so the sandbox is per-study
 
 
 def _progress(ctx: RunContext) -> None:
@@ -284,6 +285,7 @@ def _execute_with_retry(
     # The subprocess runs with cwd=sandbox/<exp_id>, so every path env var
     # must be ABSOLUTE — otherwise relative paths from the config resolve
     # inside the sandbox dir and fail with FileNotFoundError.
+    sandbox_dir = _sandbox_path(ctx, exp)
     extra_env = {
         "AGENT_DEVICE": ctx.settings.compute_budget.device,
         "AGENT_BATCH_SIZE": str(ctx.settings.compute_budget.batch_size),
@@ -292,9 +294,7 @@ def _execute_with_retry(
         "AGENT_PROCESSED_DIR": str(
             Path(ctx.settings.task.processed_data_dir).resolve()
         ),
-        "AGENT_CHECKPOINT_OUT": str(
-            (Path(ctx.settings.paths.sandbox) / exp.id / "checkpoint.pt").resolve()
-        ),
+        "AGENT_CHECKPOINT_OUT": str((sandbox_dir / "checkpoint.pt").resolve()),
         "AGENT_SEED": "42",
         "AGENT_LR": str(proposal.lr),
         "AGENT_LR_SCHEDULE": proposal.lr_schedule,
@@ -330,6 +330,7 @@ def _execute_with_retry(
             extra_env=extra_env,
             timeout_s=timeout,
             on_heartbeat=_heartbeat,
+            study_id=ctx.study_id,
         )
         last = result
         telemetry.log_event(
@@ -356,7 +357,7 @@ def _execute_with_retry(
         )
         _progress(ctx)
         if result.succeeded:
-            exp.sandbox_path = str(Path(ctx.settings.paths.sandbox) / exp.id)
+            exp.sandbox_path = str(sandbox_dir)
             exp.checkpoint_path = extra_env["AGENT_CHECKPOINT_OUT"]
             return result
 
@@ -401,6 +402,15 @@ def _execute_with_retry(
 
     assert last is not None
     return last  # pragma: no cover
+
+
+def _sandbox_path(ctx: RunContext, exp: Experiment) -> Path:
+    """``sandbox/<study_id>/<exp_id>/`` so concurrent + later studies do not
+    clobber each other's stdout/checkpoint state when they reuse exp_id."""
+    base = Path(ctx.settings.paths.sandbox)
+    if ctx.study_id:
+        return base / ctx.study_id / exp.id
+    return base / exp.id
 
 
 def _resolve_warm_start(ctx: RunContext, proposal: Proposal) -> str | None:
