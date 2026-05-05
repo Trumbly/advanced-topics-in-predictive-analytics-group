@@ -1,6 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Studies{% endblock %}
 {% block content %}
+{% if launched %}
+<div style="background:#1c2129;border-left:3px solid #2c5cdd;padding:8px 12px;margin-bottom:1em">
+  Study launched in the background. It will appear here within a few seconds —
+  refresh the page if it hasn't shown up yet. Tail
+  <code>experiments/studies/&lt;id&gt;/run.log</code> for live progress, or open
+  the study detail and watch the SSE stream at
+  <code>/live/&lt;id&gt;</code>.
+</div>
+{% endif %}
 <h1>Studies ({{ studies|length }})</h1>
 <table>
   <thead><tr><th>id</th><th>task</th><th>status</th><th>experiments</th><th>best score</th></tr></thead>

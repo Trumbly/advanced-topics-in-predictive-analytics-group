@@ -37,11 +37,15 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse)
     @app.get("/studies", response_class=HTMLResponse)
-    def studies_list(request: Request):
+    def studies_list(request: Request, launched: int = 0):
         ids = list_studies(studies_root)
         studies = load_many(studies_root, ids)
+        # Most recent first so a freshly-launched run is at the top.
+        studies.sort(key=lambda s: s.created_at, reverse=True)
         return templates.TemplateResponse(
-            request, "studies.html", {"studies": studies}
+            request,
+            "studies.html",
+            {"studies": studies, "launched": launched},
         )
 
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
@@ -199,7 +203,7 @@ def create_app(settings: Settings) -> FastAPI:
         max_experiments: int | None = Form(default=None),
         max_wallclock_min: int | None = Form(default=None),
     ):
-        result = _launch_study(
+        _launch_study(
             task=task,
             predecessor=predecessor_id or None,
             use_best_prompts=use_best_prompts,
@@ -208,7 +212,10 @@ def create_app(settings: Settings) -> FastAPI:
             max_experiments=max_experiments,
             max_wallclock_min=max_wallclock_min,
         )
-        return RedirectResponse(url=f"/studies/{result['study_id']}", status_code=303)
+        # cmd_run generates its own study id; redirect to the list and let the
+        # user pick the just-started run (it appears once StudyRunner.run()
+        # writes its first study.json save).
+        return RedirectResponse(url="/studies?launched=1", status_code=303)
 
     def _launch_study(
         *,
