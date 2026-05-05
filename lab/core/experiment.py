@@ -306,15 +306,34 @@ def _execute_with_retry(
     current = code
     last: ExecutionResult | None = None
     for attempt in range(attempts + 1):
+        telemetry.log_event(
+            "execute",
+            phase="started",
+            attempt=attempt,
+            timeout_s=timeout,
+            cmd_env={k: v for k, v in extra_env.items() if k.startswith("AGENT_")},
+        )
+
+        def _heartbeat(elapsed_s: float, stdout_bytes: int) -> None:
+            telemetry.log_event(
+                "execute",
+                phase="heartbeat",
+                attempt=attempt,
+                elapsed_s=int(elapsed_s),
+                stdout_bytes=stdout_bytes,
+            )
+
         result = ctx.executor.run(
             current,
             experiment_id=exp.id,
             extra_env=extra_env,
             timeout_s=timeout,
+            on_heartbeat=_heartbeat,
         )
         last = result
         telemetry.log_event(
             "execute",
+            phase="finished",
             attempt=attempt,
             succeeded=result.succeeded,
             error_type=(result.error.error_type if result.error else None),
