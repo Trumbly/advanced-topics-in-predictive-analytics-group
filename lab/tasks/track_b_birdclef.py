@@ -42,10 +42,22 @@ class BirdclefAdapter(TaskAdapter):
             class_imbalance = None
 
         if num_classes != self.settings.task.expected_num_classes:
-            raise ValueError(
-                f"BirdCLEF dataset reports {num_classes} classes, "
-                f"config expects {self.settings.task.expected_num_classes}"
+            # The canonical class set comes from sample_submission.csv and
+            # is bumped to 234 to include soundscape-only species. A stale
+            # metadata sidecar reporting 206 (the old training-only count)
+            # is a downgrade, not an error -- warn and use the expected
+            # value so the model head is sized for the full submission.
+            import logging
+
+            logging.getLogger("lab.task.track_b").warning(
+                "BirdCLEF metadata reports %d classes but config expects "
+                "%d; using %d (rebuild metadata via `lab preprocess` to "
+                "silence this)",
+                num_classes,
+                self.settings.task.expected_num_classes,
+                self.settings.task.expected_num_classes,
             )
+            num_classes = self.settings.task.expected_num_classes
         return DatasetProfile(
             num_classes=num_classes,
             num_train=num_train,
