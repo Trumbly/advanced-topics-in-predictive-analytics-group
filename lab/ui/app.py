@@ -192,6 +192,8 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/new", response_class=HTMLResponse)
     def new_study_form(request: Request):
+        from lab.core.llm_catalog import candidate_models
+
         registry = PromptRegistry(prompts_root)
         prompt_versions = {
             t: registry.list_versions(t)
@@ -214,10 +216,14 @@ def create_app(settings: Settings) -> FastAPI:
                 "personalities": ["exploratory", "conservative"],
                 "prompt_versions": prompt_versions,
                 "predecessors": [s.id for s in recent[:20]],
+                "llm_models": candidate_models(
+                    settings.llm.model, base_url=settings.llm.base_url
+                ),
                 "defaults": {
                     "task": settings.default_task,
                     "max_experiments": settings.compute_budget.max_experiments,
                     "max_wallclock_min": settings.compute_budget.max_wallclock_minutes,
+                    "llm_model": settings.llm.model,
                 },
             },
         )
@@ -232,6 +238,7 @@ def create_app(settings: Settings) -> FastAPI:
             personality=payload.get("personality"),
             max_experiments=payload.get("max_experiments"),
             max_wallclock_min=payload.get("max_wallclock_min"),
+            llm_model=payload.get("llm_model"),
         )
 
     @app.post("/run-form")
@@ -243,6 +250,7 @@ def create_app(settings: Settings) -> FastAPI:
         personality: str = Form("exploratory"),
         max_experiments: int | None = Form(default=None),
         max_wallclock_min: int | None = Form(default=None),
+        llm_model: str | None = Form(default=None),
     ):
         _launch_study(
             task=task,
@@ -252,6 +260,7 @@ def create_app(settings: Settings) -> FastAPI:
             personality=personality,
             max_experiments=max_experiments,
             max_wallclock_min=max_wallclock_min,
+            llm_model=llm_model or None,
         )
         # cmd_run generates its own study id; redirect to the list and let the
         # user pick the just-started run (it appears once StudyRunner.run()
@@ -267,6 +276,7 @@ def create_app(settings: Settings) -> FastAPI:
         personality: str | None,
         max_experiments: int | None,
         max_wallclock_min: int | None,
+        llm_model: str | None = None,
     ) -> dict:
         from lab.cli import cmd_run
         from lab.core.models import new_study_id
@@ -282,6 +292,7 @@ def create_app(settings: Settings) -> FastAPI:
         args.personality = personality
         args.max_experiments = max_experiments
         args.max_wallclock_min = max_wallclock_min
+        args.llm_model = llm_model
 
         study_id = new_study_id()
         threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
