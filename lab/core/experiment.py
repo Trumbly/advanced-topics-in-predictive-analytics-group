@@ -224,13 +224,9 @@ def _execute_with_retry(
         "AGENT_LR": str(proposal.lr),
         "AGENT_LR_SCHEDULE": proposal.lr_schedule,
     }
-    if proposal.init_from_experiment_id and ctx.memory.has_checkpoint_for(
-        proposal.init_from_experiment_id
-    ):
-        for w in ctx.memory.wins:
-            if w.id == proposal.init_from_experiment_id and w.checkpoint_path:
-                extra_env["AGENT_CHECKPOINT_IN"] = str(w.checkpoint_path)
-                break
+    warm_start = _resolve_warm_start(ctx, proposal)
+    if warm_start is not None:
+        extra_env["AGENT_CHECKPOINT_IN"] = warm_start
 
     current = code
     last: ExecutionResult | None = None
@@ -274,6 +270,23 @@ def _execute_with_retry(
 
     assert last is not None
     return last  # pragma: no cover
+
+
+def _resolve_warm_start(ctx: RunContext, proposal: Proposal) -> str | None:
+    """Return the AGENT_CHECKPOINT_IN value, gated by ADR-007 and predecessor memory."""
+    if not ctx.settings.agent.memory_enabled:
+        return None
+    if not proposal.init_from_experiment_id:
+        return None
+    for w in ctx.memory.wins:
+        if w.id == proposal.init_from_experiment_id and w.checkpoint_path:
+            return str(w.checkpoint_path)
+    telemetry.log_event(
+        "recover",
+        level="warn",
+        message=f"warm-start checkpoint missing for {proposal.init_from_experiment_id}; running cold",
+    )
+    return None
 
 
 def _capture(exp: Experiment, result: ExecutionResult) -> None:
