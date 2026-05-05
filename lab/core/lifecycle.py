@@ -82,7 +82,9 @@ class StudyRunner:
             study.save(studies_dir)
 
             previous_progress = self.ctx.on_progress
+            previous_study_id = self.ctx.study_id
             self.ctx.on_progress = lambda: study.save(studies_dir)
+            self.ctx.study_id = study.id
             try:
                 run_experiment(exp, self.ctx)
             except Exception as exc:  # pragma: no cover - defensive
@@ -92,6 +94,7 @@ class StudyRunner:
                 exp.status = "FAILED"
             finally:
                 self.ctx.on_progress = previous_progress
+                self.ctx.study_id = previous_study_id
 
             if exp.primary_score is not None and (
                 study.best_score is None or exp.primary_score > study.best_score

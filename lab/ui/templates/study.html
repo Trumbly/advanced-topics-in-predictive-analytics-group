@@ -173,15 +173,17 @@
       return;
     }
     try {
-      const r = await fetch(`/api/experiments/${activeExpId}/stdout?tail_bytes=8192`);
+      const r = await fetch(
+        `/api/experiments/${activeExpId}/stdout?tail_bytes=8192&study_id=${encodeURIComponent(STUDY_ID)}`
+      );
       if (!r.ok) return;
       const data = await r.json();
       if (data.text) {
         stdoutEl.textContent = data.text;
         stdoutEl.scrollTop = stdoutEl.scrollHeight;
-        stdoutStatusEl.textContent = `${data.size.toLocaleString()} bytes from ${activeExpId}/stdout.log`;
+        stdoutStatusEl.textContent = `${data.size.toLocaleString()} bytes from ${data.path || activeExpId + "/stdout.log"}`;
       } else {
-        stdoutStatusEl.textContent = `${activeExpId}/stdout.log empty so far`;
+        stdoutStatusEl.textContent = `no stdout yet for ${STUDY_ID}/${activeExpId}`;
       }
     } catch {}
   }
