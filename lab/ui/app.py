@@ -50,12 +50,25 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
     def study_detail(request: Request, study_id: str):
+        from lab.ui.pipeline import (
+            PHASES,
+            current_step,
+            derive_study_pipelines,
+        )
+
         try:
             study = Study.load(studies_root, study_id)
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
         return templates.TemplateResponse(
-            request, "study.html", {"study": study}
+            request,
+            "study.html",
+            {
+                "study": study,
+                "phases": PHASES,
+                "pipelines": derive_study_pipelines(study),
+                "current": current_step(study),
+            },
         )
 
     @app.get(
@@ -272,11 +285,18 @@ def create_app(settings: Settings) -> FastAPI:
         return {"study_id": study_id}
 
     @app.get("/live/{study_id}")
-    def live(study_id: str):
+    def live(study_id: str, replay: int = 0):
+        """SSE stream of telemetry events.
+
+        Defaults to streaming only NEW events (cursor starts at file EOF) so
+        clients that already loaded historical events via
+        ``/api/studies/<id>/log`` do not see duplicates. Pass ``?replay=1`` to
+        stream the full file from the start.
+        """
         path = studies_root / study_id / "run.log.jsonl"
 
         def event_stream() -> Iterator[bytes]:
-            cursor = 0
+            cursor = 0 if replay else (path.stat().st_size if path.exists() else 0)
             while True:
                 if path.exists():
                     text = path.read_text(encoding="utf-8")
@@ -287,8 +307,6 @@ def create_app(settings: Settings) -> FastAPI:
                             if line.strip():
                                 yield f"data: {line}\n\n".encode("utf-8")
                 time.sleep(0.5)
-                # End-of-stream when study finished and no new bytes for a tick
-                # (the test harness doesn't loop forever).
                 yield b": keep-alive\n\n"
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")

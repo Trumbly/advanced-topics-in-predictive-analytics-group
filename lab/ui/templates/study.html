@@ -1,6 +1,26 @@
 {% extends "base.html" %}
 {% block title %}{{ study.id }}{% endblock %}
 {% block content %}
+<style>
+  .pipeline { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .phase {
+    border:1px solid #2a2f37; border-radius:14px;
+    padding:3px 12px; font-size:0.78em; letter-spacing:0.03em;
+    text-transform:uppercase; background:#15191f; opacity:0.55;
+  }
+  .phase.done { background:#163d22; opacity:1; border-color:#1f6f3a; }
+  .phase.failed { background:#3d1616; opacity:1; border-color:#7a2a2a; color:#ffb6b6; }
+  .phase.running {
+    background:#1d3a6b; opacity:1; border-color:#3a6cd6; color:#e8f0ff;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.55 } }
+  .current-banner {
+    background:#1d3a6b; border-left:3px solid #3a6cd6;
+    padding:8px 12px; margin:10px 0; font-size:0.9em;
+  }
+</style>
+
 <h1>{{ study.id }} <span class="pill" id="status-pill">{{ study.status }}</span></h1>
 <p>
   task <b>{{ study.task_name }}</b> ·
@@ -10,6 +30,12 @@
 </p>
 {% if study.best_experiment_id %}
 <p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ study.best_experiment_id }}</a> — <b>{{ "%.4f"|format(study.best_score) }}</b></p>
+{% endif %}
+
+{% if current %}
+<div class="current-banner" id="current-banner">
+  <b>currently:</b> {{ current[0] }} — phase <b>{{ current[1] }}</b>
+</div>
 {% endif %}
 
 <h2>Experiments <small id="exp-count">({{ study.experiments|length }})</small></h2>
@@ -22,8 +48,17 @@
       {% if e.proposal %}<span style="opacity:0.8">— {{ e.proposal.architecture_name }} ({{ e.proposal.family }})</span>{% endif %}
       {% if e.primary_score is not none %}<span style="float:right">{{ e.primary_metric }} = <b>{{ "%.4f"|format(e.primary_score) }}</b></span>{% endif %}
     </h3>
+
+    {% if pipelines and pipelines.get(e.id) %}
+    <div class="pipeline" aria-label="experiment pipeline">
+      {% for phase, state in pipelines[e.id] %}
+        <span class="phase {{ state }}" title="{{ phase }}: {{ state }}">{{ phase }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     {% if e.tasks %}
-    <table style="margin-top:6px;font-size:0.85em">
+    <table style="margin-top:8px;font-size:0.85em">
       <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
       <tbody>
       {% for t in e.tasks %}
@@ -81,23 +116,26 @@
     logEl.scrollTop = logEl.scrollHeight;
   }
 
-  // Pull historical log first.
+  // Backfill historical events first, THEN attach SSE from EOF (no replay)
+  // so users do not see duplicates.
+  let eventSrc = null;
   fetch(`/api/studies/${STUDY_ID}/log?tail=500`)
     .then(r => r.json())
     .then(lines => {
       lines.forEach(appendLog);
       logStatusEl.textContent = `loaded ${lines.length} historical events`;
     })
-    .catch(() => { logStatusEl.textContent = "no log file yet"; });
-
-  // Live SSE only while running.
-  let eventSrc = null;
-  if (!TERMINAL.has(initialStatus)) {
-    logStatusEl.textContent = "live tailing…";
-    eventSrc = new EventSource(`/live/${STUDY_ID}`);
-    eventSrc.addEventListener("message", e => appendLog(e.data));
-    eventSrc.addEventListener("error", () => { logStatusEl.textContent = "stream error (will reconnect)"; });
-  }
+    .catch(() => { logStatusEl.textContent = "no log file yet"; })
+    .finally(() => {
+      if (!TERMINAL.has(initialStatus)) {
+        logStatusEl.textContent = "live tailing…";
+        eventSrc = new EventSource(`/live/${STUDY_ID}`);  // defaults to EOF; no replay
+        eventSrc.addEventListener("message", e => appendLog(e.data));
+        eventSrc.addEventListener("error", () => {
+          logStatusEl.textContent = "stream error (will reconnect)";
+        });
+      }
+    });
 
   // Periodic state refresh while running.
   let lastExpCount = {{ study.experiments|length }};
@@ -108,7 +146,6 @@
       const data = await r.json();
       statusPill.textContent = data.status;
       if (data.experiments.length !== lastExpCount) {
-        // New experiment landed → reload to get the full task table.
         location.reload();
       }
       if (TERMINAL.has(data.status)) {
