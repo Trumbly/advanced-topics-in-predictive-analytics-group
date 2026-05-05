@@ -128,3 +128,33 @@ def test_root_redirects_to_studies(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "Studies" in r.text or "studies" in r.text
+
+
+def test_new_study_form_renders(client):
+    r = client.get("/new")
+    assert r.status_code == 200
+    assert "Launch new study" in r.text
+    assert 'name="task"' in r.text
+    assert 'name="personality"' in r.text
+    assert 'name="use_best_prompts"' in r.text
+
+
+def test_run_form_redirects_to_study_detail(client, monkeypatch):
+    """POST /run-form returns 303 to /studies/<new id>."""
+    # cmd_run is heavy; patch it to no-op in the spawned thread.
+    import lab.cli
+
+    monkeypatch.setattr(lab.cli, "cmd_run", lambda args: 0)
+
+    r = client.post(
+        "/run-form",
+        data={
+            "task": "track_b",
+            "personality": "exploratory",
+            "max_experiments": "1",
+            "max_wallclock_min": "5",
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/studies/study_")
