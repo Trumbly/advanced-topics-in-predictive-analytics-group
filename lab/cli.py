@@ -46,6 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--max-experiments", type=int)
     run.add_argument("--max-wallclock-min", type=int)
+    run.add_argument(
+        "--llm-model",
+        default=None,
+        help="override the LLM model (Ollama tag) for this study only.",
+    )
 
     report = sub.add_parser("report", help="render a study report")
     report.add_argument("study_id")
@@ -260,7 +265,14 @@ def _apply_run_overrides(settings, args):
     if args.agent_memory:
         agent = agent.model_copy(update={"memory_enabled": True})
 
-    return settings.model_copy(update={"compute_budget": cb, "agent": agent})
+    llm = settings.llm
+    chosen_model = getattr(args, "llm_model", None)
+    if chosen_model:
+        llm = llm.model_copy(update={"model": chosen_model})
+
+    return settings.model_copy(
+        update={"compute_budget": cb, "agent": agent, "llm": llm}
+    )
 
 
 def _apply_use_best_prompts(settings):
