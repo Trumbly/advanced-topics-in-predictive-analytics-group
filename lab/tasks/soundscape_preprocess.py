@@ -59,13 +59,26 @@ def load_canonical_class_order(sample_submission_path: Path) -> list[str]:
     return list(header[1:])
 
 
-def ingest_train_csv(train_csv_path: Path) -> "OrderedDict[str, list[str]]":
+def ingest_train_csv(
+    train_csv_path: Path,
+    *,
+    spectrograms_dir: Path | None = None,
+) -> "OrderedDict[str, list[str]]":
     """Single-label rows from ``train.csv`` keyed by sample_id.
 
-    Sample IDs come from the basename of ``filename`` (extension stripped),
-    matching the convention used by ``scripts/build_profile.py`` to name the
-    per-clip ``.npy`` mels.
+    Sample IDs come from the basename of ``filename`` (extension stripped).
+    The original BirdCLEF pipeline slices each per-clip recording into
+    ``<basename>_w<idx>.npy`` 5-second windows, so a single train.csv row
+    needs to expand into one labels.csv entry **per existing window mel**.
+
+    Pass ``spectrograms_dir`` to enable that expansion. When ``None`` we
+    fall back to the legacy clip-level sid (``<basename>``) so existing
+    callers and tests keep working without the mels-on-disk dependency.
     """
+    use_windows = spectrograms_dir is not None
+    windows_by_base: dict[str, list[str]] = (
+        _index_window_sids(spectrograms_dir) if use_windows else {}
+    )
     out: "OrderedDict[str, list[str]]" = OrderedDict()
     with train_csv_path.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
@@ -74,10 +87,41 @@ def ingest_train_csv(train_csv_path: Path) -> "OrderedDict[str, list[str]]":
             if not primary:
                 continue
             filename = row.get("filename") or ""
-            sid = _sid_from_filename(filename)
-            if not sid:
+            base = _sid_from_filename(filename)
+            if not base:
                 continue
-            out.setdefault(sid, []).append(primary)
+            sids = windows_by_base.get(base, []) if use_windows else [base]
+            if not sids:
+                _LOG.debug(
+                    "no window mels for %s under %s; row dropped",
+                    base,
+                    spectrograms_dir,
+                )
+                continue
+            for sid in sids:
+                out.setdefault(sid, []).append(primary)
+    return out
+
+
+def _index_window_sids(spectrograms_dir: Path) -> dict[str, list[str]]:
+    """One iterdir() pass over ``spectrograms_dir`` → ``{base: [sid, ...]}``.
+
+    Avoids the O(N*M) trap of running ``glob("<base>_w*.npy")`` per train.csv
+    row against a 233 k-file directory (which is several minutes of stat()
+    calls on a real BirdCLEF dump).
+    """
+    out: dict[str, list[str]] = {}
+    for p in spectrograms_dir.iterdir():
+        name = p.name
+        if not name.endswith(".npy"):
+            continue
+        stem = name[:-4]
+        head, sep, tail = stem.rpartition("_w")
+        if not sep or not tail.isdigit():
+            continue
+        out.setdefault(head, []).append(stem)
+    for sids in out.values():
+        sids.sort()
     return out
 
 
@@ -85,13 +129,27 @@ def ingest_soundscape_labels(
     soundscape_labels_path: Path,
     *,
     window_seconds: int = 5,
+    spectrograms_dir: Path | None = None,
 ) -> "OrderedDict[str, list[str]]":
     """Multi-label rows from ``train_soundscapes_labels.csv`` keyed by window.
 
     Each row is ``filename, start (HH:MM:SS), end, primary_label``. We compute
     the window index from ``start // window_seconds`` and emit one entry per
     window with the semicolon-split label set.
+
+    ``spectrograms_dir``: when supplied, drop entries whose ``<sid>.npy`` is
+    not on disk yet. Prevents the lazy DataLoader from hitting FileNotFound
+    on soundscape windows that have a label but no mel (the mel cache for
+    soundscapes has to be built explicitly via
+    ``lab preprocess --soundscapes``).
     """
+    existing: set[str] | None = None
+    if spectrograms_dir is not None:
+        existing = {
+            p.name[:-4]
+            for p in spectrograms_dir.iterdir()
+            if p.name.endswith(".npy")
+        }
     out: "OrderedDict[str, list[str]]" = OrderedDict()
     with soundscape_labels_path.open("r", encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh)
@@ -109,15 +167,17 @@ def ingest_soundscape_labels(
             if not base:
                 continue
             sid = f"{base}_w{window_idx:03d}"
+            if existing is not None and sid not in existing:
+                continue
             labels = [lab.strip() for lab in raw_labels.split(";") if lab.strip()]
             if not labels:
                 continue
             # union with any existing labels (some 5-s windows can appear twice
             # if the upstream label is updated between competition releases)
-            existing = out.setdefault(sid, [])
+            current = out.setdefault(sid, [])
             for lab in labels:
-                if lab not in existing:
-                    existing.append(lab)
+                if lab not in current:
+                    current.append(lab)
     return out
 
 
@@ -168,11 +228,18 @@ def build_unified_labels(
     *,
     raw_dir: Path,
     out_path: Path,
+    spectrograms_dir: Path | None = None,
     train_csv_name: str = "train.csv",
     soundscape_labels_name: str = "train_soundscapes_labels.csv",
     sample_submission_name: str = "sample_submission.csv",
 ) -> "OrderedDict[str, list[str]]":
     """Top-level: read all three sources, write unified multi-label labels.csv.
+
+    ``spectrograms_dir``: when provided, each ``train.csv`` row expands into
+    one labels.csv entry per existing ``<base>_w<idx>.npy`` window so the
+    sids in the file match the on-disk mel filenames. Without it we emit
+    clip-level sids (legacy behaviour, only correct when there is exactly
+    one mel per clip and it is named ``<base>.npy``).
 
     Returns the in-memory mapping so callers can inspect class counts without
     re-reading the file.
@@ -182,9 +249,15 @@ def build_unified_labels(
     train_path = raw_dir / train_csv_name
     sscape_path = raw_dir / soundscape_labels_name
 
-    train_part = ingest_train_csv(train_path) if train_path.exists() else OrderedDict()
+    train_part = (
+        ingest_train_csv(train_path, spectrograms_dir=spectrograms_dir)
+        if train_path.exists()
+        else OrderedDict()
+    )
     sscape_part = (
-        ingest_soundscape_labels(sscape_path) if sscape_path.exists() else OrderedDict()
+        ingest_soundscape_labels(sscape_path, spectrograms_dir=spectrograms_dir)
+        if sscape_path.exists()
+        else OrderedDict()
     )
     if not train_part and not sscape_part:
         raise FileNotFoundError(
