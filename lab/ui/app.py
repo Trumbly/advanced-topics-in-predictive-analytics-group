@@ -278,6 +278,18 @@ def create_app(settings: Settings) -> FastAPI:
         max_wallclock_min: int | None,
         llm_model: str | None = None,
     ) -> dict:
+        # Pre-flight: refuse to launch if real shards are missing. Surfaces
+        # the hard-fail before a daemon thread silently dies.
+        train_path = Path(settings.task.processed_data_dir) / "train.pt"
+        if not train_path.exists():
+            raise HTTPException(
+                status_code=412,
+                detail=(
+                    f"missing processed shards at {train_path}. "
+                    "Run `lab preprocess` (real) or `lab preprocess --synthetic` "
+                    "(smoke only) before launching a study."
+                ),
+            )
         from lab.cli import cmd_run
         from lab.core.models import new_study_id
 

@@ -5,7 +5,7 @@ primary_metric: roc_auc_macro
 skeleton_path: config/skeletons/audio_multilabel.py.j2
 raw_data_dir: data/raw/birdclef-2026
 processed_data_dir: data/processed/mels
-expected_num_classes: 234
+expected_num_classes: 206
 input_tensor_shape:
   - 1
   - 128
