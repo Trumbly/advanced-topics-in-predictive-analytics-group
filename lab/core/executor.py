@@ -67,6 +67,8 @@ class LocalExecutor:
         experiment_id: str,
         extra_env: dict[str, str],
         timeout_s: int,
+        heartbeat_interval_s: float = 30.0,
+        on_heartbeat: "callable[[float, int], None] | None" = None,
     ) -> ExecutionResult:
         sandbox_dir = self.sandbox_root / experiment_id
         sandbox_dir.mkdir(parents=True, exist_ok=True)
@@ -92,12 +94,29 @@ class LocalExecutor:
                 stderr=err_f,
                 start_new_session=True,
             )
-            try:
-                returncode = process.wait(timeout=timeout_s)
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                _kill_process_group(process)
-                returncode = process.wait()
+            deadline = t0 + timeout_s
+            next_heartbeat = t0 + heartbeat_interval_s
+            poll_interval = min(1.0, heartbeat_interval_s / 4)
+            returncode: int | None = None
+            while True:
+                rc = process.poll()
+                if rc is not None:
+                    returncode = rc
+                    break
+                now = time.monotonic()
+                if now >= deadline:
+                    timed_out = True
+                    _kill_process_group(process)
+                    returncode = process.wait()
+                    break
+                if on_heartbeat is not None and now >= next_heartbeat:
+                    elapsed = int(now - t0)
+                    try:
+                        on_heartbeat(now - t0, _stdout_size(stdout_path))
+                    except Exception:  # pragma: no cover - never break the run
+                        pass
+                    next_heartbeat = now + heartbeat_interval_s
+                time.sleep(poll_interval)
         duration = time.monotonic() - t0
 
         stdout = stdout_path.read_text(errors="replace")
@@ -215,6 +234,13 @@ def _excerpt(text: str, start: int, end: int, *, window: int = 200) -> str:
     s = max(0, start - window)
     e = min(len(text), end + window)
     return text[s:e].strip().splitlines()[-1][:500] if text[s:e].strip() else text[s:e][:500]
+
+
+def _stdout_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except FileNotFoundError:
+        return 0
 
 
 def _kill_process_group(process: subprocess.Popen) -> None:
