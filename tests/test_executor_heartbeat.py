@@ -35,8 +35,8 @@ def test_heartbeat_fires_during_long_run(executor):
 
     calls: list[tuple[float, int]] = []
 
-    def cb(elapsed: float, stdout_bytes: int) -> None:
-        calls.append((elapsed, stdout_bytes))
+    def cb(elapsed: float, stdout_bytes: int, tail: str = "") -> None:
+        calls.append((elapsed, stdout_bytes, tail))
 
     result = executor.run(
         code,
@@ -76,7 +76,7 @@ def test_heartbeat_callback_exception_does_not_break_run(executor):
         "'metrics': {}, 'history': []}))\n"
     )
 
-    def boom(elapsed: float, stdout_bytes: int) -> None:
+    def boom(elapsed: float, stdout_bytes: int, tail: str = "") -> None:
         raise RuntimeError("hook explodes")
 
     result = executor.run(
