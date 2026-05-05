@@ -15,22 +15,85 @@ competition, driven by a locally-hosted Large Language Model.
 
 ## Setup
 
+### 1. Python environment
+
+The project uses `uv` to manage a venv that lives next to the source tree at
+`.venv/`.
+
 ```bash
-# 1. Clone + create environment
-git clone <repo-url> && cd advanced-topics-in-predictive-analytics-group
-uv sync                              # or: pip install -e .[dev]
+# install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Local LLM (Ollama recommended)
-ollama pull gemma4                   # or any model from docs/REDESIGN_PLAN.md
+# in the repo root: create the venv + install lab + all deps from pyproject.toml
+uv venv .venv
+uv pip install -e .
 
-# 3. Place BirdCLEF data under data/raw/birdclef-2026/
-#    (or use --synthetic for the smoke path)
+# verify (must report librosa+soundfile too -- needed for mel generation)
+.venv/bin/python -c "import torch, librosa, soundfile; print('ok')"
 ```
+
+If you prefer conda, any 3.10+ env with the `pyproject.toml` deps installed
+works. Substitute the python path in `PYTHON=...` for any command below.
+
+### 2. Local LLM (Ollama)
+
+```bash
+ollama pull gemma4                # default; any chat-capable Ollama model works
+ollama serve                      # leave running in another terminal
+```
+
+### 3. BirdCLEF+ 2026 raw data
+
+Download the competition dump from Kaggle and place it under `data/raw/`:
+
+```
+data/raw/
+  train.csv
+  taxonomy.csv
+  sample_submission.csv               # canonical 234-class column set
+  train_soundscapes_labels.csv         # multi-label per 5s window
+  train_audio/<class_id>/<sid>.ogg     # ~35 k single-label clips
+  train_soundscapes/<filename>.ogg     # ~10 k 60s soundscape recordings
+```
+
+(For the synthetic smoke path you can skip this and run with `--synthetic`.)
+
+### 4. Build the mel cache + label index
+
+The per-clip cache from the off-repo legacy pipeline does **not** include the
+739 soundscape windows that cover the 28 species which are absent from
+`train.csv` (Insect sonotypes + 3 Amphibia). The script below rebuilds the
+full cache so all 234 target species appear in training:
+
+```bash
+./scripts/build_all_mels.sh
+```
+
+What it runs:
+
+| Step | Command | Output | Time |
+|---|---|---|---|
+| 1 | `lab preprocess --train-audio` | ~233 k per-clip mels under `data/processed/spectrograms/` | ~2-4 h CPU |
+| 2 | `lab preprocess --soundscapes` | 739 soundscape window mels (closes 28-species gap) | ~5-15 min |
+| 3 | `lab preprocess --unify-labels` | `data/processed/labels.csv` with canonical 234-class union | ~5 s |
+| 4 | `lab preprocess --overwrite` | `train_index.json` + `val_index.json` lazy index | ~30 s |
+
+Useful env vars:
+
+```bash
+SKIP_TRAIN_AUDIO=1 ./scripts/build_all_mels.sh   # keep existing per-clip cache, rebuild only soundscapes + labels
+OVERWRITE=1 ./scripts/build_all_mels.sh           # force-rewrite every step
+PYTHON=/opt/miniconda3/envs/birdclef/bin/python ./scripts/build_all_mels.sh   # different interpreter
+```
+
+Mel parameters are pinned in `lab.tasks.audio_mels.MelParams`
+(sr=32 kHz, n_fft=2048, hop=512, n_mels=128, fmin=20, fmax=16 kHz, dB scaling)
+and produce shape `(128, 313)` for a 5 s window. New mels are interchangeable
+with anything the legacy pipeline produced.
 
 ## Run
 
 ```bash
-python -m lab preprocess --task track_b              # one-time mel cache
 python -m lab run --task track_b --max-experiments 5 # autonomous study
 python -m lab report <study_id>                      # build report
 python -m lab submit <study_id>                      # build Kaggle notebook
