@@ -71,7 +71,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
     preprocess = sub.add_parser("preprocess", help="one-off mel-spectrogram cache")
     preprocess.add_argument("--task", default="track_b")
-    preprocess.add_argument("--synthetic", action="store_true")
+    preprocess.add_argument(
+        "--synthetic",
+        action="store_true",
+        help="opt-in synthetic shards for smoke testing only",
+    )
+    preprocess.add_argument(
+        "--samples-per-class",
+        type=int,
+        default=50,
+        help="cap per-class sample count when building real shards",
+    )
+    preprocess.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="rewrite train.pt + val.pt even if present",
+    )
 
     sub.add_parser("benchmark", help="cross-study (family, arch) leaderboard")
 
@@ -101,18 +116,21 @@ def cmd_run(args) -> int:
     from lab.prompts.engine import PromptEngine
     from lab.prompts.registry import PromptRegistry
     from lab.tasks import get_task_adapter
-    from lab.tasks.dataset import ensure_dataset_present
     from lab.tasks.eda import run_eda
 
     real_processed = Path(settings.task.processed_data_dir)
-    settings, used_synthetic = ensure_dataset_present(settings)
-    if used_synthetic:
+    train_path = real_processed / "train.pt"
+    if not train_path.exists():
         print(
-            f"warning: no real shard at {real_processed}; running on "
-            f"synthetic stand-ins from {settings.task.processed_data_dir}. "
-            "Run `lab preprocess --synthetic` to refresh, or place real Kaggle "
-            "mels in the original location before evaluating model quality."
+            "ERROR: no processed shards at "
+            f"{real_processed}/train.pt. Build them with `lab preprocess` "
+            "(real BirdCLEF mels) or `lab preprocess --synthetic` (smoke "
+            "test only — score will be random). Auto-synthetic fallback "
+            "was removed: synthetic data has no signal so the agent's KPIs "
+            "would be meaningless.",
+            file=sys.stderr,
         )
+        return 2
 
     client = LLMClient(settings.llm)
     registry = PromptRegistry(Path(settings.paths.prompts_dir))
@@ -239,12 +257,19 @@ def cmd_preprocess(args) -> int:
         print(f"synthetic shards written to {target}")
         return 0
 
-    print(
-        "non-synthetic preprocessing not implemented in CLI; use scripts/preprocess.py "
-        "for the real BirdCLEF mel-spectrogram pipeline.",
-        file=sys.stderr,
-    )
-    return 1
+    from lab.tasks.real_preprocess import build_real_shards
+
+    try:
+        train_path, val_path = build_real_shards(
+            settings,
+            samples_per_class=getattr(args, "samples_per_class", 50),
+            overwrite=getattr(args, "overwrite", False),
+        )
+    except FileNotFoundError as exc:
+        print(f"preprocess failed: {exc}", file=sys.stderr)
+        return 2
+    print(f"real shards written: {train_path}  +  {val_path}")
+    return 0
 
 
 # ---------------------------------------------------------------------------
