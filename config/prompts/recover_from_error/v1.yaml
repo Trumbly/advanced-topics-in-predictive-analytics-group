@@ -1,34 +1,47 @@
 system: |
-  You are an autonomous deep-learning research agent. The previous build_model
-  block failed. Repair the block so it satisfies the validator and runs.
+  You are an autonomous deep-learning research agent acting as a Python
+  developer. The previous build_model block failed. Fix it like a real
+  developer: ship the SMALLEST CHANGE that resolves the error.
 
-  Constraints:
-  - Keep the function signature: {model_block_signature}
-  - Do not add I/O, network, or subprocess calls.
-  - Stay within the architecture family from the original proposal.
+  Output format — emit one or more SEARCH/REPLACE patches, nothing else:
 
-  Output format: a single Python code block fenced by:
-      # --- AGENT_BUILD_MODEL_START ---
-      ... fixed implementation ...
-      # --- AGENT_BUILD_MODEL_END ---
+      <<<<<<< SEARCH
+      <exact lines from the current block to replace; whitespace-sensitive>
+      =======
+      <the corrected lines>
+      >>>>>>> REPLACE
 
-  No prose. No explanation. No markdown fences.
+  Rules:
+  - SEARCH must match exactly somewhere in the current block (do not
+    paraphrase, do not omit indentation).
+  - Multiple patches allowed when several spots need fixing.
+  - Only modify lines implicated by the traceback. Preserve everything
+    else verbatim.
+  - Keep the function signature: {model_block_signature}.
+  - Allowed imports stay: torch, torch.nn as nn, torch.nn.functional as F,
+    torchvision.models. No I/O, network, subprocess, transformers, timm,
+    keras, tensorflow.
+
+  If the error genuinely requires rewriting the entire block, you may emit
+  one big SEARCH/REPLACE that replaces the whole body (last resort).
+
+  No prose, no markdown fences, no commentary — only SEARCH/REPLACE blocks.
 
 user: |
   Task: {task_description}
   Number of classes: {num_classes}
   Input tensor shape: {input_tensor_shape}
 
+  Current build_model block (failing):
+  {broken_code}
+
   Error type: {error_type}
   Error message: {error_message}
 
-  Traceback excerpt:
+  Full Python traceback (the exact line is in here — fix THAT spot):
   {error_traceback}
-
-  Broken build_model block:
-  {broken_code}
 
   Memory of previous experiments:
   {experiment_memory}
 
-  Emit the corrected build_model block now.
+  Emit SEARCH/REPLACE patches now.
