@@ -59,6 +59,44 @@
 <p>No scored experiments yet.</p>
 {% endif %}
 
+<h2 style="margin-top:24px">Code-generation quality by LLM model</h2>
+{% if kpis.model_codegen %}
+<table>
+  <thead>
+    <tr>
+      <th>llm_model</th>
+      <th>studies</th>
+      <th>experiments</th>
+      <th>bad-code rate</th>
+      <th>first-try validate pass</th>
+      <th>execution failure rate</th>
+      <th>validate (fail/total)</th>
+      <th>execute (fail/total)</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for name, m in kpis.model_codegen.items() %}
+    <tr>
+      <td><b>{{ name }}</b></td>
+      <td>{{ m.studies }}</td>
+      <td>{{ m.experiments }}</td>
+      <td>{{ "%.1f"|format(m.bad_code_rate * 100) }}%</td>
+      <td>{{ "%.1f"|format(m.first_try_validate_pass_rate * 100) }}%</td>
+      <td>{{ "%.1f"|format(m.execution_failure_rate * 100) }}%</td>
+      <td>{{ m.validate_failed }}/{{ m.validate_attempts }}</td>
+      <td>{{ m.execute_failed }}/{{ m.execute_attempts }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p style="font-size:0.78em;opacity:0.7;margin-top:6px">
+  bad-code rate = validate-FAILED attempts / total validate attempts ·
+  first-try pass = experiments whose first validate attempt succeeded.
+</p>
+{% else %}
+<p>No experiments scored yet.</p>
+{% endif %}
+
 <h2 style="margin-top:24px">Best prompts</h2>
 {% if kpis.best_prompts %}
   {% for task, kpi in kpis.best_prompts.items() %}

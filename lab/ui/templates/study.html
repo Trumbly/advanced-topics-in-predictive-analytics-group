@@ -57,6 +57,26 @@
     </div>
     {% endif %}
 
+    {% set r = rates.get(e.id) if rates else None %}
+    {% if r and (r.validate_attempts or r.execute_attempts) %}
+    <div style="margin-top:8px;font-size:0.83em;display:flex;gap:18px;flex-wrap:wrap;opacity:0.92">
+      {% if r.validate_attempts %}
+      <span>
+        validate pass rate
+        <b>{{ "%.0f"|format(r.validation_pass_rate * 100) }}%</b>
+        <span style="opacity:0.7">({{ r.validate_succeeded }}/{{ r.validate_attempts }} · first-try {{ "✓" if r.validate_first_try_ok else "✗" }})</span>
+      </span>
+      {% endif %}
+      {% if r.execute_attempts %}
+      <span>
+        execute pass rate
+        <b>{{ "%.0f"|format(r.execution_pass_rate * 100) }}%</b>
+        <span style="opacity:0.7">({{ r.execute_succeeded }}/{{ r.execute_attempts }} · first-try {{ "✓" if r.execute_first_try_ok else "✗" }})</span>
+      </span>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if e.tasks %}
     <table style="margin-top:8px;font-size:0.85em">
       <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>

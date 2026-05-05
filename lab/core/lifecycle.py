@@ -38,6 +38,7 @@ class StudyRunner:
             prompt_template_paths=_active_prompt_paths(self.ctx),
             experiments=[],
             created_at=datetime.now(timezone.utc),
+            llm_model=f"{self.ctx.settings.llm.provider}:{self.ctx.settings.llm.model}",
         )
 
         telemetry.configure(self.ctx.settings, study_id=study.id)
