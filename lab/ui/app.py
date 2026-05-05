@@ -50,6 +50,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
     def study_detail(request: Request, study_id: str):
+        from lab.core.codegen_rates import study_rates
         from lab.ui.pipeline import (
             PHASES,
             current_step,
@@ -60,6 +61,7 @@ def create_app(settings: Settings) -> FastAPI:
             study = Study.load(studies_root, study_id)
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
+        rates = {r.experiment_id: r for r in study_rates(study)}
         return templates.TemplateResponse(
             request,
             "study.html",
@@ -68,6 +70,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "phases": PHASES,
                 "pipelines": derive_study_pipelines(study),
                 "current": current_step(study),
+                "rates": rates,
             },
         )
 

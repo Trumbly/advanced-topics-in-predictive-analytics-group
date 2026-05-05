@@ -9,6 +9,10 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from lab.core.codegen_rates import (
+    ModelCodegenStats,
+    aggregate_model_codegen,
+)
 from lab.core.loaders import list_studies, load_many
 from lab.core.models import Experiment, Study
 from lab.prompts.scoring import (
@@ -44,6 +48,7 @@ class DashboardKPIs(BaseModel):
     best_f1: float | None
     best_model: BestModel | None
     best_prompts: dict[str, PromptKPI]
+    model_codegen: dict[str, ModelCodegenStats]
 
 
 def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
@@ -91,6 +96,7 @@ def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
         best_f1=max(f1s) if f1s else None,
         best_model=best_model,
         best_prompts=best_prompts,
+        model_codegen=aggregate_model_codegen(experiments_dir),
     )
 
 
