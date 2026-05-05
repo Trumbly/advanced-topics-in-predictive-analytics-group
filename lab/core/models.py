@@ -185,6 +185,7 @@ class Study(BaseModel):
     study_verdict: Verdict | None = None
     created_at: datetime
     finished_at: datetime | None = None
+    llm_model: str | None = None  # provider:model used to drive the loop
 
     # ----- I/O helpers -----
 
