@@ -38,13 +38,7 @@ class StudyRunner:
         telemetry.log_event("study_start", task=study.task_name)
         study.save(Path(self.ctx.settings.paths.experiments_dir))
 
-        if predecessor is not None:
-            self.ctx.memory.seed_from_predecessor(predecessor)
-        if self.ctx.settings.agent.memory_enabled:
-            self.ctx.memory.seed_from_agent_memory(
-                Path(self.ctx.settings.paths.experiments_dir),
-                task=self.ctx.settings.task_name,
-            )
+        self._wire_agent_memory(study, predecessor)
 
         self._install_sigint(study)
 
@@ -109,6 +103,18 @@ class StudyRunner:
 
     def abort(self) -> None:
         self._aborted = True
+
+    # ------------------------------------------------------------------
+
+    def _wire_agent_memory(self, study: Study, predecessor: Study | None) -> None:
+        """Honour settings.agent.memory_enabled at study start (ADR-007)."""
+        if predecessor is not None:
+            self.ctx.memory.seed_from_predecessor(predecessor)
+        if self.ctx.settings.agent.memory_enabled:
+            self.ctx.memory.seed_from_agent_memory(
+                Path(self.ctx.settings.paths.experiments_dir),
+                task=self.ctx.settings.task_name,
+            )
 
     # ------------------------------------------------------------------
 
