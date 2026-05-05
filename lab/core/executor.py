@@ -68,7 +68,7 @@ class LocalExecutor:
         extra_env: dict[str, str],
         timeout_s: int,
         heartbeat_interval_s: float = 30.0,
-        on_heartbeat: "callable[[float, int], None] | None" = None,
+        on_heartbeat: "callable[[float, int, str], None] | None" = None,
     ) -> ExecutionResult:
         sandbox_dir = self.sandbox_root / experiment_id
         sandbox_dir.mkdir(parents=True, exist_ok=True)
@@ -110,9 +110,12 @@ class LocalExecutor:
                     returncode = process.wait()
                     break
                 if on_heartbeat is not None and now >= next_heartbeat:
-                    elapsed = int(now - t0)
                     try:
-                        on_heartbeat(now - t0, _stdout_size(stdout_path))
+                        on_heartbeat(
+                            now - t0,
+                            _stdout_size(stdout_path),
+                            _stdout_tail(stdout_path),
+                        )
                     except Exception:  # pragma: no cover - never break the run
                         pass
                     next_heartbeat = now + heartbeat_interval_s
@@ -241,6 +244,21 @@ def _stdout_size(path: Path) -> int:
         return path.stat().st_size
     except FileNotFoundError:
         return 0
+
+
+def _stdout_tail(path: Path, *, max_bytes: int = 800) -> str:
+    """Last ``max_bytes`` of the subprocess stdout, decoded forgivingly."""
+    try:
+        size = path.stat().st_size
+    except FileNotFoundError:
+        return ""
+    with path.open("rb") as fh:
+        if size > max_bytes:
+            fh.seek(size - max_bytes)
+        chunk = fh.read()
+    return chunk.decode("utf-8", errors="replace").splitlines()[-3:].__str__() if False else "\n".join(
+        chunk.decode("utf-8", errors="replace").splitlines()[-3:]
+    )
 
 
 def _kill_process_group(process: subprocess.Popen) -> None:

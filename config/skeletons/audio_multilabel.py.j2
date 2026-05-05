@@ -189,12 +189,25 @@ def lr_scheduler(opt, schedule, total_steps):
     return None
 
 
+def _print(msg: str) -> None:
+    """Single source of stdout writes — every line is flushed so the UI's
+    live tail picks it up the moment the subprocess emits it."""
+    print(msg, flush=True)
+
+
 def main():
     train_loader, val_loader = make_loaders()
+    _print(
+        f"[loader] train_batches={len(train_loader)} val_batches={len(val_loader)} "
+        f"batch_size={BATCH_SIZE} num_workers={NUM_WORKERS} device={DEVICE}"
+    )
     model = build_model(num_classes=NUM_CLASSES)
     if CHECKPOINT_IN and Path(CHECKPOINT_IN).exists():
         model.load_state_dict(torch.load(CHECKPOINT_IN, map_location="cpu"))
+        _print(f"[init] warm-started from {CHECKPOINT_IN}")
     model.to(DEVICE)
+    n_params = sum(p.numel() for p in model.parameters())
+    _print(f"[model] params={n_params:,} num_classes={NUM_CLASSES}")
     criterion = nn.BCEWithLogitsLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
     total_steps = max(1, EPOCHS * len(train_loader))
@@ -207,10 +220,12 @@ def main():
     stopped_early = False
 
     for epoch in range(1, EPOCHS + 1):
+        epoch_t0 = time.time()
         model.train()
         running = 0.0
         n = 0
-        for x, y in train_loader:
+        log_every = max(1, len(train_loader) // 5)
+        for batch_idx, (x, y) in enumerate(train_loader, start=1):
             x = x.float().to(DEVICE)
             y = y.float().to(DEVICE)
             optimizer.zero_grad()
@@ -222,6 +237,11 @@ def main():
                 sched.step()
             running += loss.item() * x.size(0)
             n += x.size(0)
+            if batch_idx % log_every == 0:
+                _print(
+                    f"[epoch {epoch}/{EPOCHS}] batch {batch_idx}/{len(train_loader)} "
+                    f"running_loss={running / max(1, n):.4f}"
+                )
         train_loss = running / max(1, n)
 
         # val
@@ -249,17 +269,31 @@ def main():
             }
         )
 
-        if primary > best_score:
+        improved = primary > best_score
+        if improved:
             best_score = primary
             no_improve = 0
             torch.save(model.state_dict(), CHECKPOINT_OUT)
         else:
             no_improve += 1
-            if no_improve >= 3:
-                stopped_early = True
-                break
+
+        epoch_dt = time.time() - epoch_t0
+        _print(
+            f"[epoch {epoch}/{EPOCHS}] done in {epoch_dt:.1f}s "
+            f"loss={train_loss:.4f} f1_macro={f1:.4f} roc_auc_macro={auc:.4f} "
+            f"best={best_score:.4f} {'(NEW BEST)' if improved else f'(no improve {no_improve}/3)'}"
+        )
+
+        if not improved and no_improve >= 3:
+            stopped_early = True
+            _print("[stop] early stopping triggered (3 epochs without improvement)")
+            break
 
     duration = time.time() - t0
+    _print(
+        f"[done] best {PRIMARY_METRIC}={best_score:.4f} duration={duration:.1f}s "
+        f"epochs_run={len(history)}"
+    )
     Path("results.json").write_text(
         json.dumps(
             {
