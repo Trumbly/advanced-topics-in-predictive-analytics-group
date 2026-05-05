@@ -23,11 +23,27 @@ PHASES: tuple[str, ...] = ("propose", "generate", "validate", "execute", "judge"
 
 _TERMINAL_EXP_STATUSES = {"JUDGED", "COMPLETED", "FAILED", "ABORTED"}
 
+# The orchestrator's exp.status -> the phase it is in the middle of.
+_STATUS_TO_PHASE: dict[str, str] = {
+    "PROPOSED": "propose",
+    "GENERATING": "generate",
+    "VALIDATING": "validate",
+    "EXECUTING": "execute",
+    "RECOVERING": "validate",
+}
+
 
 def derive_experiment_pipeline(
     exp: Experiment, *, is_active: bool = False
 ) -> list[tuple[str, str]]:
-    """Return ``[(phase, state), ...]`` ordered by :data:`PHASES`."""
+    """Return ``[(phase, state), ...]`` ordered by :data:`PHASES`.
+
+    Past phases are read off the task list (last attempt's status); the
+    *currently running* phase comes from the most recent task transition (so
+    a validate FAILED followed by no recover yet routes back to ``generate``,
+    matching the agent's actual behaviour where recover re-prompts the LLM
+    for a new build_model block).
+    """
     states: dict[str, str] = {p: "pending" for p in PHASES}
 
     if any(t.name == "propose" and t.status == "SUCCEEDED" for t in exp.tasks):
@@ -50,19 +66,52 @@ def derive_experiment_pipeline(
         states["judge"] = "done"
 
     if is_active and exp.status not in _TERMINAL_EXP_STATUSES:
-        for phase in PHASES:
-            if states[phase] == "pending":
-                states[phase] = "running"
-                break
+        running = _running_phase(exp)
+        if running is not None:
+            states[running] = "running"
 
     return [(p, states[p]) for p in PHASES]
+
+
+def _running_phase(exp: Experiment) -> str | None:
+    """Pick the phase currently in flight.
+
+    Order of evidence (strongest first):
+      1. Most recent Task on the experiment — this captures retry transitions
+         (a failed validate that has not yet been recovered routes the user
+         back to ``generate``; an autofix routes back to ``validate``).
+      2. ``exp.status`` set by the orchestrator at phase boundaries.
+    """
+    if exp.tasks:
+        last = exp.tasks[-1]
+        if last.name == "recover":
+            kind = (last.input or {}).get("kind", "") if last.input else ""
+            if "llm_reprompt" in kind:
+                # Recover asked the LLM for a fresh build_model block: that
+                # is generation work in progress.
+                return "generate"
+            # autofix is a deterministic in-place edit -> next thing is the
+            # validator running again.
+            return "validate"
+        if last.name == "validate" and last.status != "SUCCEEDED":
+            # Validate failed and the orchestrator is about to either autofix
+            # or re-prompt the LLM. Either way, the next user-visible activity
+            # is regenerating code.
+            return "generate"
+        if last.name == "execute" and last.status != "SUCCEEDED":
+            # Execute failed; recover-after-execute will regenerate code.
+            return "generate"
+        if last.name == "propose" and last.status == "SUCCEEDED":
+            return "generate"
+
+    return _STATUS_TO_PHASE.get(exp.status)
 
 
 def derive_study_pipelines(study: Study) -> dict[str, list[tuple[str, str]]]:
     """Return ``{experiment_id: pipeline_rows}`` for every experiment.
 
     The most-recent experiment on a non-terminal study is treated as the
-    active one (gets the ``running`` highlight on the first pending phase).
+    active one (gets the ``running`` highlight).
     """
     if not study.experiments:
         return {}
