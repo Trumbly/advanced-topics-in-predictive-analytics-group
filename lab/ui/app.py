@@ -124,6 +124,98 @@ def create_app(settings: Settings) -> FastAPI:
         v = registry.save_new_version(task, body["system"], body["user"])
         return {"version": v}
 
+    @app.get("/prompts/{task}", response_class=HTMLResponse)
+    def prompts_task_root(task: str):
+        registry = PromptRegistry(prompts_root)
+        try:
+            active = registry.active_version(task)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"unknown task: {task}")
+        return RedirectResponse(url=f"/prompts/{task}/{active}", status_code=303)
+
+    @app.get("/prompts/{task}/{version}", response_class=HTMLResponse)
+    def prompts_edit_view(
+        request: Request,
+        task: str,
+        version: str,
+        saved: int = 0,
+        error: str | None = None,
+    ):
+        registry = PromptRegistry(prompts_root)
+        try:
+            tmpl = registry.load(task, version)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        except (ValueError, KeyError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        try:
+            active = registry.active_version(task)
+        except KeyError:
+            active = None
+        versions = registry.list_versions(task)
+        return templates.TemplateResponse(
+            request,
+            "prompt_edit.html",
+            {
+                "task": task,
+                "version": version,
+                "active": active,
+                "versions": versions,
+                "system": tmpl.system,
+                "user_text": tmpl.user,
+                "saved": saved,
+                "error": error,
+                "is_new": False,
+            },
+        )
+
+    @app.get("/prompts/{task}/new/blank", response_class=HTMLResponse)
+    def prompts_edit_new(request: Request, task: str):
+        """Blank editor seeded from the active version (so a fresh
+        version still has the structural slots the engine expects)."""
+        registry = PromptRegistry(prompts_root)
+        try:
+            active = registry.active_version(task)
+            tmpl = registry.load(task, active)
+            seed_sys, seed_user = tmpl.system, tmpl.user
+        except (KeyError, FileNotFoundError):
+            active, seed_sys, seed_user = None, "", ""
+        return templates.TemplateResponse(
+            request,
+            "prompt_edit.html",
+            {
+                "task": task,
+                "version": "(new)",
+                "active": active,
+                "versions": registry.list_versions(task),
+                "system": seed_sys,
+                "user_text": seed_user,
+                "saved": 0,
+                "error": None,
+                "is_new": True,
+            },
+        )
+
+    @app.post("/prompts/{task}/edit")
+    def prompts_edit_save(
+        task: str,
+        system: str = Form(...),
+        user: str = Form(...),
+        activate: str = Form(default=""),
+    ):
+        registry = PromptRegistry(prompts_root)
+        try:
+            new_version = registry.save_new_version(task, system, user)
+        except (FileExistsError, OSError) as exc:
+            return RedirectResponse(
+                url=f"/prompts/{task}/new/blank?error={exc}", status_code=303
+            )
+        if activate:
+            registry.set_active(task, new_version)
+        return RedirectResponse(
+            url=f"/prompts/{task}/{new_version}?saved=1", status_code=303
+        )
+
     @app.get("/reports/{study_id}", response_class=HTMLResponse)
     def report_view(study_id: str):
         path = studies_root / study_id / "report.html"

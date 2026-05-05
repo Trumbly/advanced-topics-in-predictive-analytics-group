@@ -2,19 +2,40 @@
 {% block title %}Prompts{% endblock %}
 {% block content %}
 <h1>Prompt registry</h1>
+<p style="opacity:0.8;font-size:0.9em">
+  Click a version pill to view or edit. Saving in the editor always writes a new
+  <code>vN+1.yaml</code> — version files are immutable.
+</p>
 <table>
-  <thead><tr><th>task</th><th>active</th><th>versions</th><th>per-task scores</th></tr></thead>
+  <thead>
+    <tr>
+      <th>task</th>
+      <th>active</th>
+      <th>versions</th>
+      <th>per-task scores</th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
   {% for t in tasks %}
     <tr>
       <td>{{ t.name }}</td>
       <td><span class="pill">{{ t.active or "—" }}</span></td>
-      <td>{{ t.versions|join(", ") }}</td>
+      <td>
+        {% for v in t.versions %}
+          <a href="/prompts/{{ t.name }}/{{ v }}"
+             class="pill"
+             style="text-decoration:none;{% if v == t.active %}background:#163d22;{% endif %}">{{ v }}</a>
+        {% endfor %}
+      </td>
       <td>
         {% set task_scores = scores.get("track_b", {}) %}
         {% for v, stat in task_scores.items() -%}
           {{ v }}: mean {{ "%.3f"|format(stat.mean) }} (n={{ stat.count }}){% if not loop.last %}; {% endif %}
         {%- endfor %}
+      </td>
+      <td>
+        <a href="/prompts/{{ t.name }}/new/blank">+ new version</a>
       </td>
     </tr>
   {% endfor %}
