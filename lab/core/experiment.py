@@ -246,13 +246,18 @@ def _execute_with_retry(
     timeout = ctx.settings.compute_budget.max_experiment_seconds
     epochs_clamped = min(proposal.epochs, ctx.settings.compute_budget.max_epochs_per_run)
 
+    # The subprocess runs with cwd=sandbox/<exp_id>, so every path env var
+    # must be ABSOLUTE — otherwise relative paths from the config resolve
+    # inside the sandbox dir and fail with FileNotFoundError.
     extra_env = {
         "AGENT_DEVICE": "cpu",
         "AGENT_BATCH_SIZE": "8",
         "AGENT_EPOCHS": str(epochs_clamped),
-        "AGENT_PROCESSED_DIR": ctx.settings.task.processed_data_dir,
+        "AGENT_PROCESSED_DIR": str(
+            Path(ctx.settings.task.processed_data_dir).resolve()
+        ),
         "AGENT_CHECKPOINT_OUT": str(
-            Path(ctx.settings.paths.sandbox) / exp.id / "checkpoint.pt"
+            (Path(ctx.settings.paths.sandbox) / exp.id / "checkpoint.pt").resolve()
         ),
         "AGENT_SEED": "42",
         "AGENT_LR": str(proposal.lr),
@@ -261,7 +266,7 @@ def _execute_with_retry(
     }
     warm_start = _resolve_warm_start(ctx, proposal)
     if warm_start is not None:
-        extra_env["AGENT_CHECKPOINT_IN"] = warm_start
+        extra_env["AGENT_CHECKPOINT_IN"] = str(Path(warm_start).resolve())
 
     current = code
     last: ExecutionResult | None = None
