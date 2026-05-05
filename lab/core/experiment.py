@@ -182,10 +182,36 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
         telemetry.log_event(
             "validate", attempt=attempt, ok=result.ok, error_type=result.error_type
         )
+        # Persist a Task per attempt so the UI can replay the retry chain.
+        exp.tasks.append(
+            Task(
+                name="validate",
+                status="SUCCEEDED" if result.ok else "FAILED",
+                input={"attempt": attempt},
+                output={"ok": result.ok, "error_type": result.error_type},
+                error=(
+                    None
+                    if result.ok
+                    else TaskError(
+                        error_type=result.error_type or "Other",
+                        message=result.message or "",
+                        autofix_hint=result.autofix_hint,
+                    )
+                ),
+            )
+        )
         if result.ok:
             return current
         autofixed = ctx.recovery.try_autofix(current, result)
         if autofixed is not None:
+            exp.tasks.append(
+                Task(
+                    name="recover",
+                    status="SUCCEEDED",
+                    input={"attempt": attempt, "kind": "autofix"},
+                    output={"hint": result.autofix_hint or ""},
+                )
+            )
             current = autofixed
             continue
         if attempt >= attempts:
@@ -193,6 +219,14 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
         slots = _propose_slots(ctx)
         slots["model_block_signature"] = f"def {fn}({arg}: int)"
         rendered = ctx.recovery.ask_llm(current, result, slots=slots)
+        exp.tasks.append(
+            Task(
+                name="recover",
+                status="SUCCEEDED",
+                input={"attempt": attempt, "kind": "llm_reprompt"},
+                output={},
+            )
+        )
         current = splice_build_model(render_skeleton(ctx.settings), _extract_block(rendered))
 
     raise _HardFailure(
@@ -246,6 +280,20 @@ def _execute_with_retry(
             error_type=(result.error.error_type if result.error else None),
             duration_s=result.duration_seconds,
         )
+        # Persist a Task per attempt so the retry chain shows up in the UI.
+        exp.tasks.append(
+            Task(
+                name="execute",
+                status="SUCCEEDED" if result.succeeded else "FAILED",
+                input={"attempt": attempt},
+                output={
+                    "succeeded": result.succeeded,
+                    "duration_s": result.duration_seconds,
+                    "primary_score": result.primary_score,
+                },
+                error=result.error,
+            )
+        )
         if result.succeeded:
             exp.sandbox_path = str(Path(ctx.settings.paths.sandbox) / exp.id)
             exp.checkpoint_path = extra_env["AGENT_CHECKPOINT_OUT"]
@@ -265,6 +313,14 @@ def _execute_with_retry(
         fn, arg = ctx.adapter.model_block_signature()
         slots["model_block_signature"] = f"def {fn}({arg}: int)"
         repaired = ctx.recovery.ask_llm(current, result.error, slots=slots) if result.error else None
+        exp.tasks.append(
+            Task(
+                name="recover",
+                status="SUCCEEDED" if repaired else "FAILED",
+                input={"attempt": attempt, "kind": "llm_reprompt_after_execute"},
+                output={},
+            )
+        )
         if repaired is None:
             raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
         current = splice_build_model(render_skeleton(ctx.settings), _extract_block(repaired))
@@ -295,14 +351,8 @@ def _capture(exp: Experiment, result: ExecutionResult) -> None:
     exp.metrics = dict(result.metrics)
     exp.history = list(result.history)
     exp.duration_seconds = result.duration_seconds
-    exp.tasks.append(
-        Task(
-            name="execute",
-            status="SUCCEEDED",
-            input={},
-            output={"primary_score": result.primary_score},
-        )
-    )
+    # _execute_with_retry already appended a SUCCEEDED execute Task; nothing
+    # else to record here.
 
 
 # ---------------------------------------------------------------------------

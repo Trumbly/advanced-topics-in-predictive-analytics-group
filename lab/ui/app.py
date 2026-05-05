@@ -147,6 +147,16 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=404)
         return JSONResponse(study.model_dump(mode="json"))
 
+    @app.get("/api/studies/{study_id}/log")
+    def api_study_log(study_id: str, tail: int = 500):
+        path = studies_root / study_id / "run.log.jsonl"
+        if not path.exists():
+            return JSONResponse([])
+        lines = [
+            l for l in path.read_text(encoding="utf-8").splitlines() if l.strip()
+        ]
+        return JSONResponse(lines[-tail:])
+
     # ----- run form + live -----
 
     @app.get("/new", response_class=HTMLResponse)
