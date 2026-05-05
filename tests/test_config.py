@@ -26,7 +26,7 @@ def test_load_default_track_b_settings():
     assert s.project == "lab"
     assert s.task_name == "track_b"
     assert s.task.name == "track_b"
-    assert s.task.expected_num_classes == 206
+    assert s.task.expected_num_classes == 234
     assert s.compute_budget.max_experiments > 0
     assert s.llm.provider in {"ollama", "openai", "anthropic"}
 

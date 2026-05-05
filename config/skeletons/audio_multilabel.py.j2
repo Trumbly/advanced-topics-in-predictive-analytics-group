@@ -70,7 +70,14 @@ class LazyMelDataset(Dataset):
             arr = arr[None]
         x = torch.from_numpy(arr)
         y = torch.zeros(self.num_classes, dtype=torch.float32)
-        y[int(e["class_idx"])] = 1.0
+        # Prefer the multi-label index emitted by build_real_shards; fall back
+        # to the legacy single-class field for old indices.
+        indices = e.get("class_indices")
+        if indices is not None:
+            for ci in indices:
+                y[int(ci)] = 1.0
+        else:
+            y[int(e["class_idx"])] = 1.0
         return x, y
 
 
