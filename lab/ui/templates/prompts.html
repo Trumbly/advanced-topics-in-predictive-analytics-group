@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Prompts{% endblock %}
+{% block content %}
+<h1>Prompt registry</h1>
+<table>
+  <thead><tr><th>task</th><th>active</th><th>versions</th><th>per-task scores</th></tr></thead>
+  <tbody>
+  {% for t in tasks %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td><span class="pill">{{ t.active or "—" }}</span></td>
+      <td>{{ t.versions|join(", ") }}</td>
+      <td>
+        {% set task_scores = scores.get("track_b", {}) %}
+        {% for v, stat in task_scores.items() -%}
+          {{ v }}: mean {{ "%.3f"|format(stat.mean) }} (n={{ stat.count }}){% if not loop.last %}; {% endif %}
+        {%- endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
