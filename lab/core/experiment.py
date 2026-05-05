@@ -223,6 +223,7 @@ def _execute_with_retry(
         "AGENT_SEED": "42",
         "AGENT_LR": str(proposal.lr),
         "AGENT_LR_SCHEDULE": proposal.lr_schedule,
+        "AGENT_WEIGHT_DECAY": str(proposal.weight_decay if proposal.weight_decay is not None else 0.0),
     }
     warm_start = _resolve_warm_start(ctx, proposal)
     if warm_start is not None:
