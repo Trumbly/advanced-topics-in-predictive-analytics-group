@@ -35,6 +35,9 @@ class ComputeBudget(BaseModel):
     max_recovery_attempts: int = Field(ge=0)
     lr_min: float = Field(gt=0.0)
     lr_max: float = Field(gt=0.0)
+    device: Literal["cpu", "cuda", "mps"] = "cpu"
+    num_workers: int = Field(ge=0, default=0)
+    batch_size: int = Field(gt=0, default=8)
 
 
 class AgentConfig(BaseModel):

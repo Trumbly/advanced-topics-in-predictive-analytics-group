@@ -30,6 +30,7 @@ PRIMARY_METRIC = {{ primary_metric | tojson }}
 
 DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
 BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "8"))
+NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "0"))
 EPOCHS = int(os.environ.get("AGENT_EPOCHS", "3"))
 PROCESSED_DIR = Path(os.environ.get("AGENT_PROCESSED_DIR", "data/processed/mels"))
 CHECKPOINT_IN = os.environ.get("AGENT_CHECKPOINT_IN")
@@ -103,8 +104,20 @@ def make_loaders():
         n_train = int(0.8 * len(train))
         train, val = random_split(train, [n_train, len(train) - n_train])
     return (
-        DataLoader(train, batch_size=BATCH_SIZE, shuffle=True),
-        DataLoader(val, batch_size=BATCH_SIZE, shuffle=False),
+        DataLoader(
+            train,
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            num_workers=NUM_WORKERS,
+            persistent_workers=NUM_WORKERS > 0,
+        ),
+        DataLoader(
+            val,
+            batch_size=BATCH_SIZE,
+            shuffle=False,
+            num_workers=NUM_WORKERS,
+            persistent_workers=NUM_WORKERS > 0,
+        ),
     )
 
 

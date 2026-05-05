@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<style>
+  .section { border:1px solid #2a2f37; border-radius:6px; padding:12px 14px; margin-bottom:14px; }
+  .section h3 { margin:0 0 10px 0; font-size:1em; }
+  .row { display:grid; grid-template-columns:240px 1fr; gap:8px; align-items:center; margin-bottom:6px; }
+  label { font-size:0.85em; opacity:0.85; }
+  input[type=text], input[type=number], select {
+    width:100%; padding:5px 8px; background:#0a0c10; color:#d6dadf;
+    border:1px solid #2a2f37; border-radius:4px; font-family:inherit; font-size:0.9em;
+  }
+  .save-bar { background:#1d3a6b; padding:8px 12px; border-radius:6px; margin-bottom:14px; }
+  .err-bar { background:#3d1616; padding:8px 12px; border-radius:6px; margin-bottom:14px; color:#ffb6b6; }
+  .hint { opacity:0.6; font-size:0.78em; margin-top:2px; }
+</style>
+
+<h1>Settings</h1>
+<p style="opacity:0.7;font-size:0.85em">
+  Edits write directly to <code>{{ config_path }}</code>. New studies pick up
+  the changes on next launch (cmd_run reloads YAML each time).
+  <strong>Restart the UI</strong> if you want the running dashboard process to
+  see them too.
+</p>
+
+{% if saved %}
+<div class="save-bar">Saved.</div>
+{% endif %}
+{% if error %}
+<div class="err-bar"><b>Validation error:</b> {{ error }}</div>
+{% endif %}
+
+<form method="post" action="/settings">
+
+  <div class="section">
+    <h3>Project</h3>
+    {% for key in ("project", "version", "default_task") %}
+      {% if key in config %}
+      <div class="row">
+        <label>{{ key }}</label>
+        <input type="text" name="{{ key }}" value="{{ config[key] }}" />
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>Compute budget</h3>
+    {% set cb = config.get("compute_budget", {}) %}
+    {% for key, val in cb.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      {% if key == "device" %}
+      <select name="compute_budget.{{ key }}">
+        {% for opt in ("cpu", "cuda", "mps") %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+      {% elif val is sameas true or val is sameas false %}
+      <select name="compute_budget.{{ key }}">
+        <option value="true" {% if val %}selected{% endif %}>true</option>
+        <option value="false" {% if not val %}selected{% endif %}>false</option>
+      </select>
+      {% else %}
+      <input type="text" name="compute_budget.{{ key }}" value="{{ val }}" />
+      {% endif %}
+    </div>
+    {% endfor %}
+    <p class="hint">
+      <code>device</code>: training device. <code>cpu</code> always works,
+      <code>cuda</code> for NVIDIA GPU, <code>mps</code> for Apple Silicon.
+      <code>num_workers</code>: DataLoader workers (0 = main thread, 4–8 for SSD I/O parallelism).
+      <code>batch_size</code>: per-batch sample count.
+    </p>
+  </div>
+
+  <div class="section">
+    <h3>LLM</h3>
+    {% set llm = config.get("llm", {}) %}
+    {% for key, val in llm.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      {% if key == "provider" %}
+      <select name="llm.{{ key }}">
+        {% for opt in ("ollama", "openai", "anthropic") %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input type="text" name="llm.{{ key }}" value="{{ val if val is not none else '' }}" />
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>Agent</h3>
+    {% set ag = config.get("agent", {}) %}
+    {% for key, val in ag.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      {% if key == "personality" %}
+      <select name="agent.{{ key }}">
+        {% for opt in ("exploratory", "conservative") %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+      {% elif val is sameas true or val is sameas false %}
+      <select name="agent.{{ key }}">
+        <option value="true" {% if val %}selected{% endif %}>true</option>
+        <option value="false" {% if not val %}selected{% endif %}>false</option>
+      </select>
+      {% else %}
+      <input type="text" name="agent.{{ key }}" value="{{ val }}" />
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>Context</h3>
+    {% set ctx = config.get("context", {}) %}
+    {% for key, val in ctx.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      <input type="text" name="context.{{ key }}" value="{{ val }}" />
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>Logging</h3>
+    {% set lg = config.get("logging", {}) %}
+    {% for key, val in lg.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      {% if key == "level" %}
+      <select name="logging.{{ key }}">
+        {% for opt in ("DEBUG", "INFO", "WARNING", "ERROR") %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+      {% elif val is sameas true or val is sameas false %}
+      <select name="logging.{{ key }}">
+        <option value="true" {% if val %}selected{% endif %}>true</option>
+        <option value="false" {% if not val %}selected{% endif %}>false</option>
+      </select>
+      {% else %}
+      <input type="text" name="logging.{{ key }}" value="{{ val }}" />
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>Paths</h3>
+    {% set p = config.get("paths", {}) %}
+    {% for key, val in p.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      <input type="text" name="paths.{{ key }}" value="{{ val }}" />
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="section">
+    <h3>UI</h3>
+    {% set u = config.get("ui", {}) %}
+    {% for key, val in u.items() %}
+    <div class="row">
+      <label>{{ key }}</label>
+      <input type="text" name="ui.{{ key }}" value="{{ val }}" />
+    </div>
+    {% endfor %}
+    <p class="hint">UI host/port apply on the next <code>lab ui</code> restart.</p>
+  </div>
+
+  <button type="submit" style="padding:10px 16px;background:#2c5cdd;color:#fff;border:0;border-radius:4px;cursor:pointer;font-size:0.95em">
+    Save settings
+  </button>
+</form>
+{% endblock %}
