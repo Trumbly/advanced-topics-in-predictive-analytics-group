@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import difflib
+import traceback as _traceback
 from typing import Iterable
 
 from lab.config import Settings
@@ -235,6 +236,7 @@ def _smoke(
             ok=False,
             error_type="SmokeFailed",
             message=f"module-level execution failed: {exc!r}",
+            findings=[_traceback.format_exc()],
         )
 
     fn = namespace.get(fn_name)
@@ -252,6 +254,7 @@ def _smoke(
             ok=False,
             error_type="SmokeFailed",
             message=f"{fn_name}({smoke_num_classes}) raised: {exc!r}",
+            findings=[_traceback.format_exc()],
         )
 
     import torch  # local import (already guarded above)
@@ -266,6 +269,7 @@ def _smoke(
             ok=False,
             error_type="SmokeFailed",
             message=f"forward pass raised: {exc!r}",
+            findings=[_traceback.format_exc()],
         )
 
     expected = (2, smoke_num_classes)
