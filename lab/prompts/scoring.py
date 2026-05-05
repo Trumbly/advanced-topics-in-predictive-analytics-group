@@ -69,6 +69,63 @@ def get_best_version(
     return eligible[0].version
 
 
+def aggregate_prompt_scores_by_prompt_task(
+    experiments_dir: Path,
+) -> dict[str, dict[str, PromptScoreStats]]:
+    """Return ``{prompt_task: {version: PromptScoreStats}}`` across all studies.
+
+    Unlike :func:`aggregate_prompt_scores`, this function attributes each
+    experiment's score to *every* prompt-task version recorded on its study,
+    so the dashboard can show per-version stats for all six prompt tasks
+    (propose_architecture, generate_code, ...).
+    """
+    buckets: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    studies = load_many(Path(experiments_dir), list_studies(experiments_dir))
+    for study in studies:
+        paths = study.prompt_template_paths or {}
+        scored = [e for e in study.experiments if e.primary_score is not None]
+        if not scored:
+            continue
+        for prompt_task, path in paths.items():
+            version = Path(str(path)).stem
+            if not version.startswith("v"):
+                continue
+            for exp in scored:
+                buckets[prompt_task][version].append(float(exp.primary_score))
+
+    out: dict[str, dict[str, PromptScoreStats]] = {}
+    for prompt_task, by_version in buckets.items():
+        out[prompt_task] = {}
+        for version, scores in by_version.items():
+            out[prompt_task][version] = PromptScoreStats(
+                version=version,
+                mean=statistics.fmean(scores),
+                stdev=statistics.pstdev(scores) if len(scores) > 1 else 0.0,
+                best=max(scores),
+                count=len(scores),
+            )
+    return out
+
+
+def get_best_version_by_prompt_task(
+    prompt_task: str,
+    experiments_dir: Path,
+    *,
+    min_runs: int = 3,
+) -> str | None:
+    """Highest-mean version for ``prompt_task`` (one of the six prompt names)."""
+    table = aggregate_prompt_scores_by_prompt_task(experiments_dir).get(
+        prompt_task, {}
+    )
+    eligible = [s for s in table.values() if s.count >= min_runs]
+    if not eligible:
+        return None
+    eligible.sort(key=lambda s: (s.mean, s.count), reverse=True)
+    return eligible[0].version
+
+
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------

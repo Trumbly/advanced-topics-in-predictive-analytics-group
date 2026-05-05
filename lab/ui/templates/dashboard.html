@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<style>
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+  .kpi-card { background:#15191f; border:1px solid #2a2f37; border-radius:6px; padding:14px; }
+  .kpi-label { font-size:0.78em; opacity:0.75; text-transform:uppercase; letter-spacing:0.04em; }
+  .kpi-value { font-size:1.5em; font-weight:600; margin-top:4px; }
+  .kpi-sub { font-size:0.78em; opacity:0.7; margin-top:4px; }
+  .prompt-task { border:1px solid #2a2f37; border-radius:6px; padding:10px; margin-bottom:10px; }
+  .prompt-task h3 { margin:0 0 6px 0; font-size:0.95em; }
+  .prompt-task table { font-size:0.85em; }
+  .winner { color:#7bd88f; font-weight:600; }
+</style>
+
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-label">Total studies</div>
+    <div class="kpi-value">{{ kpis.total_studies }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total experiments</div>
+    <div class="kpi-value">{{ kpis.total_experiments }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Experiment error rate</div>
+    <div class="kpi-value">{{ "%.1f"|format(kpis.experiment_error_rate * 100) }}%</div>
+    <div class="kpi-sub">no primary_score / FAILED / ABORTED</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Study error rate</div>
+    <div class="kpi-value">{{ "%.1f"|format(kpis.study_error_rate * 100) }}%</div>
+    <div class="kpi-sub">FAILED / ABORTED / no scored exp</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Best ROC-AUC (macro)</div>
+    <div class="kpi-value">{{ "%.4f"|format(kpis.best_roc_auc) if kpis.best_roc_auc is not none else "—" }}</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Best F1 (macro)</div>
+    <div class="kpi-value">{{ "%.4f"|format(kpis.best_f1) if kpis.best_f1 is not none else "—" }}</div>
+  </div>
+</div>
+
+<h2>Best model</h2>
+{% if kpis.best_model %}
+<div class="kpi-card" style="max-width:520px">
+  <div class="kpi-value">{{ kpis.best_model.architecture_name }}</div>
+  <div class="kpi-sub">family <b>{{ kpis.best_model.family }}</b></div>
+  <div class="kpi-sub">{{ kpis.best_model.primary_metric }} = <b>{{ "%.4f"|format(kpis.best_model.primary_score) }}</b></div>
+  <div class="kpi-sub">
+    <a href="/experiments/{{ kpis.best_model.study_id }}/{{ kpis.best_model.experiment_id }}">{{ kpis.best_model.experiment_id }}</a>
+    in <a href="/studies/{{ kpis.best_model.study_id }}">{{ kpis.best_model.study_id }}</a>
+  </div>
+</div>
+{% else %}
+<p>No scored experiments yet.</p>
+{% endif %}
+
+<h2 style="margin-top:24px">Best prompts</h2>
+{% if kpis.best_prompts %}
+  {% for task, kpi in kpis.best_prompts.items() %}
+    <div class="prompt-task">
+      <h3>
+        {{ task }}
+        {% if kpi.best_version %}
+          → best <span class="winner">{{ kpi.best_version }}</span>
+        {% else %}
+          → <span style="opacity:0.6">(insufficient runs for confident pick)</span>
+        {% endif %}
+      </h3>
+      <table>
+        <thead><tr><th>version</th><th>runs</th><th>mean</th><th>stdev</th><th>best</th></tr></thead>
+        <tbody>
+        {% for stat in kpi.versions %}
+          <tr {% if stat.version == kpi.best_version %}class="winner"{% endif %}>
+            <td>{{ stat.version }}</td>
+            <td>{{ stat.count }}</td>
+            <td>{{ "%.4f"|format(stat.mean) }}</td>
+            <td>{{ "%.4f"|format(stat.stdev) }}</td>
+            <td>{{ "%.4f"|format(stat.best) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+{% else %}
+<p>No prompt versions have produced scored experiments yet.</p>
+{% endif %}
+{% endblock %}
