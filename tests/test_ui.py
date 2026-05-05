@@ -146,21 +146,33 @@ def test_run_form_redirects_to_studies_list(client, monkeypatch):
     the launcher cannot point at a specific id without a heavier handoff.
     """
     import lab.cli
+    from lab.config import load_settings
 
     monkeypatch.setattr(lab.cli, "cmd_run", lambda args: 0)
 
-    r = client.post(
-        "/run-form",
-        data={
-            "task": "track_b",
-            "personality": "exploratory",
-            "max_experiments": "1",
-            "max_wallclock_min": "5",
-        },
-        follow_redirects=False,
-    )
-    assert r.status_code == 303
-    assert r.headers["location"] == "/studies?launched=1"
+    s = load_settings("track_b", repo_root=REPO_ROOT)
+    Path(s.task.processed_data_dir).mkdir(parents=True, exist_ok=True)
+    train_pt = Path(s.task.processed_data_dir) / "train.pt"
+    cleanup = not train_pt.exists()
+    if cleanup:
+        train_pt.touch()
+
+    try:
+        r = client.post(
+            "/run-form",
+            data={
+                "task": "track_b",
+                "personality": "exploratory",
+                "max_experiments": "1",
+                "max_wallclock_min": "5",
+            },
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        assert r.headers["location"] == "/studies?launched=1"
+    finally:
+        if cleanup:
+            train_pt.unlink(missing_ok=True)
 
 
 def test_studies_banner_shows_when_launched(client):

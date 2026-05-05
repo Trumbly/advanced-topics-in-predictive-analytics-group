@@ -113,31 +113,43 @@ def test_new_form_renders_model_dropdown(client):
     assert "qwen3-coder:30b" in r.text
 
 
-def test_run_form_threads_llm_model_into_args(client, monkeypatch):
+def test_run_form_threads_llm_model_into_args(client, monkeypatch, tmp_path):
     captured = {}
     import lab.cli
+    from lab.config import load_settings
 
     def fake_cmd_run(args):
         captured["llm_model"] = args.llm_model
         return 0
 
     monkeypatch.setattr(lab.cli, "cmd_run", fake_cmd_run)
-    r = client.post(
-        "/run-form",
-        data={
-            "task": "track_b",
-            "personality": "exploratory",
-            "max_experiments": "1",
-            "max_wallclock_min": "5",
-            "llm_model": "qwen3-coder:30b",
-        },
-        follow_redirects=False,
-    )
-    assert r.status_code == 303
-    # daemon thread runs cmd_run synchronously enough; give it a tick
-    import time
-    time.sleep(0.1)
-    assert captured.get("llm_model") == "qwen3-coder:30b"
+
+    # Seed a fake train.pt so the pre-flight gate passes.
+    s = load_settings("track_b", repo_root=REPO_ROOT)
+    Path(s.task.processed_data_dir).mkdir(parents=True, exist_ok=True)
+    train_pt = Path(s.task.processed_data_dir) / "train.pt"
+    cleanup = not train_pt.exists()
+    if cleanup:
+        train_pt.touch()
+    try:
+        r = client.post(
+            "/run-form",
+            data={
+                "task": "track_b",
+                "personality": "exploratory",
+                "max_experiments": "1",
+                "max_wallclock_min": "5",
+                "llm_model": "qwen3-coder:30b",
+            },
+            follow_redirects=False,
+        )
+        assert r.status_code == 303
+        import time
+        time.sleep(0.1)
+        assert captured.get("llm_model") == "qwen3-coder:30b"
+    finally:
+        if cleanup:
+            train_pt.unlink(missing_ok=True)
 
 
 # ---- CLI override ----
