@@ -18,6 +18,9 @@ compute_budget:
   max_recovery_attempts: 5
   lr_min: 1.0e-5
   lr_max: 1.0e-2
+  device: cpu
+  num_workers: 0
+  batch_size: 8
 agent:
   memory_enabled: false
   personality: exploratory

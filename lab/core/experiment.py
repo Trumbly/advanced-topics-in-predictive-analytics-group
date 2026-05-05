@@ -285,8 +285,9 @@ def _execute_with_retry(
     # must be ABSOLUTE — otherwise relative paths from the config resolve
     # inside the sandbox dir and fail with FileNotFoundError.
     extra_env = {
-        "AGENT_DEVICE": "cpu",
-        "AGENT_BATCH_SIZE": "8",
+        "AGENT_DEVICE": ctx.settings.compute_budget.device,
+        "AGENT_BATCH_SIZE": str(ctx.settings.compute_budget.batch_size),
+        "AGENT_NUM_WORKERS": str(ctx.settings.compute_budget.num_workers),
         "AGENT_EPOCHS": str(epochs_clamped),
         "AGENT_PROCESSED_DIR": str(
             Path(ctx.settings.task.processed_data_dir).resolve()

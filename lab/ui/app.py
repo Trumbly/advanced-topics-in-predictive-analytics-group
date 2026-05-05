@@ -150,6 +150,54 @@ def create_app(settings: Settings) -> FastAPI:
             [r.model_dump(mode="json") for r in benchmark(studies_root)]
         )
 
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings_view(request: Request, saved: int = 0, error: str | None = None):
+        from lab.ui.settings_io import (
+            read_global_yaml,
+            repo_root_for,
+        )
+
+        root = repo_root_for(settings)
+        current = read_global_yaml(root)
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            {
+                "config": current,
+                "saved": saved,
+                "error": error,
+                "config_path": "config/config.yaml",
+            },
+        )
+
+    @app.post("/settings")
+    async def settings_save(request: Request):
+        from pydantic import ValidationError
+        from lab.ui.settings_io import (
+            parse_form_into_yaml,
+            read_global_yaml,
+            repo_root_for,
+            validate_yaml,
+            write_global_yaml,
+        )
+
+        form_data = await request.form()
+        form = {k: str(v) for k, v in form_data.items()}
+        root = repo_root_for(settings)
+        current = read_global_yaml(root)
+        proposed = parse_form_into_yaml(current, form)
+
+        try:
+            validate_yaml(root, proposed)
+        except ValidationError as exc:
+            msg = str(exc).replace("\n", " | ")[:600]
+            return RedirectResponse(
+                url=f"/settings?error={msg}", status_code=303
+            )
+
+        write_global_yaml(root, proposed)
+        return RedirectResponse(url="/settings?saved=1", status_code=303)
+
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard_view(request: Request):
         from lab.core.dashboard import compute_kpis
