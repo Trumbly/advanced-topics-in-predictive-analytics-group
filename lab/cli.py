@@ -90,6 +90,35 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="rewrite train.pt + val.pt even if present",
     )
+    preprocess.add_argument(
+        "--soundscapes",
+        action="store_true",
+        help=(
+            "build mel-spectrograms for the labelled soundscape windows "
+            "(reads data/raw/train_soundscapes_labels.csv + "
+            "data/raw/train_soundscapes/*.ogg, writes to "
+            "data/processed/spectrograms/<file>_w<idx>.npy). Required for "
+            "training on the 28 soundscape-only target species."
+        ),
+    )
+    preprocess.add_argument(
+        "--soundscapes-all-windows",
+        action="store_true",
+        help=(
+            "with --soundscapes: also build mels for unlabelled windows "
+            "(every 5s window of every soundscape file, not just the 739 "
+            "labelled ones). Useful for SSL/pseudo-labelling experiments."
+        ),
+    )
+    preprocess.add_argument(
+        "--unify-labels",
+        action="store_true",
+        help=(
+            "rebuild data/processed/labels.csv from train.csv + "
+            "train_soundscapes_labels.csv with the canonical 234-class set "
+            "ordering from sample_submission.csv"
+        ),
+    )
 
     sub.add_parser("benchmark", help="cross-study (family, arch) leaderboard")
 
@@ -262,6 +291,16 @@ def cmd_preprocess(args) -> int:
         print(f"synthetic shards written to {target}")
         return 0
 
+    if getattr(args, "soundscapes", False):
+        return _run_soundscape_mels(
+            settings,
+            include_unlabelled=getattr(args, "soundscapes_all_windows", False),
+            overwrite=getattr(args, "overwrite", False),
+        )
+
+    if getattr(args, "unify_labels", False):
+        return _run_unify_labels(settings)
+
     from lab.tasks.real_preprocess import build_real_shards
 
     try:
@@ -274,6 +313,74 @@ def cmd_preprocess(args) -> int:
         print(f"preprocess failed: {exc}", file=sys.stderr)
         return 2
     print(f"real shards written: {train_path}  +  {val_path}")
+    return 0
+
+
+def _run_soundscape_mels(settings, *, include_unlabelled: bool, overwrite: bool) -> int:
+    """Build the missing soundscape mels (default: only the labelled ones)."""
+    from lab.tasks.audio_mels import (
+        build_soundscape_mels,
+        soundscape_sids_for_labels,
+    )
+
+    processed_dir = Path(settings.task.processed_data_dir)
+    spectrograms_dir = processed_dir.parent / "spectrograms"
+    raw_dir = processed_dir.parent.parent / "raw"
+    if not raw_dir.exists():
+        print(f"raw dir missing: {raw_dir}", file=sys.stderr)
+        return 2
+
+    target_sids = None
+    if not include_unlabelled:
+        labels_csv = raw_dir / "train_soundscapes_labels.csv"
+        if not labels_csv.exists():
+            print(
+                f"missing {labels_csv}; pass --soundscapes-all-windows to "
+                "build mels for every window regardless",
+                file=sys.stderr,
+            )
+            return 2
+        target_sids = soundscape_sids_for_labels(labels_csv)
+        print(f"targeting {len(target_sids)} labelled soundscape windows")
+
+    try:
+        counts = build_soundscape_mels(
+            raw_dir,
+            spectrograms_dir,
+            target_sids=target_sids,
+            overwrite=overwrite,
+        )
+    except (ImportError, FileNotFoundError) as exc:
+        print(f"soundscape mel build failed: {exc}", file=sys.stderr)
+        return 2
+
+    print(
+        f"soundscape mels: built={counts['built']}, "
+        f"skipped_existing={counts['skipped_existing']}, "
+        f"skipped_unrequested={counts['skipped_unrequested']}, "
+        f"skipped_short={counts['skipped_short']}, "
+        f"files_processed={counts['files_processed']}"
+    )
+    return 0
+
+
+def _run_unify_labels(settings) -> int:
+    """Rebuild labels.csv with the canonical 234-class union."""
+    from lab.tasks.soundscape_preprocess import build_unified_labels
+
+    processed_dir = Path(settings.task.processed_data_dir)
+    raw_dir = processed_dir.parent.parent / "raw"
+    out_path = processed_dir.parent / "labels.csv"
+    try:
+        merged = build_unified_labels(raw_dir=raw_dir, out_path=out_path)
+    except FileNotFoundError as exc:
+        print(f"unify-labels failed: {exc}", file=sys.stderr)
+        return 2
+    n_classes = len({c for v in merged.values() for c in v})
+    print(
+        f"unified labels.csv -> {out_path}: {len(merged)} samples, "
+        f"{n_classes} distinct classes"
+    )
     return 0
 
 
