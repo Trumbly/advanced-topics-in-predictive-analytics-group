@@ -79,8 +79,11 @@ def _build_parser() -> argparse.ArgumentParser:
     preprocess.add_argument(
         "--samples-per-class",
         type=int,
-        default=50,
-        help="cap per-class sample count when building real shards",
+        default=None,
+        help=(
+            "cap per-class sample count and write eager train.pt+val.pt "
+            "(omit for the default lazy index covering every sample)"
+        ),
     )
     preprocess.add_argument(
         "--overwrite",
@@ -119,15 +122,17 @@ def cmd_run(args) -> int:
     from lab.tasks.eda import run_eda
 
     real_processed = Path(settings.task.processed_data_dir)
-    train_path = real_processed / "train.pt"
-    if not train_path.exists():
+    if not (
+        (real_processed / "train.pt").exists()
+        or (real_processed / "train_index.json").exists()
+    ):
         print(
-            "ERROR: no processed shards at "
-            f"{real_processed}/train.pt. Build them with `lab preprocess` "
-            "(real BirdCLEF mels) or `lab preprocess --synthetic` (smoke "
-            "test only — score will be random). Auto-synthetic fallback "
-            "was removed: synthetic data has no signal so the agent's KPIs "
-            "would be meaningless.",
+            "ERROR: no processed dataset at "
+            f"{real_processed}. Build it with `lab preprocess` (lazy "
+            "index, covers all samples) or `lab preprocess "
+            "--samples-per-class N` (eager subsample) or "
+            "`lab preprocess --synthetic` (smoke test only — score will "
+            "be random).",
             file=sys.stderr,
         )
         return 2
@@ -262,7 +267,7 @@ def cmd_preprocess(args) -> int:
     try:
         train_path, val_path = build_real_shards(
             settings,
-            samples_per_class=getattr(args, "samples_per_class", 50),
+            samples_per_class=getattr(args, "samples_per_class", None),
             overwrite=getattr(args, "overwrite", False),
         )
     except FileNotFoundError as exc:
