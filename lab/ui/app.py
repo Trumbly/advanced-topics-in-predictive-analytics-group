@@ -113,6 +113,23 @@ def create_app(settings: Settings) -> FastAPI:
 
     # ----- API -----
 
+    @app.get("/benchmark", response_class=HTMLResponse)
+    def benchmark_view(request: Request):
+        from lab.core.benchmark import benchmark
+
+        rows = benchmark(studies_root)
+        return templates.TemplateResponse(
+            request, "benchmark.html", {"rows": rows}
+        )
+
+    @app.get("/api/benchmark")
+    def api_benchmark():
+        from lab.core.benchmark import benchmark
+
+        return JSONResponse(
+            [r.model_dump(mode="json") for r in benchmark(studies_root)]
+        )
+
     @app.get("/api/studies")
     def api_studies():
         ids = list_studies(studies_root)
