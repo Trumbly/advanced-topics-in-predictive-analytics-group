@@ -1,4 +1,4 @@
-"""ensure_dataset_present synthetic fallback."""
+"""ensure_dataset_present: synthetic stand-ins live in a separate dir."""
 
 from __future__ import annotations
 
@@ -8,7 +8,11 @@ import pytest
 import torch
 
 from lab.config import load_settings
-from lab.tasks.dataset import ensure_dataset_present
+from lab.tasks.dataset import (
+    ensure_dataset_present,
+    synthetic_dir_for,
+    write_synthetic_shards,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -26,24 +30,62 @@ def settings(tmp_path):
     return s.model_copy(update={"task": new_task})
 
 
-def test_writes_synthetic_when_missing(settings):
-    out = Path(settings.task.processed_data_dir)
-    assert not (out / "train.pt").exists()
-    assert ensure_dataset_present(settings, n_train=20, n_val=5) is True
-    assert (out / "train.pt").exists()
-    assert (out / "val.pt").exists()
-    blob = torch.load(out / "train.pt", map_location="cpu", weights_only=False)
+def test_synthetic_dir_is_sibling_with_suffix(tmp_path):
+    real = tmp_path / "mels"
+    out = synthetic_dir_for(real)
+    assert out == tmp_path / "mels_synthetic"
+
+
+def test_writes_synthetic_into_separate_dir_when_missing(settings, tmp_path):
+    real = Path(settings.task.processed_data_dir)
+    synthetic = synthetic_dir_for(real)
+    assert not real.exists()
+    assert not synthetic.exists()
+
+    new_settings, used = ensure_dataset_present(settings, n_train=20, n_val=5)
+    assert used is True
+    assert new_settings.task.processed_data_dir == str(synthetic)
+
+    # Real dir untouched
+    assert not (real / "train.pt").exists()
+    # Synthetic dir populated
+    assert (synthetic / "train.pt").exists()
+    assert (synthetic / "val.pt").exists()
+    blob = torch.load(synthetic / "train.pt", map_location="cpu", weights_only=False)
     assert blob["x"].shape == (20, 1, 8, 8)
     assert blob["y"].shape == (20, 4)
 
 
-def test_leaves_real_shards_untouched(settings, tmp_path):
-    """If train.pt already exists, do not overwrite."""
-    out = Path(settings.task.processed_data_dir)
-    out.mkdir(parents=True)
+def test_real_data_takes_precedence(settings, tmp_path):
+    real = Path(settings.task.processed_data_dir)
+    real.mkdir(parents=True)
     sentinel = {"x": torch.zeros(3, 1, 8, 8), "y": torch.zeros(3, 4)}
-    torch.save(sentinel, out / "train.pt")
+    torch.save(sentinel, real / "train.pt")
 
-    assert ensure_dataset_present(settings) is False
-    blob = torch.load(out / "train.pt", map_location="cpu", weights_only=False)
-    assert blob["x"].shape == (3, 1, 8, 8)  # sentinel preserved
+    new_settings, used = ensure_dataset_present(settings)
+    assert used is False
+    assert new_settings.task.processed_data_dir == str(real)
+    blob = torch.load(real / "train.pt", map_location="cpu", weights_only=False)
+    assert blob["x"].shape == (3, 1, 8, 8)
+    assert not synthetic_dir_for(real).exists()
+
+
+def test_existing_synthetic_is_reused_not_regenerated(settings):
+    new_settings, _ = ensure_dataset_present(settings, n_train=10, n_val=5)
+    synthetic = Path(new_settings.task.processed_data_dir)
+    first = (synthetic / "train.pt").stat().st_mtime_ns
+
+    new_settings_2, used = ensure_dataset_present(settings, n_train=10, n_val=5)
+    assert used is True
+    second = (synthetic / "train.pt").stat().st_mtime_ns
+    assert first == second
+
+
+def test_write_synthetic_shards_force_overwrite(settings):
+    write_synthetic_shards(settings, n_train=10, n_val=5)
+    synthetic = synthetic_dir_for(settings.task.processed_data_dir)
+    assert (synthetic / "train.pt").exists()
+
+    write_synthetic_shards(settings, n_train=10, n_val=5, overwrite=True)
+    blob = torch.load(synthetic / "train.pt", map_location="cpu", weights_only=False)
+    assert blob["x"].shape[0] == 10

@@ -99,12 +99,14 @@ def cmd_run(args) -> int:
     from lab.tasks.dataset import ensure_dataset_present
     from lab.tasks.eda import run_eda
 
-    if ensure_dataset_present(settings):
+    real_processed = Path(settings.task.processed_data_dir)
+    settings, used_synthetic = ensure_dataset_present(settings)
+    if used_synthetic:
         print(
-            f"warning: no processed shard at {settings.task.processed_data_dir}; "
-            "generated synthetic stand-ins so the loop can run. "
-            "Run `lab preprocess` (or place real Kaggle data) before evaluating "
-            "model quality."
+            f"warning: no real shard at {real_processed}; running on "
+            f"synthetic stand-ins from {settings.task.processed_data_dir}. "
+            "Run `lab preprocess --synthetic` to refresh, or place real Kaggle "
+            "mels in the original location before evaluating model quality."
         )
 
     client = LLMClient(settings.llm)
@@ -226,14 +228,10 @@ def cmd_preprocess(args) -> int:
     settings = load_settings(args.task)
 
     if args.synthetic:
-        from lab.tasks.dataset import ensure_dataset_present
+        from lab.tasks.dataset import write_synthetic_shards
 
-        out = Path(settings.task.processed_data_dir)
-        # Force regeneration even when shards already exist on disk.
-        (out / "train.pt").unlink(missing_ok=True)
-        (out / "val.pt").unlink(missing_ok=True)
-        ensure_dataset_present(settings)
-        print(f"synthetic shards written to {out}")
+        target = write_synthetic_shards(settings, overwrite=True)
+        print(f"synthetic shards written to {target}")
         return 0
 
     print(
