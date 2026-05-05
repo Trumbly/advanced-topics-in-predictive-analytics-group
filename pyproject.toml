@@ -27,6 +27,9 @@ dependencies = [
   "numpy>=1.24",
   "nbformat>=5.7",
   "markdown-it-py>=3.0",
+  # Audio preprocessing — soundscape window slicing + mel-spec generation
+  "librosa>=0.10",
+  "soundfile>=0.12",
 ]
 
 [project.optional-dependencies]

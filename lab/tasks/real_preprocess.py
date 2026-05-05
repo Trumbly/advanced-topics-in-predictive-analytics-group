@@ -63,15 +63,41 @@ def build_real_shards(
         raise FileNotFoundError(f"missing labels CSV: {labels_path}")
 
     samples_by_class = _read_labels(labels_path)
-    class_ids = sorted(samples_by_class)
-    class_to_idx = {cid: i for i, cid in enumerate(class_ids)}
-    num_classes = len(class_ids)
+    sample_labels = _read_sample_labels(labels_path)
 
-    if num_classes != settings.task.expected_num_classes:
+    canonical_path = labels_path.parent.parent / "raw" / "sample_submission.csv"
+    if canonical_path.exists():
+        from lab.tasks.soundscape_preprocess import load_canonical_class_order
+
+        class_ids = load_canonical_class_order(canonical_path)
+        class_to_idx = {cid: i for i, cid in enumerate(class_ids)}
+        num_classes = len(class_ids)
+        _LOG.info(
+            "using canonical %d-class ordering from %s",
+            num_classes,
+            canonical_path,
+        )
+    else:
+        class_ids = sorted(samples_by_class)
+        class_to_idx = {cid: i for i, cid in enumerate(class_ids)}
+        num_classes = len(class_ids)
+
+    expected = settings.task.expected_num_classes
+    if num_classes != expected:
         _LOG.warning(
-            "expected_num_classes=%d but labels.csv has %d distinct classes; "
-            "using the data's count",
-            settings.task.expected_num_classes,
+            "expected_num_classes=%d but the class ordering yields %d; "
+            "using %d",
+            expected,
+            num_classes,
+            num_classes,
+        )
+
+    n_with_signal = sum(1 for cid in class_ids if samples_by_class.get(cid))
+    if n_with_signal < num_classes:
+        _LOG.warning(
+            "only %d/%d canonical classes have at least one labelled "
+            "sample -- the rest will train on zeros",
+            n_with_signal,
             num_classes,
         )
 
@@ -85,6 +111,7 @@ def build_real_shards(
             val_fraction=val_fraction,
             seed=seed,
             overwrite=overwrite,
+            sample_labels=sample_labels,
         )
 
     return _build_eager_shards(
@@ -103,17 +130,83 @@ def build_real_shards(
 
 
 def _read_labels(labels_path: Path) -> dict[str, list[str]]:
+    """Return ``{class_id: [sample_id, ...]}``.
+
+    Accepts both the legacy single-label header (``sample_id,class_id``) and
+    the unified multi-label header (``sample_id,class_ids``) where the value
+    is a ``;``-separated list of class IDs. A sample with multi-label appears
+    in the bucket of EVERY class it carries -- stratified sampling downstream
+    therefore over-counts multi-labelled samples, which is the desired
+    behaviour because it makes class-imbalance accounting honest about how
+    much signal each class actually has.
+    """
     samples_by_class: dict[str, list[str]] = {}
     with labels_path.open("r", encoding="utf-8") as fh:
         header = fh.readline().strip().split(",")
         sid_col = header.index("sample_id")
-        cls_col = header.index("class_id")
+        if "class_ids" in header:
+            cls_col = header.index("class_ids")
+            multi = True
+        elif "class_id" in header:
+            cls_col = header.index("class_id")
+            multi = False
+        else:
+            raise ValueError(
+                f"labels CSV {labels_path} must have a `class_id` or "
+                f"`class_ids` column; header={header}"
+            )
         for line in fh:
-            parts = line.strip().split(",")
+            parts = line.rstrip("\n").split(",")
             if len(parts) <= max(sid_col, cls_col):
                 continue
-            samples_by_class.setdefault(parts[cls_col], []).append(parts[sid_col])
+            sid = parts[sid_col]
+            raw = parts[cls_col]
+            class_ids = (
+                [c for c in raw.split(";") if c] if multi else [raw]
+            )
+            for cid in class_ids:
+                samples_by_class.setdefault(cid, []).append(sid)
     return samples_by_class
+
+
+def _read_sample_labels(labels_path: Path) -> dict[str, list[str]]:
+    """Return ``{sample_id: [class_id, ...]}`` -- the per-sample view.
+
+    Multi-label samples have len(list) > 1; legacy single-label files always
+    have a one-element list. Used by the lazy-index builder to write
+    ``class_indices`` per entry.
+    """
+    samples: dict[str, list[str]] = {}
+    with labels_path.open("r", encoding="utf-8") as fh:
+        header = fh.readline().strip().split(",")
+        sid_col = header.index("sample_id")
+        if "class_ids" in header:
+            cls_col = header.index("class_ids")
+            multi = True
+        elif "class_id" in header:
+            cls_col = header.index("class_id")
+            multi = False
+        else:
+            raise ValueError(
+                f"labels CSV {labels_path} must have a `class_id` or "
+                f"`class_ids` column; header={header}"
+            )
+        for line in fh:
+            parts = line.rstrip("\n").split(",")
+            if len(parts) <= max(sid_col, cls_col):
+                continue
+            sid = parts[sid_col]
+            raw = parts[cls_col]
+            class_ids = (
+                [c for c in raw.split(";") if c] if multi else [raw]
+            )
+            if not class_ids:
+                continue
+            existing = samples.setdefault(sid, [])
+            for cid in class_ids:
+                if cid not in existing:
+                    existing.append(cid)
+    return samples
 
 
 def _build_lazy_index(
@@ -126,7 +219,12 @@ def _build_lazy_index(
     val_fraction: float,
     seed: int,
     overwrite: bool,
+    sample_labels: dict[str, list[str]] | None = None,
 ) -> tuple[Path, Path]:
+    """Lazy index: emits one entry per *sample* with the full ``class_indices``
+    list when ``sample_labels`` is provided; otherwise falls back to
+    single-class entries derived from ``samples_by_class`` for legacy callers.
+    """
     train_path = processed_dir / "train_index.json"
     val_path = processed_dir / "val_index.json"
     if train_path.exists() and val_path.exists() and not overwrite:
@@ -136,13 +234,41 @@ def _build_lazy_index(
     rng = random.Random(seed)
     train_entries: list[dict] = []
     val_entries: list[dict] = []
-    for cid, sids in samples_by_class.items():
-        sids = list(sids)
-        rng.shuffle(sids)
-        n_val = max(1, int(round(len(sids) * val_fraction))) if len(sids) > 1 else 0
-        for i, sid in enumerate(sids):
-            entry = {"sid": sid, "class_idx": class_to_idx[cid]}
-            (val_entries if i < n_val else train_entries).append(entry)
+
+    if sample_labels is not None:
+        # Multi-label path: split samples (not class buckets) so each sample
+        # appears in exactly one of train/val even when it carries multiple
+        # class labels.
+        seen_sids: set[str] = set()
+        for cid in sorted(samples_by_class):
+            sids = [
+                s for s in samples_by_class[cid] if s not in seen_sids
+            ]
+            rng.shuffle(sids)
+            n_val = max(1, int(round(len(sids) * val_fraction))) if len(sids) > 1 else 0
+            for i, sid in enumerate(sids):
+                seen_sids.add(sid)
+                indices = [
+                    class_to_idx[c]
+                    for c in sample_labels.get(sid, [])
+                    if c in class_to_idx
+                ]
+                if not indices:
+                    continue
+                entry = {"sid": sid, "class_indices": indices}
+                (val_entries if i < n_val else train_entries).append(entry)
+    else:
+        for cid, sids in samples_by_class.items():
+            sids = list(sids)
+            rng.shuffle(sids)
+            n_val = max(1, int(round(len(sids) * val_fraction))) if len(sids) > 1 else 0
+            for i, sid in enumerate(sids):
+                entry = {
+                    "sid": sid,
+                    "class_idx": class_to_idx[cid],
+                    "class_indices": [class_to_idx[cid]],
+                }
+                (val_entries if i < n_val else train_entries).append(entry)
 
     processed_dir.mkdir(parents=True, exist_ok=True)
     train_path.write_text(
