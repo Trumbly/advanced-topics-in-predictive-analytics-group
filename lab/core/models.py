@@ -127,6 +127,7 @@ class Proposal(BaseModel):
     lr_schedule: LRSchedule
     epochs: int
     init_from_experiment_id: str | None = None
+    weight_decay: float | None = None  # L2 regularization (#40)
 
 
 class Verdict(BaseModel):
