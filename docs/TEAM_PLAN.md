@@ -66,18 +66,65 @@ weight unit) while remaining unordered. Every member implements 6 issues.
 
 ## Workflow per issue
 
-1. Branch from `feature/rewrite`: `feature/I-XX-<slug>`
-2. Implement per `docs/issues/I-XX-*.md`; tests must pass
+1. Branch from `feature/rewrite`: `feature/I-XX-<slug>`.
+2. Implement per `docs/issues/I-XX-*.md`; tests must pass.
 3. Commit with assignee identity:
    ```bash
    git -c user.name="<github-login>" -c user.email="<email>" commit ...
    ```
-4. Push using assignee's SSH alias:
+4. Push using the assignee's SSH alias:
    ```bash
    git push <assignee-remote> HEAD
    ```
-5. Open PR `feature/I-XX-*` → `feature/rewrite`. One review required.
-6. Squash-merge on green.
+5. Open the PR `feature/I-XX-*` → `feature/rewrite` (any account; the
+   "opened by" field is independent of merge attribution).
+6. **Merge via SSH push, not `gh pr merge`** — see the next section.
 
 Once all issues land, `feature/rewrite` → `development` → `production`
 follows the standard branch protection chain (1 / 3 approvals).
+
+## Merging without misattributing the merger
+
+`gh pr merge` and the GitHub web "Merge" button both use the API token of
+whoever clicks them, so on a single-account local setup every merge gets
+recorded as `mergedBy = <that account>`. GitHub stores `mergedBy` once at
+merge time and **does not allow re-opening a merged PR**, so the field is
+permanent — even if the underlying history is later rewritten with a
+different commit author.
+
+To attribute the merge to the issue's assignee:
+
+1. Local: rebase or fast-forward `feature/rewrite` to the PR's head.
+2. Replay the merge as the assignee:
+   ```bash
+   git checkout feature/rewrite
+   git -c user.name="<assignee-login>" -c user.email="<assignee-email>" \
+       merge --no-ff <pr-head-sha> --no-edit \
+       -m "Merge pull request #<NN> from Trumbly/<branch-name>"
+   ```
+3. Push the merge commit through the assignee's SSH remote:
+   ```bash
+   git push <assignee-remote> feature/rewrite
+   ```
+
+GitHub auto-detects the merge from the push event and sets
+`mergedBy = <assignee>` because the push came in via that account's SSH
+key. PR #66 is the canonical worked example; PRs #42–#65 were merged via
+`gh pr merge` before this rule existed and their `mergedBy` cannot be
+fixed retroactively (commit authors and per-merge push events are correct
+because the history was replayed, but `mergedBy` is sticky).
+
+## Account → SSH alias map
+
+The four collaborators map to ED25519 keys + Git remotes as follows:
+
+| Collaborator        | SSH key file              | SSH host alias  | Git remote |
+|---------------------|---------------------------|-----------------|------------|
+| Trumbly             | `~/.ssh/id_ed25519`       | `github-trumbly`| `origin`   |
+| SebastianMis23      | `~/.ssh/id_ed25519_basti` | `github-basti`  | `basti`    |
+| danish-m-qureshi    | `~/.ssh/id_ed25519_danish`| `github-danish` | `danish`   |
+| Lorry171717         | `~/.ssh/id_ed25519_lorry` | `github-lorry`  | `lorry`    |
+
+`~/.ssh/config` and the four `git remote` entries are already set up on
+the workstation that drove the rewrite; clone elsewhere requires the same
+config to push under a non-default identity.
