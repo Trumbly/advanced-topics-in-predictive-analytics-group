@@ -18,9 +18,10 @@ import os
 import time
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
 
 # ---------- runtime knobs ----------
 NUM_CLASSES = {{ num_classes }}
@@ -42,18 +43,51 @@ torch.manual_seed(SEED)
 
 
 # ---------- data ----------
-def load_audio_dataset(processed_dir: Path, split: str):
-    """Load (x, y) tensors from a sharded directory.
+class LazyMelDataset(Dataset):
+    """Reads (x, y) per sample from .npy files listed in a JSON index.
 
-    Looks for:
-      processed_dir/<split>.pt  -- a torch.save dict {"x": tensor, "y": tensor}
-    If missing for a non-train split, returns None and the caller will
-    fall back to splitting train 80/20.
+    Used when the processed dir contains ``<split>_index.json`` (the lazy
+    preprocess output) instead of an eager ``<split>.pt`` tensor — lets
+    the loop train on hundreds of thousands of mels without holding them
+    all in RAM.
     """
-    path = processed_dir / f"{split}.pt"
-    if not path.exists():
+
+    def __init__(self, index_path: Path):
+        with index_path.open("r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        self.spectrograms_dir = Path(payload["spectrograms_dir"])
+        self.num_classes = int(payload["num_classes"])
+        self.entries = payload["samples"]
+
+    def __len__(self) -> int:
+        return len(self.entries)
+
+    def __getitem__(self, idx: int):
+        e = self.entries[idx]
+        arr = np.load(self.spectrograms_dir / f"{e['sid']}.npy").astype("float32")
+        if arr.ndim == 2:
+            arr = arr[None]
+        x = torch.from_numpy(arr)
+        y = torch.zeros(self.num_classes, dtype=torch.float32)
+        y[int(e["class_idx"])] = 1.0
+        return x, y
+
+
+def load_audio_dataset(processed_dir: Path, split: str):
+    """Return a Dataset for ``split`` ('train' or 'val').
+
+    Preference order:
+      1. ``<split>_index.json`` -> LazyMelDataset (recommended; full corpus)
+      2. ``<split>.pt`` -> eager TensorDataset (used by the smoke path)
+      3. None when neither file is present (caller falls back to split).
+    """
+    index_path = processed_dir / f"{split}_index.json"
+    if index_path.exists():
+        return LazyMelDataset(index_path)
+    pt_path = processed_dir / f"{split}.pt"
+    if not pt_path.exists():
         return None
-    blob = torch.load(path, map_location="cpu", weights_only=False)
+    blob = torch.load(pt_path, map_location="cpu", weights_only=False)
     return TensorDataset(blob["x"], blob["y"])
 
 
@@ -61,7 +95,8 @@ def make_loaders():
     train = load_audio_dataset(PROCESSED_DIR, "train")
     if train is None:
         raise FileNotFoundError(
-            f"missing processed shard: {PROCESSED_DIR / 'train.pt'}"
+            f"missing processed shard: {PROCESSED_DIR / 'train.pt'} "
+            f"(or {PROCESSED_DIR / 'train_index.json'})"
         )
     val = load_audio_dataset(PROCESSED_DIR, "val")
     if val is None:
