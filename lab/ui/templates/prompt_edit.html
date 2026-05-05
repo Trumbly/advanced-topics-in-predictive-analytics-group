@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}prompt {{ task }} {{ version }}{% endblock %}
+{% block content %}
+<style>
+  .prompt-editor textarea {
+    width: 100%;
+    background: #0a0c10;
+    color: #e8edf2;
+    border: 1px solid #2a2f37;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 0.82em;
+    line-height: 1.45em;
+    resize: vertical;
+  }
+  .prompt-editor textarea#system { min-height: 180px; }
+  .prompt-editor textarea#user { min-height: 320px; }
+  .prompt-editor label {
+    display: block;
+    margin: 14px 0 4px 0;
+    font-weight: 600;
+    font-size: 0.9em;
+  }
+  .prompt-editor .hint {
+    font-size: 0.78em;
+    opacity: 0.7;
+    margin: 2px 0 6px 0;
+  }
+  .version-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 8px 0 14px 0;
+  }
+  .version-pills a {
+    border: 1px solid #2a2f37;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 0.78em;
+    text-decoration: none;
+    color: #b8c0cb;
+  }
+  .version-pills a.current { background: #1d3a6b; color: #e8f0ff; border-color: #3a6cd6; }
+  .version-pills a.active::after { content: " ★"; color: #ffd66b; }
+  .editor-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .banner-ok { background: #163d22; border-left: 3px solid #1f6f3a;
+    padding: 8px 12px; margin: 10px 0; font-size: 0.9em; }
+  .banner-err { background: #3d1616; border-left: 3px solid #7a2a2a;
+    padding: 8px 12px; margin: 10px 0; font-size: 0.9em; color: #ffb6b6; }
+</style>
+
+<p><a href="/prompts">← all prompts</a></p>
+<h1>{{ task }}
+  <span class="pill">{{ version }}</span>
+  {% if not is_new and active == version %}<span class="pill" style="background:#163d22">active</span>{% endif %}
+</h1>
+
+{% if saved %}<div class="banner-ok">saved as new version. Registry never overwrites — every save creates v{N+1}.</div>{% endif %}
+{% if error %}<div class="banner-err">{{ error }}</div>{% endif %}
+
+<div class="version-pills">
+  {% for v in versions %}
+    <a href="/prompts/{{ task }}/{{ v }}"
+       class="{% if v == version %}current{% endif %} {% if v == active %}active{% endif %}">
+      {{ v }}{% if v == active %} (active){% endif %}
+    </a>
+  {% endfor %}
+  <a href="/prompts/{{ task }}/new/blank">+ new</a>
+</div>
+
+<form method="post" action="/prompts/{{ task }}/edit" class="prompt-editor">
+  <label for="system">system prompt</label>
+  <p class="hint">Sets the agent's role, output schema, and hard constraints. Use <code>{slot}</code> placeholders for runtime fill — see existing version for the slot names this task expects.</p>
+  <textarea id="system" name="system" required>{{ system }}</textarea>
+
+  <label for="user">user prompt</label>
+  <p class="hint">The runtime message. Slots like <code>{task_description}</code>, <code>{eda_summary}</code>, <code>{experiment_memory}</code>, etc. are filled by PromptEngine. If you remove a slot the engine still fills it harmlessly; if you add an unknown slot you'll get a KeyError at run time.</p>
+  <textarea id="user" name="user" required>{{ user_text }}</textarea>
+
+  <div class="editor-actions">
+    <button type="submit" name="activate" value="">save as new version</button>
+    <button type="submit" name="activate" value="1"
+      style="background:#1d3a6b;color:#e8f0ff;border:1px solid #3a6cd6;border-radius:6px;padding:6px 14px;">
+      save & activate
+    </button>
+    <span style="opacity:0.7;font-size:0.85em">
+      saving creates a new immutable v{{ versions|length + 1 }}.yaml
+    </span>
+  </div>
+</form>
+{% endblock %}
