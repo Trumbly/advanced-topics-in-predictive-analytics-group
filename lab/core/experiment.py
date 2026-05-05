@@ -57,6 +57,16 @@ class RunContext:
     judge: Judge
     eda_summary: str = ""
     hooks: Hooks | None = None
+    on_progress: Callable[[], None] | None = None  # called whenever exp state changes
+
+
+def _progress(ctx: RunContext) -> None:
+    """Notify the lifecycle that ``exp`` mutated; lets the UI see live progress."""
+    if ctx.on_progress is not None:
+        try:
+            ctx.on_progress()
+        except Exception:  # pragma: no cover — defensive; never break the loop
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -74,20 +84,26 @@ def run_experiment(exp: Experiment, ctx: RunContext) -> Experiment:
         proposal = _propose(ctx, exp)
         exp.proposal = proposal
         exp.status = "GENERATING"
+        _progress(ctx)
         code = _generate(ctx, exp, proposal)
+        exp.code = code
         exp.status = "VALIDATING"
+        _progress(ctx)
         validated_code = _validate_with_retry(ctx, exp, code)
         exp.code = validated_code
         exp.status = "EXECUTING"
+        _progress(ctx)
         exec_result = _execute_with_retry(ctx, exp, validated_code, proposal)
         _capture(exp, exec_result)
         exp.status = "JUDGED"
+        _progress(ctx)
         try:
             verdict = ctx.judge.judge_experiment(exp, ctx.memory)
             exp.verdict = verdict
         except Exception as exc:  # pragma: no cover - defensive
             telemetry.log_event("error", phase="judge", message=str(exc), level="error")
         ctx.memory.add(exp)
+        _progress(ctx)
     except _HardFailure as hf:
         exp.status = "FAILED"
         exp.tasks.append(
@@ -98,6 +114,7 @@ def run_experiment(exp: Experiment, ctx: RunContext) -> Experiment:
             )
         )
         ctx.memory.add(exp)
+        _progress(ctx)
         telemetry.log_event(
             "experiment_end", id=exp.id, succeeded=False, level="error"
         )
@@ -145,6 +162,7 @@ def _propose(ctx: RunContext, exp: Experiment) -> Proposal:
     exp.tasks.append(
         Task(name="propose", status="SUCCEEDED", input={}, output={"proposal": proposal.model_dump()})
     )
+    _progress(ctx)
     return proposal
 
 
@@ -200,6 +218,7 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
                 ),
             )
         )
+        _progress(ctx)
         if result.ok:
             return current
         autofixed = ctx.recovery.try_autofix(current, result)
@@ -212,6 +231,7 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
                     output={"hint": result.autofix_hint or ""},
                 )
             )
+            _progress(ctx)
             current = autofixed
             continue
         if attempt >= attempts:
@@ -227,6 +247,7 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
                 output={},
             )
         )
+        _progress(ctx)
         current = splice_build_model(render_skeleton(ctx.settings), _extract_block(rendered))
 
     raise _HardFailure(
@@ -299,6 +320,7 @@ def _execute_with_retry(
                 error=result.error,
             )
         )
+        _progress(ctx)
         if result.succeeded:
             exp.sandbox_path = str(Path(ctx.settings.paths.sandbox) / exp.id)
             exp.checkpoint_path = extra_env["AGENT_CHECKPOINT_OUT"]
@@ -326,6 +348,7 @@ def _execute_with_retry(
                 output={},
             )
         )
+        _progress(ctx)
         if repaired is None:
             raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
         current = splice_build_model(render_skeleton(ctx.settings), _extract_block(repaired))
