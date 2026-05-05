@@ -26,6 +26,25 @@
 </table>
 {% endif %}
 
+{% if exp.tasks %}
+<h2>Step history</h2>
+<table>
+  <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
+  <tbody>
+  {% for t in exp.tasks %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><b>{{ t.name }}</b></td>
+      <td><span class="pill">{{ t.status }}</span></td>
+      <td>{{ t.input.get("attempt") if t.input.get("attempt") is not none else "—" }}</td>
+      <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:200] }}</span>{% else %}—{% endif %}</td>
+      <td>{{ t.input.get("kind", "") }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if exp.verdict %}
 <h2>Verdict</h2>
 <p><b>{{ exp.verdict.verdict }}</b> ({{ "%.2f"|format(exp.verdict.score) }}) — {{ exp.verdict.rationale }}</p>

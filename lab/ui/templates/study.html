@@ -1,34 +1,127 @@
 {% extends "base.html" %}
 {% block title %}{{ study.id }}{% endblock %}
 {% block content %}
-<h1>{{ study.id }}</h1>
+<h1>{{ study.id }} <span class="pill" id="status-pill">{{ study.status }}</span></h1>
 <p>
-  <span class="pill">{{ study.status }}</span>
-  task <b>{{ study.task_name }}</b>,
-  personality <b>{{ study.personality }}</b>,
+  task <b>{{ study.task_name }}</b> ·
+  personality <b>{{ study.personality }}</b> ·
   agent-memory <b>{{ study.agent_memory_enabled }}</b>
+  {% if study.predecessor_id %}· predecessor <a href="/studies/{{ study.predecessor_id }}">{{ study.predecessor_id }}</a>{% endif %}
 </p>
 {% if study.best_experiment_id %}
-<p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ study.best_experiment_id }}</a> — {{ "%.4f"|format(study.best_score) }}</p>
+<p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ study.best_experiment_id }}</a> — <b>{{ "%.4f"|format(study.best_score) }}</b></p>
 {% endif %}
 
-<h2>Experiments</h2>
-<table>
-  <thead><tr><th>#</th><th>id</th><th>status</th><th>arch</th><th>family</th><th>score</th><th>verdict</th></tr></thead>
-  <tbody>
-  {% for e in study.experiments %}
-    <tr>
-      <td>{{ e.index }}</td>
-      <td><a href="/experiments/{{ study.id }}/{{ e.id }}">{{ e.id }}</a></td>
-      <td><span class="pill">{{ e.status }}</span></td>
-      <td>{{ e.proposal.architecture_name if e.proposal else "—" }}</td>
-      <td>{{ e.proposal.family if e.proposal else "—" }}</td>
-      <td>{{ "%.4f"|format(e.primary_score) if e.primary_score is not none else "—" }}</td>
-      <td>{{ e.verdict.verdict if e.verdict else "—" }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<h2>Experiments <small id="exp-count">({{ study.experiments|length }})</small></h2>
+<div id="experiments">
+{% for e in study.experiments %}
+  <div class="exp-card" style="border:1px solid #2a2f37;border-radius:6px;padding:10px;margin-bottom:14px;">
+    <h3 style="margin:0 0 6px 0;font-size:1.05em;">
+      #{{ e.index }} · <a href="/experiments/{{ study.id }}/{{ e.id }}">{{ e.id }}</a>
+      <span class="pill">{{ e.status }}</span>
+      {% if e.proposal %}<span style="opacity:0.8">— {{ e.proposal.architecture_name }} ({{ e.proposal.family }})</span>{% endif %}
+      {% if e.primary_score is not none %}<span style="float:right">{{ e.primary_metric }} = <b>{{ "%.4f"|format(e.primary_score) }}</b></span>{% endif %}
+    </h3>
+    {% if e.tasks %}
+    <table style="margin-top:6px;font-size:0.85em">
+      <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
+      <tbody>
+      {% for t in e.tasks %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><b>{{ t.name }}</b></td>
+          <td>
+            <span class="pill" style="background:{% if t.status == 'SUCCEEDED' %}#163d22{% elif t.status == 'FAILED' %}#3d1616{% else %}#1c2129{% endif %}">
+              {{ t.status }}
+            </span>
+          </td>
+          <td>{{ t.input.get("attempt") if t.input.get("attempt") is not none else "—" }}</td>
+          <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:140] }}</span>{% else %}—{% endif %}</td>
+          <td>{{ t.input.get("kind", "") }}{% if t.output.get("duration_s") %} · {{ "%.1fs"|format(t.output.get("duration_s")) }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if e.verdict %}
+    <p style="margin:6px 0 0 0;font-size:0.85em;opacity:0.85">verdict: <b>{{ e.verdict.verdict }}</b> ({{ "%.2f"|format(e.verdict.score) }}) — {{ e.verdict.rationale }}</p>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
 
-<p><a href="/reports/{{ study.id }}">view report</a></p>
+<h2>Activity log</h2>
+<p style="font-size:0.85em;opacity:0.8" id="log-status">loading…</p>
+<pre id="log" style="background:#0a0c10;border:1px solid #2a2f37;padding:10px;height:340px;overflow-y:scroll;font-size:0.78em;line-height:1.4em">(no events yet)</pre>
+
+<p><a href="/reports/{{ study.id }}">view rendered report</a></p>
+
+<script>
+(function () {
+  const STUDY_ID = {{ study.id | tojson }};
+  const initialStatus = {{ study.status | tojson }};
+  const TERMINAL = new Set(["COMPLETED", "ABORTED", "FAILED"]);
+
+  const logEl = document.getElementById("log");
+  const logStatusEl = document.getElementById("log-status");
+  const statusPill = document.getElementById("status-pill");
+
+  let logBuffer = "";
+  function appendLog(line) {
+    if (logBuffer === "") logEl.textContent = "";
+    try {
+      const rec = JSON.parse(line);
+      const ts = (rec.ts || "").split("T")[1]?.split(".")[0] || rec.ts;
+      const fields = rec.fields ? JSON.stringify(rec.fields) : "";
+      logBuffer += `${ts} [${rec.level}] ${rec.event} ${fields}\n`;
+    } catch {
+      logBuffer += line + "\n";
+    }
+    logEl.textContent = logBuffer;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Pull historical log first.
+  fetch(`/api/studies/${STUDY_ID}/log?tail=500`)
+    .then(r => r.json())
+    .then(lines => {
+      lines.forEach(appendLog);
+      logStatusEl.textContent = `loaded ${lines.length} historical events`;
+    })
+    .catch(() => { logStatusEl.textContent = "no log file yet"; });
+
+  // Live SSE only while running.
+  let eventSrc = null;
+  if (!TERMINAL.has(initialStatus)) {
+    logStatusEl.textContent = "live tailing…";
+    eventSrc = new EventSource(`/live/${STUDY_ID}`);
+    eventSrc.addEventListener("message", e => appendLog(e.data));
+    eventSrc.addEventListener("error", () => { logStatusEl.textContent = "stream error (will reconnect)"; });
+  }
+
+  // Periodic state refresh while running.
+  let lastExpCount = {{ study.experiments|length }};
+  async function pollState() {
+    try {
+      const r = await fetch(`/api/studies/${STUDY_ID}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      statusPill.textContent = data.status;
+      if (data.experiments.length !== lastExpCount) {
+        // New experiment landed → reload to get the full task table.
+        location.reload();
+      }
+      if (TERMINAL.has(data.status)) {
+        clearInterval(handle);
+        if (eventSrc) eventSrc.close();
+        logStatusEl.textContent = "study finished";
+      }
+    } catch {}
+  }
+  let handle = null;
+  if (!TERMINAL.has(initialStatus)) {
+    handle = setInterval(pollState, 3000);
+  }
+})();
+</script>
 {% endblock %}
