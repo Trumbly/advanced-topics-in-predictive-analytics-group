@@ -44,7 +44,7 @@ def test_profile_falls_back_to_config_when_metadata_missing(settings, tmp_path):
     adapter = BirdclefAdapter(s)
     profile = adapter.profile()
     assert isinstance(profile, DatasetProfile)
-    assert profile.num_classes == 234
+    assert profile.num_classes == 206
     assert profile.input_tensor_shape == tuple(s.task.input_tensor_shape)
 
 
@@ -54,7 +54,7 @@ def test_profile_reads_json_sidecar(settings, tmp_path):
     (sidecar_dir / "metadata.json").write_text(
         json.dumps(
             {
-                "num_classes": 234,
+                "num_classes": 206,
                 "num_train": 15320,
                 "input_tensor_shape": [1, 128, 313],
                 "class_imbalance": {"a": 5, "b": 50},
@@ -87,7 +87,7 @@ def test_profile_rejects_class_count_drift(settings, tmp_path):
     s = settings.model_copy(update={"task": new_task})
     with pytest.raises(ValueError) as exc:
         BirdclefAdapter(s).profile()
-    assert "234" in str(exc.value)
+    assert "206" in str(exc.value)
 
 
 def test_prompt_slots_have_required_keys(settings):
@@ -101,7 +101,7 @@ def test_prompt_slots_have_required_keys(settings):
         "code_skeleton_content",
     }
     assert required.issubset(slots.keys())
-    assert slots["num_classes"] == "234"
+    assert slots["num_classes"] == "206"
 
 
 def test_signature_and_spawn_calls(settings):
