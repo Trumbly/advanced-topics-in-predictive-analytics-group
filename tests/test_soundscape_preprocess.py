@@ -65,6 +65,84 @@ def test_ingest_train_csv_skips_blank_primary_label(tmp_path):
     assert "iNat2" not in out
 
 
+def test_ingest_train_csv_expands_to_window_sids_when_mels_dir_given(tmp_path):
+    """When spectrograms_dir is provided, each train.csv row must expand
+    into one entry per existing <base>_w<idx>.npy on disk -- the original
+    BirdCLEF pipeline slices per-clip audio into 5-second windows, and the
+    labels.csv sids have to match those window filenames or the lazy
+    DataLoader hits FileNotFoundError at runtime."""
+    train = tmp_path / "train.csv"
+    train.write_text(
+        "primary_label,filename\n"
+        "A,A/iNat100.ogg\n"
+        "B,B/iNat200.ogg\n"
+        "C,C/iNat300.ogg\n"   # has no mels on disk -> dropped
+    )
+    mels = tmp_path / "spectrograms"
+    mels.mkdir()
+    for idx in range(3):
+        (mels / f"iNat100_w{idx:03d}.npy").touch()
+    (mels / "iNat200_w000.npy").touch()
+    # iNat300: no mels -> the row should be dropped silently
+
+    out = ingest_train_csv(train, spectrograms_dir=mels)
+    assert list(out.keys()) == [
+        "iNat100_w000",
+        "iNat100_w001",
+        "iNat100_w002",
+        "iNat200_w000",
+    ]
+    assert out["iNat100_w000"] == ["A"]
+    assert out["iNat200_w000"] == ["B"]
+
+
+def test_ingest_train_csv_legacy_clip_level_when_no_mels_dir(tmp_path):
+    """Backward-compat path: without ``spectrograms_dir`` the function
+    still emits one entry per train.csv row keyed by the file stem (used
+    by older tests + callers that haven't been updated yet)."""
+    train = tmp_path / "train.csv"
+    train.write_text(
+        "primary_label,filename\nA,A/iNat100.ogg\n"
+    )
+    out = ingest_train_csv(train)
+    assert out == {"iNat100": ["A"]}
+
+
+def test_build_unified_labels_emits_window_sids_with_spectrograms_dir(tmp_path):
+    """End-to-end: build_unified_labels must forward spectrograms_dir to
+    ingest_train_csv so the resulting labels.csv has window-level sids
+    matching the on-disk mels."""
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "sample_submission.csv").write_text("row_id,A,B\n_,0,0\n")
+    (raw / "train.csv").write_text(
+        "primary_label,filename\nA,A/iNat100.ogg\n"
+    )
+    (raw / "train_soundscapes_labels.csv").write_text(
+        "filename,start,end,primary_label\n"
+        "S.ogg,00:00:00,00:00:05,A;B\n"
+    )
+    mels = tmp_path / "spectrograms"
+    mels.mkdir()
+    (mels / "iNat100_w000.npy").touch()
+    (mels / "iNat100_w001.npy").touch()
+    (mels / "S_w000.npy").touch()
+
+    from lab.tasks.soundscape_preprocess import build_unified_labels
+
+    out_path = tmp_path / "labels.csv"
+    merged = build_unified_labels(
+        raw_dir=raw, out_path=out_path, spectrograms_dir=mels
+    )
+    assert "iNat100_w000" in merged and "iNat100_w001" in merged
+    assert "iNat100" not in merged   # no clip-level sid leaks through
+    assert "S_w000" in merged
+
+    text = out_path.read_text(encoding="utf-8")
+    assert "iNat100_w000,A\n" in text
+    assert "iNat100_w001,A\n" in text
+
+
 # ---------- soundscape ingest ----------
 
 

@@ -407,14 +407,25 @@ def _run_soundscape_mels(settings, *, include_unlabelled: bool, overwrite: bool)
 
 
 def _run_unify_labels(settings) -> int:
-    """Rebuild labels.csv with the canonical 234-class union."""
+    """Rebuild labels.csv with the canonical 234-class union.
+
+    Passes the spectrograms dir to ``build_unified_labels`` so each
+    ``train.csv`` row expands into one entry per existing ``_w<idx>``
+    window mel -- without this, the lazy-index sids would miss the
+    sliced-window naming convention used by the on-disk mel cache.
+    """
     from lab.tasks.soundscape_preprocess import build_unified_labels
 
     processed_dir = Path(settings.task.processed_data_dir)
     raw_dir = processed_dir.parent.parent / "raw"
+    spectrograms_dir = processed_dir.parent / "spectrograms"
     out_path = processed_dir.parent / "labels.csv"
     try:
-        merged = build_unified_labels(raw_dir=raw_dir, out_path=out_path)
+        merged = build_unified_labels(
+            raw_dir=raw_dir,
+            out_path=out_path,
+            spectrograms_dir=spectrograms_dir if spectrograms_dir.exists() else None,
+        )
     except FileNotFoundError as exc:
         print(f"unify-labels failed: {exc}", file=sys.stderr)
         return 2
