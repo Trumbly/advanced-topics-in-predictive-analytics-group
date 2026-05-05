@@ -51,29 +51,36 @@ class MelParams:
 # ---------------------------------------------------------------------------
 
 
-def build_soundscape_mels(
-    raw_dir: Path,
+def build_audio_mels(
+    audio_dir: Path,
     out_dir: Path,
     *,
     target_sids: Iterable[str] | None = None,
     params: MelParams = MelParams(),
     overwrite: bool = False,
-    soundscapes_subdir: str = "train_soundscapes",
+    recursive: bool = False,
+    label: str = "audio",
 ) -> dict[str, int]:
-    """Slice soundscape audio into windows + write per-window mels.
-
-    Walks ``raw_dir/soundscapes_subdir`` for audio files. For each, slices
-    into consecutive ``params.window_seconds``-second windows and emits
+    """Slice ``audio_dir/*.ogg`` (or recursive glob when ``recursive=True``)
+    into consecutive ``params.window_seconds``-second windows and emit
     ``<file_stem>_w<idx:03d>.npy`` into ``out_dir``.
 
-    ``target_sids`` (optional): only build the windows whose sid (e.g.
-    ``BC2026_Train_0001_S08_..._w003``) appears in the set. Lets the caller
-    skip unlabelled windows when disk pressure is a concern.
+    Two real call sites:
 
-    Returns a counter dict with keys ``built`` / ``skipped_existing`` /
-    ``skipped_short`` / ``skipped_unrequested`` / ``files_processed``.
+    - per-clip mode (``recursive=True``) for ``data/raw/train_audio/<class>/<sid>.ogg``
+      which has class-id subdirectories.
+    - soundscape mode (``recursive=False``, default) for the flat
+      ``data/raw/train_soundscapes/*.ogg`` layout.
 
-    Raises ``ImportError`` (with an actionable hint) when ``librosa`` is not
+    ``target_sids``: when supplied, only the matching window IDs are written;
+    everything else is counted as ``skipped_unrequested``. Useful for
+    targeting only the ~739 *labelled* soundscape windows out of the ~127 k
+    that exist for the full corpus.
+
+    Returns a counter dict (keys ``files_processed`` / ``built`` /
+    ``skipped_existing`` / ``skipped_short`` / ``skipped_unrequested``).
+
+    Raises ``ImportError`` with an actionable hint when ``librosa`` is not
     installed.
     """
     try:
@@ -82,20 +89,17 @@ def build_soundscape_mels(
         import soundfile as sf  # noqa: F401  # pulled in by librosa, listed explicitly
     except ImportError as exc:
         raise ImportError(
-            "soundscape mel generation requires `librosa` + `soundfile`. "
-            "Install with `.venv/bin/pip install librosa soundfile` "
-            "(or `pip install -e .[dev]` once pyproject deps are picked up)."
+            "audio mel generation requires `librosa` + `soundfile`. "
+            "Install with `uv pip install -e .` "
+            "(or `pip install librosa soundfile`)."
         ) from exc
 
-    raw_dir = Path(raw_dir)
+    audio_dir = Path(audio_dir)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    audio_dir = raw_dir / soundscapes_subdir
     if not audio_dir.exists():
-        raise FileNotFoundError(
-            f"missing soundscape audio dir: {audio_dir}"
-        )
+        raise FileNotFoundError(f"missing audio dir: {audio_dir}")
 
     target_set = set(target_sids) if target_sids is not None else None
 
@@ -107,12 +111,20 @@ def build_soundscape_mels(
         "skipped_unrequested": 0,
     }
 
-    audio_paths = sorted(_iter_audio_files(audio_dir))
+    audio_paths = sorted(_iter_audio_files(audio_dir, recursive=recursive))
     if not audio_paths:
         _LOG.warning("no audio files under %s", audio_dir)
         return counts
 
     win_samples = params.sr * params.window_seconds
+
+    _LOG.info(
+        "%s mel build: %d files in %s -> %s",
+        label,
+        len(audio_paths),
+        audio_dir,
+        out_dir,
+    )
 
     for path in audio_paths:
         counts["files_processed"] += 1
@@ -150,17 +162,20 @@ def build_soundscape_mels(
             np.save(out_path, mel.astype("float32"))
             counts["built"] += 1
 
-        if counts["files_processed"] % 10 == 0:
+        if counts["files_processed"] % 50 == 0:
             _LOG.info(
-                "processed %d files (built=%d skipped_existing=%d)",
+                "  %s progress: %d/%d files (built=%d, skipped_existing=%d)",
+                label,
                 counts["files_processed"],
+                len(audio_paths),
                 counts["built"],
                 counts["skipped_existing"],
             )
 
     _LOG.info(
-        "soundscape mel build done: %d files -> %d new mels "
+        "%s mel build done: %d files -> %d new mels "
         "(skipped %d existing, %d unrequested, %d too-short)",
+        label,
         counts["files_processed"],
         counts["built"],
         counts["skipped_existing"],
@@ -168,6 +183,54 @@ def build_soundscape_mels(
         counts["skipped_short"],
     )
     return counts
+
+
+def build_soundscape_mels(
+    raw_dir: Path,
+    out_dir: Path,
+    *,
+    target_sids: Iterable[str] | None = None,
+    params: MelParams = MelParams(),
+    overwrite: bool = False,
+    soundscapes_subdir: str = "train_soundscapes",
+) -> dict[str, int]:
+    """Soundscape-mode wrapper around :func:`build_audio_mels`.
+
+    Kept as a thin alias so existing callers and CLI flags continue to work.
+    """
+    return build_audio_mels(
+        Path(raw_dir) / soundscapes_subdir,
+        out_dir,
+        target_sids=target_sids,
+        params=params,
+        overwrite=overwrite,
+        recursive=False,
+        label="soundscape",
+    )
+
+
+def build_train_audio_mels(
+    raw_dir: Path,
+    out_dir: Path,
+    *,
+    params: MelParams = MelParams(),
+    overwrite: bool = False,
+    train_audio_subdir: str = "train_audio",
+) -> dict[str, int]:
+    """Per-clip mode: ``data/raw/train_audio/<class_id>/<sid>.ogg`` is sliced
+    into 5 s windows just like soundscape audio. Yields the same
+    ``<sid>_w<idx>.npy`` filenames the existing 233 k cache uses, so a fresh
+    rebuild is interchangeable with the legacy off-repo pipeline.
+    """
+    return build_audio_mels(
+        Path(raw_dir) / train_audio_subdir,
+        out_dir,
+        target_sids=None,
+        params=params,
+        overwrite=overwrite,
+        recursive=True,
+        label="train_audio",
+    )
 
 
 def mel_spec_db(audio, params: MelParams):
@@ -201,6 +264,7 @@ def soundscape_sids_for_labels(soundscape_labels_path: Path) -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def _iter_audio_files(audio_dir: Path):
+def _iter_audio_files(audio_dir: Path, *, recursive: bool = False):
+    iter_fn = audio_dir.rglob if recursive else audio_dir.glob
     for ext in ("*.ogg", "*.OGG", "*.wav", "*.WAV", "*.flac", "*.mp3"):
-        yield from audio_dir.glob(ext)
+        yield from iter_fn(ext)
