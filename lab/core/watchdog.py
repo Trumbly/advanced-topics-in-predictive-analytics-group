@@ -92,10 +92,16 @@ class Watchdog:
             self.studies_root / self.study_id / "run.log.jsonl"
         ]
         if self.sandbox_root and self.sandbox_root.exists():
-            for stdout_log in self.sandbox_root.glob("*/stdout.log"):
-                paths.append(stdout_log)
-            for stderr_log in self.sandbox_root.glob("*/stderr.log"):
-                paths.append(stderr_log)
+            # Sandbox is per-study (sandbox/<study_id>/<exp_id>/) — only
+            # watch THIS study's subdir so a long-running other study does
+            # not keep us happy by accident.
+            study_sandbox = self.sandbox_root / self.study_id
+            roots = [study_sandbox] if study_sandbox.exists() else [self.sandbox_root]
+            for root in roots:
+                for stdout_log in root.glob("*/stdout.log"):
+                    paths.append(stdout_log)
+                for stderr_log in root.glob("*/stderr.log"):
+                    paths.append(stderr_log)
         return paths
 
     def _idle_seconds(self) -> float:

@@ -237,20 +237,37 @@ def create_app(settings: Settings) -> FastAPI:
         return JSONResponse(lines[-tail:])
 
     @app.get("/api/experiments/{experiment_id}/stdout")
-    def api_experiment_stdout(experiment_id: str, tail_bytes: int = 4096):
-        """Live tail of the subprocess stdout for a running experiment."""
-        sandbox = Path(settings.paths.sandbox) / experiment_id
-        path = sandbox / "stdout.log"
-        if not path.exists():
-            return JSONResponse({"text": "", "size": 0})
-        size = path.stat().st_size
-        with path.open("rb") as fh:
-            if size > tail_bytes:
-                fh.seek(size - tail_bytes)
-            chunk = fh.read()
-        return JSONResponse(
-            {"text": chunk.decode("utf-8", errors="replace"), "size": size}
-        )
+    def api_experiment_stdout(
+        experiment_id: str,
+        tail_bytes: int = 4096,
+        study_id: str | None = None,
+    ):
+        """Live tail of the subprocess stdout for a running experiment.
+
+        Sandbox is per-study (``sandbox/<study_id>/<exp_id>/``) so the same
+        ``exp_0000`` from two different studies doesn't collide. Falls back
+        to the legacy flat layout when ``study_id`` is omitted (tests).
+        """
+        base = Path(settings.paths.sandbox)
+        candidates = []
+        if study_id:
+            candidates.append(base / study_id / experiment_id / "stdout.log")
+        candidates.append(base / experiment_id / "stdout.log")
+        for path in candidates:
+            if path.exists():
+                size = path.stat().st_size
+                with path.open("rb") as fh:
+                    if size > tail_bytes:
+                        fh.seek(size - tail_bytes)
+                    chunk = fh.read()
+                return JSONResponse(
+                    {
+                        "text": chunk.decode("utf-8", errors="replace"),
+                        "size": size,
+                        "path": str(path),
+                    }
+                )
+        return JSONResponse({"text": "", "size": 0, "path": None})
 
     # ----- run form + live -----
 
