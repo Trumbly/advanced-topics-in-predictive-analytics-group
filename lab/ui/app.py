@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Iterator
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
@@ -143,28 +143,100 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=404)
         return JSONResponse(study.model_dump(mode="json"))
 
-    # ----- run + live -----
+    # ----- run form + live -----
+
+    @app.get("/new", response_class=HTMLResponse)
+    def new_study_form(request: Request):
+        registry = PromptRegistry(prompts_root)
+        prompt_versions = {
+            t: registry.list_versions(t)
+            for t in (
+                "propose_architecture",
+                "generate_code",
+                "recover_from_error",
+                "analyze_result",
+                "judge_experiment",
+                "judge_study",
+            )
+        }
+        recent = load_many(studies_root, list_studies(studies_root))
+        recent.sort(key=lambda s: s.created_at, reverse=True)
+        return templates.TemplateResponse(
+            request,
+            "new_study.html",
+            {
+                "tasks": [settings.default_task],
+                "personalities": ["exploratory", "conservative"],
+                "prompt_versions": prompt_versions,
+                "predecessors": [s.id for s in recent[:20]],
+                "defaults": {
+                    "task": settings.default_task,
+                    "max_experiments": settings.compute_budget.max_experiments,
+                    "max_wallclock_min": settings.compute_budget.max_wallclock_minutes,
+                },
+            },
+        )
 
     @app.post("/run")
     def post_run(payload: dict):
-        from lab.cli import cmd_run  # avoid import cycle on UI-only deployments
+        return _launch_study(
+            task=payload.get("task", "track_b"),
+            predecessor=payload.get("predecessor_id"),
+            use_best_prompts=bool(payload.get("use_best_prompts")),
+            agent_memory=bool(payload.get("agent_memory")),
+            personality=payload.get("personality"),
+            max_experiments=payload.get("max_experiments"),
+            max_wallclock_min=payload.get("max_wallclock_min"),
+        )
 
-        class _Args:
-            task = payload.get("task", "track_b")
-            predecessor = payload.get("predecessor_id")
-            use_best_prompts = bool(payload.get("use_best_prompts"))
-            agent_memory = bool(payload.get("agent_memory"))
-            personality = payload.get("personality")
-            max_experiments = payload.get("max_experiments")
-            max_wallclock_min = payload.get("max_wallclock_min")
+    @app.post("/run-form")
+    def post_run_form(
+        task: str = Form("track_b"),
+        predecessor_id: str | None = Form(default=None),
+        use_best_prompts: bool = Form(default=False),
+        agent_memory: bool = Form(default=False),
+        personality: str = Form("exploratory"),
+        max_experiments: int | None = Form(default=None),
+        max_wallclock_min: int | None = Form(default=None),
+    ):
+        result = _launch_study(
+            task=task,
+            predecessor=predecessor_id or None,
+            use_best_prompts=use_best_prompts,
+            agent_memory=agent_memory,
+            personality=personality,
+            max_experiments=max_experiments,
+            max_wallclock_min=max_wallclock_min,
+        )
+        return RedirectResponse(url=f"/studies/{result['study_id']}", status_code=303)
 
-        # Pre-allocate a study id so the SSE endpoint has something to tail.
+    def _launch_study(
+        *,
+        task: str,
+        predecessor: str | None,
+        use_best_prompts: bool,
+        agent_memory: bool,
+        personality: str | None,
+        max_experiments: int | None,
+        max_wallclock_min: int | None,
+    ) -> dict:
+        from lab.cli import cmd_run
         from lab.core.models import new_study_id
 
-        study_id = new_study_id()
+        class _Args:
+            pass
 
-        thread = threading.Thread(target=cmd_run, args=(_Args(),), daemon=True)
-        thread.start()
+        args = _Args()
+        args.task = task
+        args.predecessor = predecessor
+        args.use_best_prompts = use_best_prompts
+        args.agent_memory = agent_memory
+        args.personality = personality
+        args.max_experiments = max_experiments
+        args.max_wallclock_min = max_wallclock_min
+
+        study_id = new_study_id()
+        threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
         return {"study_id": study_id}
 
     @app.get("/live/{study_id}")
