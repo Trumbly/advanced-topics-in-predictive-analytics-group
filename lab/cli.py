@@ -96,7 +96,16 @@ def cmd_run(args) -> int:
     from lab.prompts.engine import PromptEngine
     from lab.prompts.registry import PromptRegistry
     from lab.tasks import get_task_adapter
+    from lab.tasks.dataset import ensure_dataset_present
     from lab.tasks.eda import run_eda
+
+    if ensure_dataset_present(settings):
+        print(
+            f"warning: no processed shard at {settings.task.processed_data_dir}; "
+            "generated synthetic stand-ins so the loop can run. "
+            "Run `lab preprocess` (or place real Kaggle data) before evaluating "
+            "model quality."
+        )
 
     client = LLMClient(settings.llm)
     registry = PromptRegistry(Path(settings.paths.prompts_dir))
@@ -215,19 +224,15 @@ def cmd_ui(args) -> int:
 
 def cmd_preprocess(args) -> int:
     settings = load_settings(args.task)
-    out = Path(settings.task.processed_data_dir)
-    out.mkdir(parents=True, exist_ok=True)
 
     if args.synthetic:
-        import torch
+        from lab.tasks.dataset import ensure_dataset_present
 
-        n_train, n_val = 200, 50
-        for split, n in (("train", n_train), ("val", n_val)):
-            x = torch.randn(n, *settings.task.input_tensor_shape)
-            y = torch.zeros(n, settings.task.expected_num_classes)
-            idx = torch.randint(0, settings.task.expected_num_classes, (n,))
-            y[torch.arange(n), idx] = 1.0
-            torch.save({"x": x, "y": y}, out / f"{split}.pt")
+        out = Path(settings.task.processed_data_dir)
+        # Force regeneration even when shards already exist on disk.
+        (out / "train.pt").unlink(missing_ok=True)
+        (out / "val.pt").unlink(missing_ok=True)
+        ensure_dataset_present(settings)
         print(f"synthetic shards written to {out}")
         return 0
 
