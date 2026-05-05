@@ -13,8 +13,12 @@ system: |
       "lr": <float>,
       "lr_schedule": "<one of: constant, cosine, onecycle>",
       "epochs": <integer>,
-      "init_from_experiment_id": "<id or null>"
+      "init_from_experiment_id": "<id or null>",
+      "weight_decay": <float or null>
     }
+
+  Use weight_decay to apply L2 regularization (typically between 1e-6 and 1e-2,
+  or null when no weight decay is desired).
 
   Do not include explanations, markdown fences, or extra fields.
 
