@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ exp.id }}{% endblock %}
+{% block content %}
+<p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
+<h1>{{ exp.id }} <span class="pill">{{ exp.status }}</span></h1>
+
+{% if exp.proposal %}
+<p>{{ exp.proposal.architecture_name }} ({{ exp.proposal.family }}) lr={{ exp.proposal.lr }} schedule={{ exp.proposal.lr_schedule }} epochs={{ exp.proposal.epochs }}</p>
+{% endif %}
+
+<p>{{ exp.primary_metric }} = {{ "%.4f"|format(exp.primary_score) if exp.primary_score is not none else "—" }}</p>
+
+{% if exp.history %}
+<h2>History</h2>
+<table>
+  <thead><tr><th>epoch</th><th>loss</th><th>{{ exp.primary_metric }}</th></tr></thead>
+  <tbody>
+  {% for h in exp.history %}
+    <tr>
+      <td>{{ h.get("epoch") }}</td>
+      <td>{{ h.get("loss") }}</td>
+      <td>{{ h.get(exp.primary_metric) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if exp.tasks %}
+<h2>Step history</h2>
+<table>
+  <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
+  <tbody>
+  {% for t in exp.tasks %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><b>{{ t.name }}</b></td>
+      <td><span class="pill">{{ t.status }}</span></td>
+      <td>{{ t.input.get("attempt") if t.input.get("attempt") is not none else "—" }}</td>
+      <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:200] }}</span>{% else %}—{% endif %}</td>
+      <td>{{ t.input.get("kind", "") }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if exp.verdict %}
+<h2>Verdict</h2>
+<p><b>{{ exp.verdict.verdict }}</b> ({{ "%.2f"|format(exp.verdict.score) }}) — {{ exp.verdict.rationale }}</p>
+{% endif %}
+
+{% if exp.code %}
+<h2>Code (excerpt)</h2>
+<pre style="background:#15191f;padding:8px;overflow:auto;max-height:400px">{{ exp.code[:5000] }}</pre>
+{% endif %}
+{% endblock %}
