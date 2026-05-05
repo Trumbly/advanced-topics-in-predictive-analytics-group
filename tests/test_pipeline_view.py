@@ -80,7 +80,81 @@ def test_validate_failure_reflects_in_state():
         )
     )
     pl = dict(derive_experiment_pipeline(e, is_active=True))
+    # validate is the failed pill (red), generate is now running because the
+    # next agent action is a recover→regen.
     assert pl["validate"] == "failed"
+    assert pl["generate"] == "running"
+    assert pl["execute"] == "pending"  # not jumped ahead
+
+
+def test_validate_failed_routes_running_back_to_generate():
+    """Regression for the bug where validate FAILED made execute pulse."""
+    e = _exp(status="VALIDATING")
+    e.tasks.append(Task(name="propose", status="SUCCEEDED"))
+    e.code = "..."
+    e.tasks.append(
+        Task(
+            name="validate",
+            status="FAILED",
+            error=TaskError(error_type="SmokeFailed", message="x"),
+        )
+    )
+    pl = dict(derive_experiment_pipeline(e, is_active=True))
+    assert pl["execute"] == "pending"
+    assert pl["generate"] == "running"
+
+
+def test_recover_llm_reprompt_routes_to_generate():
+    e = _exp(status="VALIDATING")
+    e.tasks.append(Task(name="propose", status="SUCCEEDED"))
+    e.code = "..."
+    e.tasks.append(Task(name="validate", status="FAILED"))
+    e.tasks.append(
+        Task(
+            name="recover",
+            status="SUCCEEDED",
+            input={"attempt": 0, "kind": "llm_reprompt"},
+        )
+    )
+    pl = dict(derive_experiment_pipeline(e, is_active=True))
+    assert pl["generate"] == "running"
+
+
+def test_recover_autofix_routes_to_validate():
+    e = _exp(status="VALIDATING")
+    e.tasks.append(Task(name="propose", status="SUCCEEDED"))
+    e.code = "..."
+    e.tasks.append(Task(name="validate", status="FAILED"))
+    e.tasks.append(
+        Task(
+            name="recover",
+            status="SUCCEEDED",
+            input={"attempt": 0, "kind": "autofix"},
+        )
+    )
+    pl = dict(derive_experiment_pipeline(e, is_active=True))
+    assert pl["validate"] == "running"
+
+
+def test_validate_succeeded_then_execute_running():
+    e = _exp(status="EXECUTING")
+    e.tasks.append(Task(name="propose", status="SUCCEEDED"))
+    e.code = "..."
+    e.tasks.append(Task(name="validate", status="SUCCEEDED"))
+    pl = dict(derive_experiment_pipeline(e, is_active=True))
+    assert pl["validate"] == "done"
+    assert pl["execute"] == "running"
+
+
+def test_execute_failed_routes_to_generate():
+    e = _exp(status="EXECUTING")
+    e.tasks.append(Task(name="propose", status="SUCCEEDED"))
+    e.code = "..."
+    e.tasks.append(Task(name="validate", status="SUCCEEDED"))
+    e.tasks.append(Task(name="execute", status="FAILED"))
+    pl = dict(derive_experiment_pipeline(e, is_active=True))
+    assert pl["execute"] == "failed"
+    assert pl["generate"] == "running"
 
 
 def test_judge_done_when_verdict_present():
