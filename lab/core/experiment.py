@@ -31,11 +31,20 @@ from lab.core.models import (
     Verdict,
 )
 from lab.core.parsing import ProposalParseError, parse_proposal
+from lab.core.patcher import apply_patches, looks_like_patches, parse_patches
 from lab.core.recovery import _HARD_FAILURE_ERROR_TYPES, Recovery
 from lab.core.validator import Validator
 from lab.prompts.engine import PromptEngine
 from lab.tasks.base import TaskAdapter
-from lab.tasks.skeleton import render_skeleton, splice_build_model
+from lab.tasks.skeleton import (
+    _BUILD_END,
+    _BUILD_START,
+    render_skeleton,
+    splice_build_model,
+)
+
+
+
 
 
 @dataclass
@@ -238,17 +247,22 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
             break
         slots = _propose_slots(ctx)
         slots["model_block_signature"] = f"def {fn}({arg}: int)"
+        # Send the LLM the CURRENT block (just the build_model body) plus the
+        # full traceback; ask for a SEARCH/REPLACE patch.
+        current_block = _current_block(current)
+        slots["broken_code"] = current_block
         rendered = ctx.recovery.ask_llm(current, result, slots=slots)
+        patched_block, patch_kind = _apply_recovery_output(current_block, rendered)
         exp.tasks.append(
             Task(
                 name="recover",
                 status="SUCCEEDED",
-                input={"attempt": attempt, "kind": "llm_reprompt"},
-                output={},
+                input={"attempt": attempt, "kind": patch_kind},
+                output={"applied": patched_block != current_block},
             )
         )
         _progress(ctx)
-        current = splice_build_model(render_skeleton(ctx.settings), _extract_block(rendered))
+        current = splice_build_model(render_skeleton(ctx.settings), patched_block)
 
     raise _HardFailure(
         task_name="validate",
@@ -339,19 +353,31 @@ def _execute_with_retry(
         slots = _propose_slots(ctx)
         fn, arg = ctx.adapter.model_block_signature()
         slots["model_block_signature"] = f"def {fn}({arg}: int)"
+        current_block = _current_block(current)
+        slots["broken_code"] = current_block
         repaired = ctx.recovery.ask_llm(current, result.error, slots=slots) if result.error else None
+        if repaired is None:
+            exp.tasks.append(
+                Task(
+                    name="recover",
+                    status="FAILED",
+                    input={"attempt": attempt, "kind": "llm_reprompt_after_execute"},
+                    output={},
+                )
+            )
+            _progress(ctx)
+            raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
+        patched_block, patch_kind = _apply_recovery_output(current_block, repaired)
         exp.tasks.append(
             Task(
                 name="recover",
-                status="SUCCEEDED" if repaired else "FAILED",
-                input={"attempt": attempt, "kind": "llm_reprompt_after_execute"},
-                output={},
+                status="SUCCEEDED",
+                input={"attempt": attempt, "kind": f"{patch_kind}_after_execute"},
+                output={"applied": patched_block != current_block},
             )
         )
         _progress(ctx)
-        if repaired is None:
-            raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
-        current = splice_build_model(render_skeleton(ctx.settings), _extract_block(repaired))
+        current = splice_build_model(render_skeleton(ctx.settings), patched_block)
 
     assert last is not None
     return last  # pragma: no cover
@@ -407,10 +433,6 @@ def _clamp_proposal(p: Proposal, settings: Settings) -> Proposal:
     )
 
 
-_BUILD_START = "# --- AGENT_BUILD_MODEL_START ---"
-_BUILD_END = "# --- AGENT_BUILD_MODEL_END ---"
-
-
 def _extract_block(raw: str) -> str:
     """Pull the AGENT_BUILD_MODEL block out of an LLM reply."""
     if _BUILD_START in raw and _BUILD_END in raw:
@@ -427,3 +449,36 @@ def _extract_block(raw: str) -> str:
                 inner = inner[len("python\n") :]
             return inner.strip()
     return cleaned
+
+
+def _current_block(spliced_code: str) -> str:
+    """Pull just the build_model block out of the full spliced skeleton."""
+    if _BUILD_START in spliced_code and _BUILD_END in spliced_code:
+        _, _, rest = spliced_code.partition(_BUILD_START)
+        block, _, _ = rest.partition(_BUILD_END)
+        return block.strip("\n")
+    return spliced_code  # already a block
+
+
+def _apply_recovery_output(
+    current_block: str, llm_output: str
+) -> tuple[str, str]:
+    """Decide what the LLM tried to do and produce the new block.
+
+    Preference order:
+      1. SEARCH/REPLACE patches that all apply cleanly  -> targeted fix
+      2. AGENT_BUILD_MODEL fenced block in the reply    -> full rewrite
+      3. Fallback: treat the whole reply as a fresh block
+    """
+    patches = parse_patches(llm_output)
+    if patches:
+        patched = apply_patches(current_block, patches)
+        if patched is not None:
+            return patched, "llm_patch"
+        # patches present but did not apply -> log + fall through to full rewrite
+        return _extract_block(llm_output), "llm_patch_failed_fallback"
+
+    if looks_like_patches(llm_output):
+        # malformed marker -> still try fenced fallback
+        return _extract_block(llm_output), "llm_reprompt"
+    return _extract_block(llm_output), "llm_reprompt"
