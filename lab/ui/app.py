@@ -236,6 +236,22 @@ def create_app(settings: Settings) -> FastAPI:
         ]
         return JSONResponse(lines[-tail:])
 
+    @app.get("/api/experiments/{experiment_id}/stdout")
+    def api_experiment_stdout(experiment_id: str, tail_bytes: int = 4096):
+        """Live tail of the subprocess stdout for a running experiment."""
+        sandbox = Path(settings.paths.sandbox) / experiment_id
+        path = sandbox / "stdout.log"
+        if not path.exists():
+            return JSONResponse({"text": "", "size": 0})
+        size = path.stat().st_size
+        with path.open("rb") as fh:
+            if size > tail_bytes:
+                fh.seek(size - tail_bytes)
+            chunk = fh.read()
+        return JSONResponse(
+            {"text": chunk.decode("utf-8", errors="replace"), "size": size}
+        )
+
     # ----- run form + live -----
 
     @app.get("/new", response_class=HTMLResponse)

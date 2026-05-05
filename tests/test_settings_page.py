@@ -64,6 +64,11 @@ def test_parse_form_into_yaml_coerces_types(repo_root):
 
 def test_validate_yaml_passes_for_valid_payload(repo_root):
     payload = read_global_yaml(repo_root)
+    # Force the new fields to known defaults so the test is independent of
+    # whatever the live config.yaml has been edited to via the UI.
+    payload["compute_budget"]["device"] = "cpu"
+    payload["compute_budget"]["num_workers"] = 0
+    payload["compute_budget"]["batch_size"] = 8
     settings = validate_yaml(repo_root, payload)
     assert settings.compute_budget.device == "cpu"
     assert settings.compute_budget.num_workers == 0

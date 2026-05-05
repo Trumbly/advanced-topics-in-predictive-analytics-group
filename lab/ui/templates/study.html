@@ -107,7 +107,13 @@
 
 <h2>Activity log</h2>
 <p style="font-size:0.85em;opacity:0.8" id="log-status">loading…</p>
-<pre id="log" style="background:#0a0c10;border:1px solid #2a2f37;padding:10px;height:340px;overflow-y:scroll;font-size:0.78em;line-height:1.4em">(no events yet)</pre>
+<pre id="log" style="background:#0a0c10;border:1px solid #2a2f37;padding:10px;height:240px;overflow-y:scroll;font-size:0.78em;line-height:1.4em">(no events yet)</pre>
+
+<h2>Training stdout
+  {% if current %}<small style="opacity:0.7">— {{ current[0] }}</small>{% endif %}
+</h2>
+<p style="font-size:0.85em;opacity:0.8" id="stdout-status">…</p>
+<pre id="stdout" style="background:#0a0c10;border:1px solid #2a2f37;padding:10px;height:300px;overflow-y:scroll;font-size:0.78em;line-height:1.4em;white-space:pre-wrap">(no stdout yet)</pre>
 
 <p><a href="/reports/{{ study.id }}">view rendered report</a></p>
 
@@ -157,6 +163,34 @@
       }
     });
 
+  // Live tail of subprocess stdout for the active experiment.
+  const stdoutEl = document.getElementById("stdout");
+  const stdoutStatusEl = document.getElementById("stdout-status");
+  const activeExpId = {{ (current[0] if current else (study.experiments[-1].id if study.experiments else "")) | tojson }};
+  async function pollStdout() {
+    if (!activeExpId) {
+      stdoutStatusEl.textContent = "no active experiment yet";
+      return;
+    }
+    try {
+      const r = await fetch(`/api/experiments/${activeExpId}/stdout?tail_bytes=8192`);
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data.text) {
+        stdoutEl.textContent = data.text;
+        stdoutEl.scrollTop = stdoutEl.scrollHeight;
+        stdoutStatusEl.textContent = `${data.size.toLocaleString()} bytes from ${activeExpId}/stdout.log`;
+      } else {
+        stdoutStatusEl.textContent = `${activeExpId}/stdout.log empty so far`;
+      }
+    } catch {}
+  }
+  pollStdout();
+  let stdoutHandle = null;
+  if (!TERMINAL.has(initialStatus)) {
+    stdoutHandle = setInterval(pollStdout, 2000);
+  }
+
   // Periodic state refresh while running.
   let lastExpCount = {{ study.experiments|length }};
   async function pollState() {
@@ -170,7 +204,9 @@
       }
       if (TERMINAL.has(data.status)) {
         clearInterval(handle);
+        if (stdoutHandle) clearInterval(stdoutHandle);
         if (eventSrc) eventSrc.close();
+        pollStdout();
         logStatusEl.textContent = "study finished";
       }
     } catch {}
