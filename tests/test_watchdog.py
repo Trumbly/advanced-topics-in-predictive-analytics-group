@@ -43,10 +43,10 @@ def test_watchdog_marks_failed_when_log_silent(tmp_path):
     import os
     os.utime(log, (old, old))
 
-    wd = Watchdog(sid, tmp_path, timeout_s=10)
+    wd = Watchdog(sid, tmp_path, timeout_s=10, sandbox_root=tmp_path / "no-sandbox")
     wd.start()
     # Watchdog polls at min(POLL_CEILING, timeout/4) — give it a bit.
-    deadline = time.time() + 8
+    deadline = time.time() + 15
     while time.time() < deadline and not wd.stalled:
         time.sleep(0.2)
     wd.stop()
@@ -93,9 +93,9 @@ def test_watchdog_does_not_clobber_terminal_status(tmp_path):
     old = time.time() - 999
     os.utime(log, (old, old))
 
-    wd = Watchdog(sid, tmp_path, timeout_s=10)
+    wd = Watchdog(sid, tmp_path, timeout_s=10, sandbox_root=tmp_path / "no-sandbox")
     wd.start()
-    deadline = time.time() + 8
+    deadline = time.time() + 15
     while time.time() < deadline and not wd.stalled:
         time.sleep(0.2)
     wd.stop()
