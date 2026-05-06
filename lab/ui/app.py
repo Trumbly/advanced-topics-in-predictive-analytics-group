@@ -51,6 +51,10 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
     def study_detail(request: Request, study_id: str):
         from lab.core.codegen_rates import study_rates
+        from lab.core.llm_metrics import (
+            experiment_summary,
+            study_summary,
+        )
         from lab.ui.pipeline import (
             PHASES,
             current_step,
@@ -62,6 +66,8 @@ def create_app(settings: Settings) -> FastAPI:
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
         rates = {r.experiment_id: r for r in study_rates(study)}
+        llm_summary = study_summary(study).to_dict()
+        exp_llm = {e.id: experiment_summary(e).to_dict() for e in study.experiments}
         return templates.TemplateResponse(
             request,
             "study.html",
@@ -71,6 +77,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "pipelines": derive_study_pipelines(study),
                 "current": current_step(study),
                 "rates": rates,
+                "llm_summary": llm_summary,
+                "exp_llm": exp_llm,
             },
         )
 
@@ -78,6 +86,8 @@ def create_app(settings: Settings) -> FastAPI:
         "/experiments/{study_id}/{exp_id}", response_class=HTMLResponse
     )
     def experiment_detail(request: Request, study_id: str, exp_id: str):
+        from lab.core.llm_metrics import experiment_summary
+
         try:
             study = Study.load(studies_root, study_id)
         except StudyNotFoundError:
@@ -86,7 +96,13 @@ def create_app(settings: Settings) -> FastAPI:
         if exp is None:
             raise HTTPException(status_code=404, detail="experiment not in study")
         return templates.TemplateResponse(
-            request, "experiment.html", {"study": study, "exp": exp}
+            request,
+            "experiment.html",
+            {
+                "study": study,
+                "exp": exp,
+                "llm_summary": experiment_summary(exp).to_dict(),
+            },
         )
 
     @app.get("/prompts", response_class=HTMLResponse)
