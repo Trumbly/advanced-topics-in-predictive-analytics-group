@@ -13,6 +13,7 @@ from lab.core.codegen_rates import (
     ModelCodegenStats,
     aggregate_model_codegen,
 )
+from lab.core.llm_metrics import aggregate_by_model
 from lab.core.loaders import list_studies, load_many
 from lab.core.models import Experiment, Study
 from lab.prompts.scoring import (
@@ -39,6 +40,21 @@ class PromptKPI(BaseModel):
     versions: list[PromptScoreStats]
 
 
+class LLMModelMetrics(BaseModel):
+    """One row in the dashboard's per-model generation-metrics table."""
+
+    model: str
+    n_calls: int
+    total_completion_tokens: int
+    total_seconds: float
+    tps_avg: float | None
+    tps_min: float | None
+    tps_max: float | None
+    ttft_avg: float | None
+    ttft_min: float | None
+    ttft_max: float | None
+
+
 class DashboardKPIs(BaseModel):
     total_studies: int
     total_experiments: int
@@ -49,6 +65,7 @@ class DashboardKPIs(BaseModel):
     best_model: BestModel | None
     best_prompts: dict[str, PromptKPI]
     model_codegen: dict[str, ModelCodegenStats]
+    llm_metrics: list[LLMModelMetrics]
 
 
 def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
@@ -97,6 +114,21 @@ def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
         best_model=best_model,
         best_prompts=best_prompts,
         model_codegen=aggregate_model_codegen(experiments_dir),
+        llm_metrics=[
+            LLMModelMetrics(
+                model=m.model,
+                n_calls=m.summary.n_calls,
+                total_completion_tokens=m.summary.total_completion_tokens,
+                total_seconds=round(m.summary.total_seconds, 2),
+                tps_avg=_round(m.summary.tps_avg),
+                tps_min=_round(m.summary.tps_min),
+                tps_max=_round(m.summary.tps_max),
+                ttft_avg=_round(m.summary.ttft_avg),
+                ttft_min=_round(m.summary.ttft_min),
+                ttft_max=_round(m.summary.ttft_max),
+            )
+            for m in aggregate_by_model(studies)
+        ],
     )
 
 
@@ -107,6 +139,10 @@ def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
 
 def _is_scored(exp: Experiment) -> bool:
     return exp.primary_score is not None and exp.status not in _FAILED_STUDY_STATUSES
+
+
+def _round(value: float | None, ndigits: int = 2) -> float | None:
+    return None if value is None else round(value, ndigits)
 
 
 def _best_model(pairs: list[tuple[Study, Experiment]]) -> BestModel | None:

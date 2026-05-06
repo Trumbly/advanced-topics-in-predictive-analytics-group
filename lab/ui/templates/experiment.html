@@ -10,6 +10,28 @@
 
 <p>{{ exp.primary_metric }} = {{ "%.4f"|format(exp.primary_score) if exp.primary_score is not none else "—" }}</p>
 
+{% if llm_summary and llm_summary.n_calls %}
+<h2>LLM generation</h2>
+<table style="font-size:0.9em">
+  <tbody>
+    <tr><td>calls</td><td><b>{{ llm_summary.n_calls }}</b></td></tr>
+    <tr><td>completion tokens</td><td><b>{{ llm_summary.total_completion_tokens }}</b></td></tr>
+    <tr><td>prompt tokens</td><td><b>{{ llm_summary.total_prompt_tokens }}</b></td></tr>
+    <tr><td>total seconds</td><td><b>{{ "%.2f"|format(llm_summary.total_seconds) }}</b></td></tr>
+    {% if llm_summary.tps_avg is not none %}
+    <tr><td>TPS (tokens/sec)</td>
+        <td><b>{{ "%.2f"|format(llm_summary.tps_avg) }}</b>
+            <span style="opacity:0.7">avg · min {{ "%.2f"|format(llm_summary.tps_min) }} · max {{ "%.2f"|format(llm_summary.tps_max) }}</span></td></tr>
+    {% endif %}
+    {% if llm_summary.ttft_avg is not none %}
+    <tr><td>TTFT</td>
+        <td><b>{{ "%.0f"|format(llm_summary.ttft_avg * 1000) }}ms</b>
+            <span style="opacity:0.7">avg · min {{ "%.0f"|format(llm_summary.ttft_min * 1000) }}ms · max {{ "%.0f"|format(llm_summary.ttft_max * 1000) }}ms</span></td></tr>
+    {% endif %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if exp.history %}
 <h2>History</h2>
 <table>
@@ -29,7 +51,7 @@
 {% if exp.tasks %}
 <h2>Step history</h2>
 <table>
-  <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
+  <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>llm</th><th>error</th><th>note</th></tr></thead>
   <tbody>
   {% for t in exp.tasks %}
     <tr>
@@ -37,6 +59,12 @@
       <td><b>{{ t.name }}</b></td>
       <td><span class="pill">{{ t.status }}</span></td>
       <td>{{ t.input.get("attempt") if t.input.get("attempt") is not none else "—" }}</td>
+      <td style="opacity:0.85">
+        {% set s = t.output.get("llm_stats") if t.output else None %}
+        {% if s %}
+          {% if s.tps is not none %}<b>{{ "%.1f"|format(s.tps) }}</b> tps · {% endif %}{{ s.completion_tokens }} tok · {{ "%.1fs"|format(s.total_seconds) }}{% if s.ttft_seconds is not none %} · ttft {{ "%.0f"|format(s.ttft_seconds * 1000) }}ms{% endif %}
+        {% else %}—{% endif %}
+      </td>
       <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:200] }}</span>{% else %}—{% endif %}</td>
       <td>{{ t.input.get("kind", "") }}</td>
     </tr>

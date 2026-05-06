@@ -12,6 +12,7 @@ import logging
 import time
 import urllib.error
 import urllib.request
+from dataclasses import asdict, dataclass
 from typing import Iterable, Protocol
 
 from lab.config import LLMConfig
@@ -19,6 +20,30 @@ from lab.config import LLMConfig
 _TRANSIENT_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 
 logger = logging.getLogger("lab.llm")
+
+
+@dataclass(frozen=True)
+class LLMCallStats:
+    """One-call generation metrics for the dashboard.
+
+    ``ttft_seconds`` is best-effort: most OpenAI-compatible servers (incl.
+    Ollama via ``/v1/chat/completions``) ship the response in a single
+    non-streamed shot, so we cannot measure the first-token latency
+    independently of total time. When the response advertises a separate
+    ``prompt_eval_duration_ns`` (Ollama), we use it; otherwise the field
+    stays ``None``.
+    """
+
+    provider: str
+    model: str
+    prompt_tokens: int
+    completion_tokens: int
+    total_seconds: float
+    tps: float | None
+    ttft_seconds: float | None
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
 
 
 class LLMTransientError(Exception):
@@ -68,6 +93,10 @@ class LLMClient:
         self.cfg = cfg
         self.http: HTTPPoster = http or _UrllibPoster()
         self._sleep = sleep or time.sleep
+        # Last successful call's stats. Read by the orchestrator after
+        # each chat() to stamp the surrounding Task with token counts +
+        # throughput. None until the first call lands.
+        self.last_stats: LLMCallStats | None = None
 
     # ------------------------------------------------------------------
     # public surface
@@ -98,12 +127,16 @@ class LLMClient:
                 self._sleep(self._backoff(attempt))
                 continue
 
-            duration_ms = int((time.monotonic() - t0) * 1000)
-            self._log_call(duration_ms, status)
+            duration_s = time.monotonic() - t0
+            self._log_call(int(duration_s * 1000), status)
             last_status = status
 
             if 200 <= status < 300:
-                return self._parse_response(payload)
+                content, stats = self._parse_response_with_stats(
+                    payload, total_seconds=duration_s
+                )
+                self.last_stats = stats
+                return content
 
             if status in _TRANSIENT_STATUSES:
                 if attempt >= self.cfg.retry_attempts:
@@ -187,6 +220,13 @@ class LLMClient:
     # ------------------------------------------------------------------
 
     def _parse_response(self, payload: bytes) -> str:
+        # Kept for back-compat; new code goes through _parse_response_with_stats.
+        text, _ = self._parse_response_with_stats(payload, total_seconds=0.0)
+        return text
+
+    def _parse_response_with_stats(
+        self, payload: bytes, *, total_seconds: float
+    ) -> tuple[str, LLMCallStats]:
         try:
             data = json.loads(payload.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -194,24 +234,47 @@ class LLMClient:
 
         if self.cfg.provider in ("ollama", "openai"):
             try:
-                return data["choices"][0]["message"]["content"]
+                content = data["choices"][0]["message"]["content"]
             except (KeyError, IndexError, TypeError) as exc:
                 raise LLMPermanentError(
                     f"unexpected OpenAI-compatible response shape: {data!r}"
                 ) from exc
-
-        if self.cfg.provider == "anthropic":
+            usage = data.get("usage") or {}
+            prompt_tokens = int(usage.get("prompt_tokens") or 0)
+            completion_tokens = int(usage.get("completion_tokens") or 0)
+            ttft_seconds = _ollama_prompt_eval_seconds(data)
+        elif self.cfg.provider == "anthropic":
             try:
                 blocks: Iterable[dict[str, object]] = data["content"]
-                texts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-                return "".join(texts)
+                content = "".join(
+                    b.get("text", "") for b in blocks if b.get("type") == "text"
+                )
             except (KeyError, TypeError) as exc:
                 raise LLMPermanentError(
                     f"unexpected Anthropic response shape: {data!r}"
                 ) from exc
+            usage = data.get("usage") or {}
+            prompt_tokens = int(usage.get("input_tokens") or 0)
+            completion_tokens = int(usage.get("output_tokens") or 0)
+            ttft_seconds = None
+        else:
+            raise LLMPermanentError(  # pragma: no cover
+                f"unsupported provider in response parser: {self.cfg.provider}"
+            )
 
-        raise LLMPermanentError(  # pragma: no cover
-            f"unsupported provider in response parser: {self.cfg.provider}"
+        tps = (
+            completion_tokens / total_seconds
+            if completion_tokens > 0 and total_seconds > 0
+            else None
+        )
+        return content, LLMCallStats(
+            provider=self.cfg.provider,
+            model=self.cfg.model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_seconds=round(total_seconds, 4),
+            tps=round(tps, 2) if tps is not None else None,
+            ttft_seconds=round(ttft_seconds, 4) if ttft_seconds is not None else None,
         )
 
     def _backoff(self, attempt: int) -> float:
@@ -244,3 +307,15 @@ def _safe_decode(buf: bytes) -> str:
         return buf.decode("utf-8", errors="replace")[:500]
     except Exception:  # pragma: no cover
         return repr(buf)[:500]
+
+
+def _ollama_prompt_eval_seconds(data: dict) -> float | None:
+    """Ollama exposes ``prompt_eval_duration`` (ns) on its OpenAI-compat
+    responses; treat that as a TTFT proxy. Returns None when absent."""
+    raw = data.get("prompt_eval_duration")
+    if raw is None:
+        return None
+    try:
+        return float(raw) / 1e9
+    except (TypeError, ValueError):
+        return None

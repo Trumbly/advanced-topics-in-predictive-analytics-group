@@ -110,6 +110,13 @@ def run_experiment(exp: Experiment, ctx: RunContext) -> Experiment:
         try:
             verdict = ctx.judge.judge_experiment(exp, ctx.memory)
             exp.verdict = verdict
+            judge_stats = _stats_dict(ctx)
+            judge_out: dict[str, object] = {"verdict": verdict.verdict}
+            if judge_stats is not None:
+                judge_out["llm_stats"] = judge_stats
+            exp.tasks.append(
+                Task(name="judge", status="SUCCEEDED", input={}, output=judge_out)
+            )
         except Exception as exc:  # pragma: no cover - defensive
             telemetry.log_event("error", phase="judge", message=str(exc), level="error")
         ctx.memory.add(exp)
@@ -159,6 +166,7 @@ def _propose(ctx: RunContext, exp: Experiment) -> Proposal:
         {"role": "user", "content": user_prompt},
     ]
     raw = ctx.client.chat(messages)
+    propose_stats = _stats_dict(ctx)
     try:
         proposal = parse_proposal(
             raw, retry_client=ctx.client, retry_messages=messages + [{"role": "assistant", "content": raw}]
@@ -169,8 +177,11 @@ def _propose(ctx: RunContext, exp: Experiment) -> Proposal:
             error=TaskError(error_type="Other", message=f"proposal parse: {exc}"),
         )
     proposal = _clamp_proposal(proposal, ctx.settings)
+    out: dict[str, object] = {"proposal": proposal.model_dump()}
+    if propose_stats is not None:
+        out["llm_stats"] = propose_stats
     exp.tasks.append(
-        Task(name="propose", status="SUCCEEDED", input={}, output={"proposal": proposal.model_dump()})
+        Task(name="propose", status="SUCCEEDED", input={}, output=out)
     )
     _progress(ctx)
     return proposal
@@ -188,6 +199,14 @@ def _generate(ctx: RunContext, exp: Experiment, proposal: Proposal) -> str:
             {"role": "user", "content": user_prompt},
         ]
     )
+    stats = _stats_dict(ctx)
+    output: dict[str, object] = {}
+    if stats is not None:
+        output["llm_stats"] = stats
+    exp.tasks.append(
+        Task(name="generate", status="SUCCEEDED", input={}, output=output)
+    )
+    _progress(ctx)
     rendered_skeleton = render_skeleton(ctx.settings)
     return splice_build_model(rendered_skeleton, _extract_block(raw))
 
@@ -253,13 +272,19 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
         current_block = _current_block(current)
         slots["broken_code"] = current_block
         rendered = ctx.recovery.ask_llm(current, result, slots=slots)
+        recover_stats = _stats_dict(ctx)
         patched_block, patch_kind = _apply_recovery_output(current_block, rendered)
+        recover_out: dict[str, object] = {
+            "applied": patched_block != current_block,
+        }
+        if recover_stats is not None:
+            recover_out["llm_stats"] = recover_stats
         exp.tasks.append(
             Task(
                 name="recover",
                 status="SUCCEEDED",
                 input={"attempt": attempt, "kind": patch_kind},
-                output={"applied": patched_block != current_block},
+                output=recover_out,
             )
         )
         _progress(ctx)
@@ -388,13 +413,19 @@ def _execute_with_retry(
             )
             _progress(ctx)
             raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
+        recover_stats = _stats_dict(ctx)
         patched_block, patch_kind = _apply_recovery_output(current_block, repaired)
+        recover_out: dict[str, object] = {
+            "applied": patched_block != current_block,
+        }
+        if recover_stats is not None:
+            recover_out["llm_stats"] = recover_stats
         exp.tasks.append(
             Task(
                 name="recover",
                 status="SUCCEEDED",
                 input={"attempt": attempt, "kind": f"{patch_kind}_after_execute"},
-                output={"applied": patched_block != current_block},
+                output=recover_out,
             )
         )
         _progress(ctx)
@@ -451,6 +482,15 @@ def _propose_slots(ctx: RunContext) -> dict[str, str]:
     base["experiment_memory"] = ctx.memory.to_markdown()
     base["eda_summary"] = ctx.eda_summary or "(EDA not available)"
     return base
+
+
+def _stats_dict(ctx: RunContext) -> dict[str, object] | None:
+    """Snapshot ``client.last_stats`` as a JSON-friendly dict, or None when
+    the most recent chat failed before producing stats."""
+    stats = getattr(ctx.client, "last_stats", None)
+    if stats is None:
+        return None
+    return stats.to_dict()
 
 
 def _clamp_proposal(p: Proposal, settings: Settings) -> Proposal:
