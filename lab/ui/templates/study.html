@@ -42,9 +42,21 @@
 <div id="experiments">
 {% for e in study.experiments %}
   <div class="exp-card" style="border:1px solid #2a2f37;border-radius:6px;padding:10px;margin-bottom:14px;">
+    {%- set v = e.verdict.verdict if e.verdict else None -%}
+    {%- if e.status == "FAILED" -%}
+      {%- set outcome_label = "FAILED" -%}{% set outcome_bg = "#3d1616" %}{% set outcome_fg = "#ffb6b6" %}
+    {%- elif v == "discard" -%}
+      {%- set outcome_label = "DISCARDED" -%}{% set outcome_bg = "#3d2916" %}{% set outcome_fg = "#ffd9a3" %}
+    {%- elif v == "abort_study" -%}
+      {%- set outcome_label = "ABORTED" -%}{% set outcome_bg = "#3d1616" %}{% set outcome_fg = "#ffb6b6" %}
+    {%- elif v in ("keep", "promote") -%}
+      {%- set outcome_label = "SUCCEEDED" -%}{% set outcome_bg = "#163d22" %}{% set outcome_fg = "#b3f0c1" %}
+    {%- else -%}
+      {%- set outcome_label = e.status -%}{% set outcome_bg = "#1c2129" %}{% set outcome_fg = "#cfd6df" %}
+    {%- endif %}
     <h3 style="margin:0 0 6px 0;font-size:1.05em;">
       #{{ e.index }} · <a href="/experiments/{{ study.id }}/{{ e.id }}">{{ e.id }}</a>
-      <span class="pill">{{ e.status }}</span>
+      <span class="pill" style="background:{{ outcome_bg }};color:{{ outcome_fg }}">{{ outcome_label }}</span>
       {% if e.proposal %}<span style="opacity:0.8">— {{ e.proposal.architecture_name }} ({{ e.proposal.family }})</span>{% endif %}
       {% if e.primary_score is not none %}<span style="float:right">{{ e.primary_metric }} = <b>{{ "%.4f"|format(e.primary_score) }}</b></span>{% endif %}
     </h3>
