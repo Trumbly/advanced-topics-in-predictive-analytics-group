@@ -2,7 +2,19 @@
 {% block title %}{{ exp.id }}{% endblock %}
 {% block content %}
 <p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
-<h1>{{ exp.id }} <span class="pill">{{ exp.status }}</span></h1>
+{%- set v = exp.verdict.verdict if exp.verdict else None -%}
+{%- if exp.status == "FAILED" -%}
+  {%- set outcome_label = "FAILED" -%}{% set outcome_bg = "#3d1616" %}{% set outcome_fg = "#ffb6b6" %}
+{%- elif v == "discard" -%}
+  {%- set outcome_label = "DISCARDED" -%}{% set outcome_bg = "#3d2916" %}{% set outcome_fg = "#ffd9a3" %}
+{%- elif v == "abort_study" -%}
+  {%- set outcome_label = "ABORTED" -%}{% set outcome_bg = "#3d1616" %}{% set outcome_fg = "#ffb6b6" %}
+{%- elif v in ("keep", "promote") -%}
+  {%- set outcome_label = "SUCCEEDED" -%}{% set outcome_bg = "#163d22" %}{% set outcome_fg = "#b3f0c1" %}
+{%- else -%}
+  {%- set outcome_label = exp.status -%}{% set outcome_bg = "#1c2129" %}{% set outcome_fg = "#cfd6df" %}
+{%- endif %}
+<h1>{{ exp.id }} <span class="pill" style="background:{{ outcome_bg }};color:{{ outcome_fg }}">{{ outcome_label }}</span></h1>
 
 {% if exp.proposal %}
 <p>{{ exp.proposal.architecture_name }} ({{ exp.proposal.family }}) lr={{ exp.proposal.lr }} schedule={{ exp.proposal.lr_schedule }} epochs={{ exp.proposal.epochs }}</p>

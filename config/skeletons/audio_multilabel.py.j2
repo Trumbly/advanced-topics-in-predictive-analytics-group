@@ -202,6 +202,52 @@ def _print(msg: str) -> None:
     print(msg, flush=True)
 
 
+def _ensure_channel_compat(model: nn.Module, in_chan: int) -> nn.Module:
+    """Bridge mel-spectrogram channel count to whatever the model expects.
+
+    Mels are 1-channel. Audio-pretrained backbones almost always have a
+    3-channel first conv (ImageNet weights). Without this adapter the
+    first forward pass crashes with ``Given groups=1, weight of size [...,
+    3, ...], expected input ... to have 3 channels``. Detection: walk the
+    model in registration order until we hit the first ``nn.Conv2d``; if
+    its ``in_channels != in_chan`` we wrap the model in a tiny
+    ``Conv2d(in_chan -> expected, 1x1)`` adapter that the optimizer will
+    learn alongside the rest of the network.
+    """
+    expected = _first_conv_in_channels(model)
+    if expected is None or expected == in_chan:
+        return model
+
+    _print(
+        f"[skeleton] wrapping model with Conv2d({in_chan} -> {expected}, 1x1) "
+        f"to match the first conv's expected in_channels"
+    )
+
+    class _ChannelAdapter(nn.Module):
+        def __init__(self, src: int, dst: int, inner: nn.Module):
+            super().__init__()
+            self.adapter = nn.Conv2d(src, dst, kernel_size=1, bias=False)
+            # Initialise the adapter to "broadcast" the single channel
+            # equally across the destination channels (close to the common
+            # mel-as-RGB-replication trick) — gives the pretrained network
+            # something close to its expected statistics on the first forward.
+            with torch.no_grad():
+                nn.init.constant_(self.adapter.weight, 1.0 / src)
+            self.inner = inner
+
+        def forward(self, x: torch.Tensor) -> torch.Tensor:
+            return self.inner(self.adapter(x))
+
+    return _ChannelAdapter(in_chan, expected, model)
+
+
+def _first_conv_in_channels(model: nn.Module) -> int | None:
+    for module in model.modules():
+        if isinstance(module, nn.Conv2d):
+            return module.in_channels
+    return None
+
+
 def main():
     train_loader, val_loader = make_loaders()
     _print(
@@ -209,6 +255,7 @@ def main():
         f"batch_size={BATCH_SIZE} num_workers={NUM_WORKERS} device={DEVICE}"
     )
     model = build_model(num_classes=NUM_CLASSES)
+    model = _ensure_channel_compat(model, INPUT_SHAPE[0])
     if CHECKPOINT_IN and Path(CHECKPOINT_IN).exists():
         model.load_state_dict(torch.load(CHECKPOINT_IN, map_location="cpu"))
         _print(f"[init] warm-started from {CHECKPOINT_IN}")
