@@ -97,6 +97,12 @@ class LLMClient:
         # each chat() to stamp the surrounding Task with token counts +
         # throughput. None until the first call lands.
         self.last_stats: LLMCallStats | None = None
+        # Verbatim messages + response of the last successful call so the
+        # orchestrator can stash them on the surrounding Task. Stored as
+        # plain dicts/strings (not pydantic) since the messages list is
+        # already JSON-serialisable. None until the first call lands.
+        self.last_messages: list[dict[str, str]] | None = None
+        self.last_response: str | None = None
 
     # ------------------------------------------------------------------
     # public surface
@@ -136,6 +142,12 @@ class LLMClient:
                     payload, total_seconds=duration_s
                 )
                 self.last_stats = stats
+                # Snapshot the in/out for the orchestrator so the UI can
+                # show "what did the LLM see, what did it say" per step.
+                # ``messages`` is the caller's list (no defensive copy
+                # needed — caller never mutates it after passing it in).
+                self.last_messages = list(messages)
+                self.last_response = content
                 return content
 
             if status in _TRANSIENT_STATUSES:

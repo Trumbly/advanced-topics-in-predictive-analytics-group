@@ -111,9 +111,12 @@ def run_experiment(exp: Experiment, ctx: RunContext) -> Experiment:
             verdict = ctx.judge.judge_experiment(exp, ctx.memory)
             exp.verdict = verdict
             judge_stats = _stats_dict(ctx)
+            judge_io = _io_dict(ctx)
             judge_out: dict[str, object] = {"verdict": verdict.verdict}
             if judge_stats is not None:
                 judge_out["llm_stats"] = judge_stats
+            if judge_io is not None:
+                judge_out["llm_io"] = judge_io
             exp.tasks.append(
                 Task(name="judge", status="SUCCEEDED", input={}, output=judge_out)
             )
@@ -167,6 +170,7 @@ def _propose(ctx: RunContext, exp: Experiment) -> Proposal:
     ]
     raw = ctx.client.chat(messages)
     propose_stats = _stats_dict(ctx)
+    propose_io = _io_dict(ctx)
     try:
         proposal = parse_proposal(
             raw, retry_client=ctx.client, retry_messages=messages + [{"role": "assistant", "content": raw}]
@@ -180,6 +184,8 @@ def _propose(ctx: RunContext, exp: Experiment) -> Proposal:
     out: dict[str, object] = {"proposal": proposal.model_dump()}
     if propose_stats is not None:
         out["llm_stats"] = propose_stats
+    if propose_io is not None:
+        out["llm_io"] = propose_io
     exp.tasks.append(
         Task(name="propose", status="SUCCEEDED", input={}, output=out)
     )
@@ -200,9 +206,12 @@ def _generate(ctx: RunContext, exp: Experiment, proposal: Proposal) -> str:
         ]
     )
     stats = _stats_dict(ctx)
+    io = _io_dict(ctx)
     output: dict[str, object] = {}
     if stats is not None:
         output["llm_stats"] = stats
+    if io is not None:
+        output["llm_io"] = io
     exp.tasks.append(
         Task(name="generate", status="SUCCEEDED", input={}, output=output)
     )
@@ -273,12 +282,15 @@ def _validate_with_retry(ctx: RunContext, exp: Experiment, code: str) -> str:
         slots["broken_code"] = current_block
         rendered = ctx.recovery.ask_llm(current, result, slots=slots)
         recover_stats = _stats_dict(ctx)
+        recover_io = _io_dict(ctx)
         patched_block, patch_kind = _apply_recovery_output(current_block, rendered)
         recover_out: dict[str, object] = {
             "applied": patched_block != current_block,
         }
         if recover_stats is not None:
             recover_out["llm_stats"] = recover_stats
+        if recover_io is not None:
+            recover_out["llm_io"] = recover_io
         exp.tasks.append(
             Task(
                 name="recover",
@@ -414,12 +426,15 @@ def _execute_with_retry(
             _progress(ctx)
             raise _HardFailure(task_name="execute", error=result.error or TaskError(error_type="Other", message="no error"))
         recover_stats = _stats_dict(ctx)
+        recover_io = _io_dict(ctx)
         patched_block, patch_kind = _apply_recovery_output(current_block, repaired)
         recover_out: dict[str, object] = {
             "applied": patched_block != current_block,
         }
         if recover_stats is not None:
             recover_out["llm_stats"] = recover_stats
+        if recover_io is not None:
+            recover_out["llm_io"] = recover_io
         exp.tasks.append(
             Task(
                 name="recover",
@@ -491,6 +506,38 @@ def _stats_dict(ctx: RunContext) -> dict[str, object] | None:
     if stats is None:
         return None
     return stats.to_dict()
+
+
+_LLM_IO_MAX_CHARS = 8000  # per-message and per-response cap
+
+
+def _io_dict(ctx: RunContext) -> dict[str, object] | None:
+    """Snapshot the messages + response of the last chat() so the UI can
+    surface "what the LLM saw" per step.
+
+    Truncates each message and the response to ``_LLM_IO_MAX_CHARS`` so a
+    long skeleton excerpt cannot bloat ``study.json`` past tens of MB.
+    """
+    messages = getattr(ctx.client, "last_messages", None)
+    response = getattr(ctx.client, "last_response", None)
+    if messages is None and response is None:
+        return None
+
+    def _trunc(text: str | None) -> str:
+        if text is None:
+            return ""
+        if len(text) <= _LLM_IO_MAX_CHARS:
+            return text
+        cut = text[: _LLM_IO_MAX_CHARS]
+        return f"{cut}\n…\n[truncated {len(text) - _LLM_IO_MAX_CHARS} chars]"
+
+    return {
+        "messages": [
+            {"role": m.get("role", "user"), "content": _trunc(m.get("content", ""))}
+            for m in (messages or [])
+        ],
+        "response": _trunc(response),
+    }
 
 
 def _clamp_proposal(p: Proposal, settings: Settings) -> Proposal:
