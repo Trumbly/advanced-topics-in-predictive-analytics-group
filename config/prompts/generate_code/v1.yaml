@@ -14,6 +14,13 @@ system: |
   - The function takes `num_classes` as a positional argument and returns a
     `torch.nn.Module`. The model's forward output must have shape
     `(batch_size, num_classes)`.
+  - **Input is 1-channel mel-spectrograms** of shape `(batch, 1, n_mels, n_frames)`.
+    Pretrained ImageNet backbones (EfficientNet, MobileNet, ResNet, ...) ship
+    with a 3-channel first conv. Either (a) leave the backbone untouched —
+    the skeleton automatically wraps your model with a `Conv2d(1 -> 3, 1x1)`
+    adapter, OR (b) override the backbone's first conv yourself
+    (e.g. `model.features[0][0] = nn.Conv2d(1, 32, kernel_size=3, stride=2,
+    padding=1, bias=False)`). Do NOT assert input has 3 channels.
   - Allowed imports inside the block: `torch`, `torch.nn as nn`,
     `torch.nn.functional as F`, and `torchvision.models` for pretrained
     backbones (only when `weights=None` is passed — Kaggle submission is
