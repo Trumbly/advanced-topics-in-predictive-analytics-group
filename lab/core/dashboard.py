@@ -138,7 +138,21 @@ def compute_kpis(experiments_dir: Path, *, min_runs: int = 3) -> DashboardKPIs:
 
 
 def _is_scored(exp: Experiment) -> bool:
-    return exp.primary_score is not None and exp.status not in _FAILED_STUDY_STATUSES
+    """A "successful" experiment for KPI purposes.
+
+    An experiment counts as scored only when:
+      - it was not marked FAILED/ABORTED at runtime,
+      - training produced a numeric primary_score, AND
+      - the judge did not return a "discard" verdict (which means the
+        experiment ran but the score is not trustworthy -- e.g. the channel
+        mismatch crash, or a NaN-loss flat-line). Without this guard,
+        "DISCARDED" experiments inflate the success rate and `best_*` KPIs.
+    """
+    if exp.primary_score is None or exp.status in _FAILED_STUDY_STATUSES:
+        return False
+    if exp.verdict is not None and exp.verdict.verdict in {"discard", "abort_study"}:
+        return False
+    return True
 
 
 def _round(value: float | None, ndigits: int = 2) -> float | None:
