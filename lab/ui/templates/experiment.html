@@ -61,12 +61,21 @@
 {% endif %}
 
 {% if exp.tasks %}
-<h2>Step history</h2>
+<style>
+  .hidden { display: none; }
+  .io-toggle { display:inline-block; transition: transform 0.15s; }
+  .io-toggle.open { transform: rotate(90deg); }
+</style>
+<h2>Step history <small style="opacity:0.7;font-weight:normal">— click any row with ▶ to see the LLM messages and response</small></h2>
 <table>
-  <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>llm</th><th>error</th><th>note</th></tr></thead>
+  <thead><tr><th></th><th>#</th><th>step</th><th>status</th><th>attempt</th><th>llm</th><th>error</th><th>note</th></tr></thead>
   <tbody>
   {% for t in exp.tasks %}
-    <tr>
+    {%- set io = t.output.get("llm_io") if t.output else None -%}
+    {%- set has_io = io and (io.messages or io.response) -%}
+    {%- set row_id = "io-row-" ~ loop.index -%}
+    <tr {% if has_io %}style="cursor:pointer" onclick="(function(r){var d=document.getElementById('{{ row_id }}');d.classList.toggle('hidden');var t=r.querySelector('.io-toggle');if(t)t.classList.toggle('open')})(this)"{% endif %}>
+      <td>{% if has_io %}<span class="io-toggle" style="opacity:0.7">▶</span>{% endif %}</td>
       <td>{{ loop.index }}</td>
       <td><b>{{ t.name }}</b></td>
       <td><span class="pill">{{ t.status }}</span></td>
@@ -80,6 +89,25 @@
       <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:200] }}</span>{% else %}—{% endif %}</td>
       <td>{{ t.input.get("kind", "") }}</td>
     </tr>
+    {% if has_io %}
+    <tr id="{{ row_id }}" class="hidden">
+      <td></td>
+      <td colspan="7" style="padding:8px 12px;background:#0c0e12;border-left:2px solid #3a6cd6;font-size:0.82em">
+        {% for m in io.messages %}
+        <div style="margin-bottom:8px">
+          <div style="font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:0.78em;opacity:0.75">{{ m.role }}</div>
+          <pre style="background:#0a0c10;border:1px solid #2a2f37;padding:8px;margin:4px 0 0 0;white-space:pre-wrap;line-height:1.4em;max-height:320px;overflow:auto;font-size:0.86em">{{ m.content }}</pre>
+        </div>
+        {% endfor %}
+        {% if io.response %}
+        <div>
+          <div style="font-weight:600;text-transform:uppercase;letter-spacing:0.04em;font-size:0.78em;opacity:0.75;color:#7bd88f">assistant (response)</div>
+          <pre style="background:#0a0c10;border:1px solid #1f6f3a;padding:8px;margin:4px 0 0 0;white-space:pre-wrap;line-height:1.4em;max-height:380px;overflow:auto;font-size:0.86em">{{ io.response }}</pre>
+        </div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
   {% endfor %}
   </tbody>
 </table>
