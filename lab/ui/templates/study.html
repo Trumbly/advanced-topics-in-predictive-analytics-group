@@ -38,6 +38,24 @@
 </div>
 {% endif %}
 
+{% if llm_summary and llm_summary.n_calls %}
+<div style="margin:10px 0;padding:8px 12px;border:1px solid #2a2f37;border-radius:6px;font-size:0.88em;display:flex;gap:24px;flex-wrap:wrap">
+  <span>llm calls <b>{{ llm_summary.n_calls }}</b></span>
+  <span>completion tokens <b>{{ llm_summary.total_completion_tokens }}</b></span>
+  <span>total <b>{{ "%.1fs"|format(llm_summary.total_seconds) }}</b></span>
+  {% if llm_summary.tps_avg is not none %}
+  <span>tps avg <b>{{ "%.1f"|format(llm_summary.tps_avg) }}</b>
+    {% if llm_summary.tps_min is not none %}<span style="opacity:0.7">(min {{ "%.1f"|format(llm_summary.tps_min) }} / max {{ "%.1f"|format(llm_summary.tps_max) }})</span>{% endif %}
+  </span>
+  {% endif %}
+  {% if llm_summary.ttft_avg is not none %}
+  <span>ttft avg <b>{{ "%.0f"|format(llm_summary.ttft_avg * 1000) }}ms</b>
+    {% if llm_summary.ttft_min is not none %}<span style="opacity:0.7">(min {{ "%.0f"|format(llm_summary.ttft_min * 1000) }}ms / max {{ "%.0f"|format(llm_summary.ttft_max * 1000) }}ms)</span>{% endif %}
+  </span>
+  {% endif %}
+</div>
+{% endif %}
+
 <h2>Experiments <small id="exp-count">({{ study.experiments|length }})</small></h2>
 <div id="experiments">
 {% for e in study.experiments %}
@@ -54,6 +72,15 @@
       {% for phase, state in pipelines[e.id] %}
         <span class="phase {{ state }}" title="{{ phase }}: {{ state }}">{{ phase }}</span>
       {% endfor %}
+    </div>
+    {% endif %}
+
+    {% set ls = exp_llm.get(e.id) if exp_llm else None %}
+    {% if ls and ls.n_calls %}
+    <div style="margin-top:6px;font-size:0.8em;opacity:0.85">
+      llm: {{ ls.n_calls }} calls · {{ ls.total_completion_tokens }} tok · {{ "%.1fs"|format(ls.total_seconds) }}
+      {% if ls.tps_avg is not none %} · tps {{ "%.1f"|format(ls.tps_avg) }}{% if ls.tps_min is not none %}<span style="opacity:0.6"> (min {{ "%.1f"|format(ls.tps_min) }} / max {{ "%.1f"|format(ls.tps_max) }})</span>{% endif %}{% endif %}
+      {% if ls.ttft_avg is not none %} · ttft {{ "%.0f"|format(ls.ttft_avg * 1000) }}ms{% endif %}
     </div>
     {% endif %}
 
@@ -79,7 +106,7 @@
 
     {% if e.tasks %}
     <table style="margin-top:8px;font-size:0.85em">
-      <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>error</th><th>note</th></tr></thead>
+      <thead><tr><th>#</th><th>step</th><th>status</th><th>attempt</th><th>llm</th><th>error</th><th>note</th></tr></thead>
       <tbody>
       {% for t in e.tasks %}
         <tr>
@@ -91,6 +118,14 @@
             </span>
           </td>
           <td>{{ t.input.get("attempt") if t.input.get("attempt") is not none else "—" }}</td>
+          <td style="opacity:0.85">
+            {% set s = t.output.get("llm_stats") if t.output else None %}
+            {% if s %}
+              {% if s.tps is not none %}<b>{{ "%.1f"|format(s.tps) }}</b> tps{% endif %}
+              {% if s.ttft_seconds is not none %} · ttft {{ "%.0f"|format(s.ttft_seconds * 1000) }}ms{% endif %}
+              <br><span style="opacity:0.6">{{ s.completion_tokens }} tok · {{ "%.1fs"|format(s.total_seconds) }}</span>
+            {% else %}—{% endif %}
+          </td>
           <td>{% if t.error %}<span style="color:#ff8a8a">{{ t.error.error_type }}: {{ t.error.message[:140] }}</span>{% else %}—{% endif %}</td>
           <td>{{ t.input.get("kind", "") }}{% if t.output.get("duration_s") %} · {{ "%.1fs"|format(t.output.get("duration_s")) }}{% endif %}</td>
         </tr>
