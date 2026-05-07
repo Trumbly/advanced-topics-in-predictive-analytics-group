@@ -313,6 +313,50 @@ def _model_init_cell() -> str:
 # ---------------------------------------------------------------------------
 
 
+def copy_weights_for_study(study: Study, settings: Settings) -> Path:
+    """Copy the best experiment's checkpoint into the study folder as
+    ``weights.pt`` so the UI can serve it as a one-click download.
+
+    The original lives under ``sandbox/<study_id>/<exp_id>/checkpoint.pt``
+    which is private to the run; the copy under
+    ``experiments/studies/<study_id>/weights.pt`` is the canonical
+    "this is what you upload to Kaggle as a Dataset" artifact.
+    """
+    if not study.best_experiment_id:
+        raise SubmissionValidationError(
+            "study has no best_experiment_id; nothing to copy",
+            remediation=["Run at least one successful experiment first."],
+        )
+    best = next(
+        (e for e in study.experiments if e.id == study.best_experiment_id),
+        None,
+    )
+    if best is None or not best.checkpoint_path:
+        raise SubmissionValidationError(
+            "best experiment has no checkpoint_path on record",
+            remediation=[
+                "Re-run the experiment so the skeleton writes "
+                "AGENT_CHECKPOINT_OUT.",
+            ],
+        )
+    src = Path(best.checkpoint_path)
+    if not src.exists():
+        raise SubmissionValidationError(
+            f"checkpoint file is recorded but missing on disk: {src}",
+            remediation=[
+                "Sandboxes are not preserved across reboots — re-run the "
+                "best experiment to regenerate the .pt file.",
+            ],
+        )
+    out_dir = Path(settings.paths.experiments_dir) / study.id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dest = out_dir / "weights.pt"
+    import shutil
+
+    shutil.copyfile(src, dest)
+    return dest
+
+
 def build_local_csv_for_study(study: Study, settings: Settings) -> Path:
     """Run the best experiment's model locally and write submission.csv.
 

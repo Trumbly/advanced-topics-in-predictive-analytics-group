@@ -254,6 +254,7 @@ def create_app(settings: Settings) -> FastAPI:
             SubmissionValidationError,
             build_local_csv_for_study,
             build_submission_for_study,
+            copy_weights_for_study,
         )
 
         try:
@@ -264,10 +265,15 @@ def create_app(settings: Settings) -> FastAPI:
         errors: list[str] = []
         notebook_path: Path | None = None
         csv_path: Path | None = None
+        weights_path: Path | None = None
         try:
             notebook_path = build_submission_for_study(study, settings)
         except SubmissionValidationError as exc:
             errors.append(f"notebook: {exc}")
+        try:
+            weights_path = copy_weights_for_study(study, settings)
+        except SubmissionValidationError as exc:
+            errors.append(f"weights: {exc}")
         try:
             csv_path = build_local_csv_for_study(study, settings)
         except SubmissionValidationError as exc:
@@ -280,6 +286,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "study": study,
                 "notebook_path": notebook_path,
                 "csv_path": csv_path,
+                "weights_path": weights_path,
                 "errors": errors,
             },
         )
@@ -303,6 +310,23 @@ def create_app(settings: Settings) -> FastAPI:
         from fastapi.responses import FileResponse
 
         return FileResponse(path, media_type="text/csv", filename="submission.csv")
+
+    @app.get("/studies/{study_id}/weights.pt")
+    def download_weights(study_id: str):
+        path = studies_root / study_id / "weights.pt"
+        if not path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "weights not exported yet — click "
+                    "'Build Kaggle submission' on the study page first"
+                ),
+            )
+        from fastapi.responses import FileResponse
+
+        return FileResponse(
+            path, media_type="application/octet-stream", filename="weights.pt"
+        )
 
     # ----- API -----
 

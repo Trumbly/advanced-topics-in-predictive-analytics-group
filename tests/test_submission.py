@@ -209,3 +209,39 @@ def test_local_csv_raises_when_no_best_experiment(tmp_path):
     with pytest.raises(SubmissionValidationError) as exc:
         build_local_csv_for_study(study, settings)
     assert "best_experiment_id" in str(exc.value) or "best" in str(exc.value).lower()
+
+
+def test_copy_weights_creates_weights_pt(tmp_path):
+    """The weights download is the artifact users actually upload to
+    Kaggle as a Dataset. Builder must copy the sandbox checkpoint into
+    the study folder so the UI route can serve it."""
+    from lab.submission.builder import copy_weights_for_study
+
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+
+    # Stage a fake checkpoint in the sandbox + wire it onto the
+    # experiment. Real runs do this via AGENT_CHECKPOINT_OUT.
+    sandbox_ckpt = tmp_path / "sandbox" / "ckpt.pt"
+    sandbox_ckpt.parent.mkdir(parents=True)
+    sandbox_ckpt.write_bytes(b"\x80\x02fake-state-dict")
+    study.experiments[0].checkpoint_path = str(sandbox_ckpt)
+
+    out = copy_weights_for_study(study, settings)
+    assert out.name == "weights.pt"
+    assert out.read_bytes() == sandbox_ckpt.read_bytes()
+
+
+def test_copy_weights_raises_when_checkpoint_missing(tmp_path):
+    from lab.submission.builder import copy_weights_for_study
+
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+    study.experiments[0].checkpoint_path = "/nope/ckpt.pt"
+    with pytest.raises(SubmissionValidationError) as exc:
+        copy_weights_for_study(study, settings)
+    assert "checkpoint" in str(exc.value).lower()
