@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}submission · {{ study.id }}{% endblock %}
+{% block content %}
+<p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
+<h1>Submission for {{ study.id }}</h1>
+
+{% if notebook_path or csv_path %}
+<div style="margin:14px 0;padding:10px 14px;border:1px solid #1f6f3a;background:#102018;border-radius:6px">
+  <b style="color:#7bd88f">build complete</b>
+  <ul style="margin:8px 0 0 0">
+    {% if notebook_path %}
+    <li>
+      <a href="/studies/{{ study.id }}/submission.ipynb" style="font-weight:600">
+        Download submission.ipynb
+      </a>
+      <span style="opacity:0.7;font-size:0.85em">
+        — Kaggle-runnable notebook ({{ notebook_path.name }})
+      </span>
+    </li>
+    {% endif %}
+    {% if csv_path %}
+    <li>
+      <a href="/studies/{{ study.id }}/submission.csv" style="font-weight:600">
+        Download submission.csv
+      </a>
+      <span style="opacity:0.7;font-size:0.85em">
+        — already-inferred predictions over data/raw/test_soundscapes/
+      </span>
+    </li>
+    {% endif %}
+  </ul>
+</div>
+{% endif %}
+
+{% if errors %}
+<div style="margin:14px 0;padding:10px 14px;border:1px solid #7a2a2a;background:#3d1616;border-radius:6px;color:#ffd9d9">
+  <b>partial / failed</b>
+  <ul style="margin:8px 0 0 0">
+    {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+  <p style="margin:8px 0 0 0;opacity:0.85;font-size:0.85em">
+    Common fixes: download the BirdCLEF+ 2026 dump under <code>data/raw/</code>
+    (incl. <code>test_soundscapes/</code> and <code>sample_submission.csv</code>),
+    make sure the best experiment wrote a checkpoint to disk, and that
+    <code>librosa</code> + <code>torch</code> are installed in the venv.
+  </p>
+</div>
+{% endif %}
+{% endblock %}

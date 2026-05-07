@@ -109,13 +109,70 @@ def test_builder_rejects_when_no_best_experiment(tmp_path):
         build_submission_for_study(study, settings)
 
 
-def test_builder_writes_csv_cell_with_required_columns(tmp_path):
+def test_builder_writes_wide_csv_cell(tmp_path):
+    """Kaggle BirdCLEF+ 2026 expects wide-format submission (one row per
+    5s window, one column per species). The CSV cell must read the
+    canonical column order from sample_submission.csv and write one
+    column per species, NOT the old long-format (row_id, species_id,
+    probability) triplet."""
     settings = _settings_with_smaller_input(tmp_path)
     rendered = render_skeleton(settings)
     code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
     study = _study_with_code(settings, code)
     nb_path = build_submission_for_study(study, settings)
     csv_cell = json.loads(nb_path.read_text())["cells"][3]["source"]
-    for col in ("row_id", "species_id", "probability"):
-        assert col in csv_cell
+    assert "sample_submission.csv" in csv_cell
+    assert "species_columns" in csv_cell
     assert "submission.csv" in csv_cell
+    # Wide-format: per-row dict keyed by species column header.
+    assert "writerows" in csv_cell
+    # Long-format columns must NOT be present anymore.
+    assert "'species_id'" not in csv_cell
+    assert "'probability'" not in csv_cell
+
+
+def test_builder_inference_cell_loads_ogg_with_matching_mel_params(tmp_path):
+    """The notebook's inference path must mirror the training mel cache:
+    sr=32k, n_fft=2048, hop=512, n_mels=128. Drift here means train/inference
+    get different spectrograms and the model collapses on Kaggle."""
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+    nb_path = build_submission_for_study(study, settings)
+    csv_cell = json.loads(nb_path.read_text())["cells"][3]["source"]
+    assert "32000" in csv_cell
+    assert "n_fft" in csv_cell.lower()
+    assert "hop_length" in csv_cell.lower() or "HOP_LENGTH" in csv_cell
+    assert "test_soundscapes" in csv_cell
+
+
+def test_local_csv_raises_when_no_test_dir(tmp_path):
+    """When data/raw/test_soundscapes is missing, the local CSV builder
+    surfaces a clear error with remediation hints — the UI can show
+    those instead of a generic 500."""
+    from lab.submission.builder import build_local_csv_for_study
+
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+
+    with pytest.raises(SubmissionValidationError) as exc:
+        build_local_csv_for_study(study, settings)
+    msg = str(exc.value)
+    assert "test_soundscapes" in msg or "test audio" in msg or "checkpoint" in msg
+    assert exc.value.remediation
+
+
+def test_local_csv_raises_when_no_best_experiment(tmp_path):
+    from lab.submission.builder import build_local_csv_for_study
+
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+    study.best_experiment_id = None
+    with pytest.raises(SubmissionValidationError) as exc:
+        build_local_csv_for_study(study, settings)
+    assert "best_experiment_id" in str(exc.value) or "best" in str(exc.value).lower()
