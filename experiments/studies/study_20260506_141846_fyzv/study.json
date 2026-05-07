@@ -1,0 +1,292 @@
+{
+  "id": "study_20260506_141846_fyzv",
+  "task_name": "track_b",
+  "status": "RUNNING",
+  "personality": "exploratory",
+  "agent_memory_enabled": false,
+  "predecessor_id": null,
+  "prompt_template_paths": {
+    "propose_architecture": "config/prompts/propose_architecture/v3.yaml",
+    "generate_code": "config/prompts/generate_code/v1.yaml",
+    "recover_from_error": "config/prompts/recover_from_error/v1.yaml",
+    "analyze_result": "config/prompts/analyze_result/v1.yaml",
+    "judge_experiment": "config/prompts/judge_experiment/v1.yaml",
+    "judge_study": "config/prompts/judge_study/v1.yaml"
+  },
+  "experiments": [
+    {
+      "id": "exp_0000",
+      "index": 0,
+      "status": "JUDGED",
+      "proposal": {
+        "architecture_name": "SmallCNN_Baseline",
+        "family": "cnn_scratch",
+        "lr": 0.001,
+        "lr_schedule": "constant",
+        "epochs": 10,
+        "init_from_experiment_id": null,
+        "weight_decay": 0.00001
+      },
+      "code": "\"\"\"Track B audio multi-label training skeleton.\n\nRender-time (Jinja) variables filled in by the orchestrator:\n- num_classes, input_tensor_shape, primary_metric\n\nRun-time (env) knobs read from os.environ:\n- AGENT_DEVICE, AGENT_BATCH_SIZE, AGENT_EPOCHS, AGENT_PROCESSED_DIR,\n  AGENT_CHECKPOINT_IN (optional), AGENT_CHECKPOINT_OUT, AGENT_SEED,\n  AGENT_LR, AGENT_LR_SCHEDULE.\n\nThe LLM owns ONLY the build_model block between the START/END markers.\nEverything else is fixed.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nimport time\nfrom pathlib import Path\n\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom torch.utils.data import DataLoader, Dataset, TensorDataset, random_split\n\n# ---------- runtime knobs ----------\nNUM_CLASSES = 234\nINPUT_SHAPE = tuple([1, 128, 313])\nPRIMARY_METRIC = \"roc_auc_macro\"\n\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"8\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"0\"))\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"3\"))\nPROCESSED_DIR = Path(os.environ.get(\"AGENT_PROCESSED_DIR\", \"data/processed/mels\"))\nCHECKPOINT_IN = os.environ.get(\"AGENT_CHECKPOINT_IN\")\nCHECKPOINT_OUT = os.environ.get(\"AGENT_CHECKPOINT_OUT\", \"checkpoint.pt\")\nSEED = int(os.environ.get(\"AGENT_SEED\", \"42\"))\nLR = float(os.environ.get(\"AGENT_LR\", \"1e-3\"))\nLR_SCHEDULE = os.environ.get(\"AGENT_LR_SCHEDULE\", \"constant\")\nWEIGHT_DECAY = float(os.environ.get(\"AGENT_WEIGHT_DECAY\", \"0.0\"))\n\ntorch.manual_seed(SEED)\n\n\n# ---------- data ----------\nclass LazyMelDataset(Dataset):\n    \"\"\"Reads (x, y) per sample from .npy files listed in a JSON index.\n\n    Used when the processed dir contains ``<split>_index.json`` (the lazy\n    preprocess output) instead of an eager ``<split>.pt`` tensor — lets\n    the loop train on hundreds of thousands of mels without holding them\n    all in RAM.\n    \"\"\"\n\n    def __init__(self, index_path: Path):\n        with index_path.open(\"r\", encoding=\"utf-8\") as fh:\n            payload = json.load(fh)\n        self.spectrograms_dir = Path(payload[\"spectrograms_dir\"])\n        self.num_classes = int(payload[\"num_classes\"])\n        self.entries = payload[\"samples\"]\n\n    def __len__(self) -> int:\n        return len(self.entries)\n\n    def __getitem__(self, idx: int):\n        e = self.entries[idx]\n        arr = np.load(self.spectrograms_dir / f\"{e['sid']}.npy\").astype(\"float32\")\n        if arr.ndim == 2:\n            arr = arr[None]\n        x = torch.from_numpy(arr)\n        y = torch.zeros(self.num_classes, dtype=torch.float32)\n        # Prefer the multi-label index emitted by build_real_shards; fall back\n        # to the legacy single-class field for old indices.\n        indices = e.get(\"class_indices\")\n        if indices is not None:\n            for ci in indices:\n                y[int(ci)] = 1.0\n        else:\n            y[int(e[\"class_idx\"])] = 1.0\n        return x, y\n\n\ndef load_audio_dataset(processed_dir: Path, split: str):\n    \"\"\"Return a Dataset for ``split`` ('train' or 'val').\n\n    Preference order:\n      1. ``<split>_index.json`` -> LazyMelDataset (recommended; full corpus)\n      2. ``<split>.pt`` -> eager TensorDataset (used by the smoke path)\n      3. None when neither file is present (caller falls back to split).\n    \"\"\"\n    index_path = processed_dir / f\"{split}_index.json\"\n    if index_path.exists():\n        return LazyMelDataset(index_path)\n    pt_path = processed_dir / f\"{split}.pt\"\n    if not pt_path.exists():\n        return None\n    blob = torch.load(pt_path, map_location=\"cpu\", weights_only=False)\n    return TensorDataset(blob[\"x\"], blob[\"y\"])\n\n\ndef make_loaders():\n    train = load_audio_dataset(PROCESSED_DIR, \"train\")\n    if train is None:\n        raise FileNotFoundError(\n            f\"missing processed shard: {PROCESSED_DIR / 'train.pt'} \"\n            f\"(or {PROCESSED_DIR / 'train_index.json'})\"\n        )\n    val = load_audio_dataset(PROCESSED_DIR, \"val\")\n    if val is None:\n        n_train = int(0.8 * len(train))\n        train, val = random_split(train, [n_train, len(train) - n_train])\n    return (\n        DataLoader(\n            train,\n            batch_size=BATCH_SIZE,\n            shuffle=True,\n            num_workers=NUM_WORKERS,\n            persistent_workers=NUM_WORKERS > 0,\n        ),\n        DataLoader(\n            val,\n            batch_size=BATCH_SIZE,\n            shuffle=False,\n            num_workers=NUM_WORKERS,\n            persistent_workers=NUM_WORKERS > 0,\n        ),\n    )\n\n\n# --- AGENT_BUILD_MODEL_START ---\ndef build_model(num_classes: int):\n    class SmallCNN(nn.Module):\n        def __init__(self, num_classes):\n            super(SmallCNN, self).__init__()\n            # First conv block\n            self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)\n            self.bn1 = nn.BatchNorm2d(32)\n            self.relu1 = nn.ReLU(inplace=True)\n            self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)\n            \n            # Second conv block\n            self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)\n            self.bn2 = nn.BatchNorm2d(64)\n            self.relu2 = nn.ReLU(inplace=True)\n            self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)\n            \n            # Third conv block\n            self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)\n            self.bn3 = nn.BatchNorm2d(128)\n            self.relu3 = nn.ReLU(inplace=True)\n            self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)\n            \n            # Fourth conv block\n            self.conv4 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)\n            self.bn4 = nn.BatchNorm2d(256)\n            self.relu4 = nn.ReLU(inplace=True)\n            self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)\n            \n            # Global average pooling\n            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))\n            \n            # Classifier\n            self.classifier = nn.Sequential(\n                nn.Dropout(0.5),\n                nn.Linear(256, num_classes),\n                nn.Sigmoid()\n            )\n            \n        def forward(self, x):\n            # Input shape: (batch, 1, 128, 313)\n            x = self.pool1(self.relu1(self.bn1(self.conv1(x))))\n            x = self.pool2(self.relu2(self.bn2(self.conv2(x))))\n            x = self.pool3(self.relu3(self.bn3(self.conv3(x))))\n            x = self.pool4(self.relu4(self.bn4(self.conv4(x))))\n            \n            x = self.avgpool(x)\n            x = x.view(x.size(0), -1)\n            x = self.classifier(x)\n            \n            return x\n    \n    return SmallCNN(num_classes)\n# --- AGENT_BUILD_MODEL_END ---\n\n\n# ---------- metrics ----------\ndef _binarise(probs: torch.Tensor, thr: float = 0.5) -> torch.Tensor:\n    return (probs >= thr).float()\n\n\ndef macro_f1(y_true: torch.Tensor, probs: torch.Tensor) -> float:\n    yhat = _binarise(probs)\n    eps = 1e-9\n    tp = (yhat * y_true).sum(dim=0)\n    fp = (yhat * (1 - y_true)).sum(dim=0)\n    fn = ((1 - yhat) * y_true).sum(dim=0)\n    f1 = (2 * tp + eps) / (2 * tp + fp + fn + eps)\n    return float(f1.mean().item())\n\n\ndef macro_roc_auc(y_true: torch.Tensor, probs: torch.Tensor) -> float:\n    \"\"\"Manual ROC-AUC per class, mean over classes with both pos and neg samples.\"\"\"\n    aucs: list[float] = []\n    for c in range(y_true.shape[1]):\n        yt = y_true[:, c].numpy()\n        ps = probs[:, c].numpy()\n        if yt.sum() == 0 or yt.sum() == len(yt):\n            continue\n        order = ps.argsort()[::-1]\n        yt_sorted = yt[order]\n        tp = 0\n        fp = 0\n        prev_score = None\n        auc = 0.0\n        pos = float(yt.sum())\n        neg = float(len(yt) - pos)\n        for i, _ in enumerate(yt_sorted):\n            if yt_sorted[i] == 1:\n                tp += 1\n            else:\n                auc += tp\n                fp += 1\n        if pos == 0 or neg == 0:\n            continue\n        aucs.append(auc / (pos * neg))\n    if not aucs:\n        return 0.0\n    return float(sum(aucs) / len(aucs))\n\n\n# ---------- training ----------\ndef lr_scheduler(opt, schedule, total_steps):\n    if schedule == \"cosine\":\n        return torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=total_steps)\n    if schedule == \"onecycle\":\n        return torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=LR, total_steps=total_steps)\n    return None\n\n\ndef _print(msg: str) -> None:\n    \"\"\"Single source of stdout writes — every line is flushed so the UI's\n    live tail picks it up the moment the subprocess emits it.\"\"\"\n    print(msg, flush=True)\n\n\ndef _ensure_channel_compat(model: nn.Module, in_chan: int) -> nn.Module:\n    \"\"\"Bridge mel-spectrogram channel count to whatever the model expects.\n\n    Mels are 1-channel. Audio-pretrained backbones almost always have a\n    3-channel first conv (ImageNet weights). Without this adapter the\n    first forward pass crashes with ``Given groups=1, weight of size [...,\n    3, ...], expected input ... to have 3 channels``. Detection: walk the\n    model in registration order until we hit the first ``nn.Conv2d``; if\n    its ``in_channels != in_chan`` we wrap the model in a tiny\n    ``Conv2d(in_chan -> expected, 1x1)`` adapter that the optimizer will\n    learn alongside the rest of the network.\n    \"\"\"\n    expected = _first_conv_in_channels(model)\n    if expected is None or expected == in_chan:\n        return model\n\n    _print(\n        f\"[skeleton] wrapping model with Conv2d({in_chan} -> {expected}, 1x1) \"\n        f\"to match the first conv's expected in_channels\"\n    )\n\n    class _ChannelAdapter(nn.Module):\n        def __init__(self, src: int, dst: int, inner: nn.Module):\n            super().__init__()\n            self.adapter = nn.Conv2d(src, dst, kernel_size=1, bias=False)\n            # Initialise the adapter to \"broadcast\" the single channel\n            # equally across the destination channels (close to the common\n            # mel-as-RGB-replication trick) — gives the pretrained network\n            # something close to its expected statistics on the first forward.\n            with torch.no_grad():\n                nn.init.constant_(self.adapter.weight, 1.0 / src)\n            self.inner = inner\n\n        def forward(self, x: torch.Tensor) -> torch.Tensor:\n            return self.inner(self.adapter(x))\n\n    return _ChannelAdapter(in_chan, expected, model)\n\n\ndef _first_conv_in_channels(model: nn.Module) -> int | None:\n    for module in model.modules():\n        if isinstance(module, nn.Conv2d):\n            return module.in_channels\n    return None\n\n\ndef main():\n    train_loader, val_loader = make_loaders()\n    _print(\n        f\"[loader] train_batches={len(train_loader)} val_batches={len(val_loader)} \"\n        f\"batch_size={BATCH_SIZE} num_workers={NUM_WORKERS} device={DEVICE}\"\n    )\n    model = build_model(num_classes=NUM_CLASSES)\n    model = _ensure_channel_compat(model, INPUT_SHAPE[0])\n    if CHECKPOINT_IN and Path(CHECKPOINT_IN).exists():\n        model.load_state_dict(torch.load(CHECKPOINT_IN, map_location=\"cpu\"))\n        _print(f\"[init] warm-started from {CHECKPOINT_IN}\")\n    model.to(DEVICE)\n    n_params = sum(p.numel() for p in model.parameters())\n    _print(f\"[model] params={n_params:,} num_classes={NUM_CLASSES}\")\n    criterion = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)\n    total_steps = max(1, EPOCHS * len(train_loader))\n    sched = lr_scheduler(optimizer, LR_SCHEDULE, total_steps)\n\n    history = []\n    best_score = float(\"-inf\")\n    no_improve = 0\n    t0 = time.time()\n    stopped_early = False\n\n    for epoch in range(1, EPOCHS + 1):\n        epoch_t0 = time.time()\n        model.train()\n        running = 0.0\n        n = 0\n        log_every = max(1, len(train_loader) // 5)\n        for batch_idx, (x, y) in enumerate(train_loader, start=1):\n            x = x.float().to(DEVICE)\n            y = y.float().to(DEVICE)\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            if sched is not None:\n                sched.step()\n            running += loss.item() * x.size(0)\n            n += x.size(0)\n            if batch_idx % log_every == 0:\n                _print(\n                    f\"[epoch {epoch}/{EPOCHS}] batch {batch_idx}/{len(train_loader)} \"\n                    f\"running_loss={running / max(1, n):.4f}\"\n                )\n        train_loss = running / max(1, n)\n\n        # val\n        model.eval()\n        ys: list[torch.Tensor] = []\n        ps: list[torch.Tensor] = []\n        with torch.no_grad():\n            for x, y in val_loader:\n                x = x.float().to(DEVICE)\n                logits = model(x)\n                probs = torch.sigmoid(logits).cpu()\n                ys.append(y.float())\n                ps.append(probs)\n        y_true = torch.cat(ys)\n        probs = torch.cat(ps)\n        f1 = macro_f1(y_true, probs)\n        auc = macro_roc_auc(y_true, probs)\n        primary = auc if PRIMARY_METRIC == \"roc_auc_macro\" else f1\n        history.append(\n            {\n                \"epoch\": epoch,\n                \"loss\": float(train_loss),\n                \"f1_macro\": float(f1),\n                \"roc_auc_macro\": float(auc),\n            }\n        )\n\n        improved = primary > best_score\n        if improved:\n            best_score = primary\n            no_improve = 0\n            torch.save(model.state_dict(), CHECKPOINT_OUT)\n        else:\n            no_improve += 1\n\n        epoch_dt = time.time() - epoch_t0\n        _print(\n            f\"[epoch {epoch}/{EPOCHS}] done in {epoch_dt:.1f}s \"\n            f\"loss={train_loss:.4f} f1_macro={f1:.4f} roc_auc_macro={auc:.4f} \"\n            f\"best={best_score:.4f} {'(NEW BEST)' if improved else f'(no improve {no_improve}/3)'}\"\n        )\n\n        if not improved and no_improve >= 3:\n            stopped_early = True\n            _print(\"[stop] early stopping triggered (3 epochs without improvement)\")\n            break\n\n    duration = time.time() - t0\n    _print(\n        f\"[done] best {PRIMARY_METRIC}={best_score:.4f} duration={duration:.1f}s \"\n        f\"epochs_run={len(history)}\"\n    )\n    Path(\"results.json\").write_text(\n        json.dumps(\n            {\n                \"primary_score\": best_score,\n                \"primary_metric\": PRIMARY_METRIC,\n                \"metrics\": {\n                    \"f1_macro\": float(history[-1][\"f1_macro\"]),\n                    \"roc_auc_macro\": float(history[-1][\"roc_auc_macro\"]),\n                },\n                \"history\": history,\n                \"stopped_early\": stopped_early,\n                \"duration_seconds\": duration,\n            },\n            indent=2,\n        )\n    )\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "roc_auc_macro",
+      "primary_score": 0.5436988846138022,
+      "metrics": {
+        "f1_macro": 0.008554684929549694,
+        "roc_auc_macro": 0.5436532058770539
+      },
+      "history": [
+        {
+          "epoch": 1,
+          "loss": 0.6945936395571731,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5235496793182918
+        },
+        {
+          "epoch": 2,
+          "loss": 0.6931526700819686,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5150940644685477
+        },
+        {
+          "epoch": 3,
+          "loss": 0.6931488735449545,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5192234288961876
+        },
+        {
+          "epoch": 4,
+          "loss": 0.693147862912061,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.540436214761147
+        },
+        {
+          "epoch": 5,
+          "loss": 0.6931474963602706,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5404692130614582
+        },
+        {
+          "epoch": 6,
+          "loss": 0.693147359566062,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.536439946780629
+        },
+        {
+          "epoch": 7,
+          "loss": 0.6931472580495663,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5429327920524415
+        },
+        {
+          "epoch": 8,
+          "loss": 0.6931472420880482,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5435524442191991
+        },
+        {
+          "epoch": 9,
+          "loss": 0.693147242045822,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5436988846138022
+        },
+        {
+          "epoch": 10,
+          "loss": 0.693147242045822,
+          "f1_macro": 0.008554684929549694,
+          "roc_auc_macro": 0.5436532058770539
+        }
+      ],
+      "tasks": [
+        {
+          "name": "propose",
+          "status": "SUCCEEDED",
+          "input": {},
+          "output": {
+            "proposal": {
+              "architecture_name": "SmallCNN_Baseline",
+              "family": "cnn_scratch",
+              "lr": 0.001,
+              "lr_schedule": "constant",
+              "epochs": 10,
+              "init_from_experiment_id": null,
+              "weight_decay": 0.00001
+            },
+            "llm_stats": {
+              "provider": "ollama",
+              "model": "qwen3-coder:30b",
+              "prompt_tokens": 1278,
+              "completion_tokens": 71,
+              "total_seconds": 5.8079,
+              "tps": 12.22,
+              "ttft_seconds": null
+            }
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "generate",
+          "status": "SUCCEEDED",
+          "input": {},
+          "output": {
+            "llm_stats": {
+              "provider": "ollama",
+              "model": "qwen3-coder:30b",
+              "prompt_tokens": 1086,
+              "completion_tokens": 574,
+              "total_seconds": 6.8653,
+              "tps": 83.61,
+              "ttft_seconds": null
+            }
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "validate",
+          "status": "SUCCEEDED",
+          "input": {
+            "attempt": 0
+          },
+          "output": {
+            "ok": true,
+            "error_type": null
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "execute",
+          "status": "SUCCEEDED",
+          "input": {
+            "attempt": 0
+          },
+          "output": {
+            "succeeded": true,
+            "duration_s": 2137.713490666996,
+            "primary_score": 0.5436988846138022
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "judge",
+          "status": "SUCCEEDED",
+          "input": {},
+          "output": {
+            "verdict": "keep",
+            "llm_stats": {
+              "provider": "ollama",
+              "model": "qwen3-coder:30b",
+              "prompt_tokens": 225,
+              "completion_tokens": 70,
+              "total_seconds": 5.0034,
+              "tps": 13.99,
+              "ttft_seconds": null
+            }
+          },
+          "prompt_paths": {},
+          "error": null
+        }
+      ],
+      "verdict": {
+        "verdict": "keep",
+        "score": 0.54,
+        "rationale": "Baseline CNN shows slight improvement trend with no errors. ROC-AUC of 0.5437 is minimal but positive, warranting continuation with minor adjustments.",
+        "suggested_next": "increase_epochs"
+      },
+      "duration_seconds": 2137.713490666996,
+      "sandbox_path": "sandbox/study_20260506_141846_fyzv/exp_0000",
+      "checkpoint_path": "/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260506_141846_fyzv/exp_0000/checkpoint.pt"
+    },
+    {
+      "id": "exp_0001",
+      "index": 1,
+      "status": "EXECUTING",
+      "proposal": {
+        "architecture_name": "EfficientNetB0_Finetune",
+        "family": "efficientnet_pretrained",
+        "lr": 0.001,
+        "lr_schedule": "cosine",
+        "epochs": 10,
+        "init_from_experiment_id": "exp_0000",
+        "weight_decay": 1e-6
+      },
+      "code": "\"\"\"Track B audio multi-label training skeleton.\n\nRender-time (Jinja) variables filled in by the orchestrator:\n- num_classes, input_tensor_shape, primary_metric\n\nRun-time (env) knobs read from os.environ:\n- AGENT_DEVICE, AGENT_BATCH_SIZE, AGENT_EPOCHS, AGENT_PROCESSED_DIR,\n  AGENT_CHECKPOINT_IN (optional), AGENT_CHECKPOINT_OUT, AGENT_SEED,\n  AGENT_LR, AGENT_LR_SCHEDULE.\n\nThe LLM owns ONLY the build_model block between the START/END markers.\nEverything else is fixed.\n\"\"\"\nfrom __future__ import annotations\n\nimport json\nimport os\nimport time\nfrom pathlib import Path\n\nimport numpy as np\nimport torch\nimport torch.nn as nn\nfrom torch.utils.data import DataLoader, Dataset, TensorDataset, random_split\n\n# ---------- runtime knobs ----------\nNUM_CLASSES = 234\nINPUT_SHAPE = tuple([1, 128, 313])\nPRIMARY_METRIC = \"roc_auc_macro\"\n\nDEVICE = os.environ.get(\"AGENT_DEVICE\", \"cpu\")\nBATCH_SIZE = int(os.environ.get(\"AGENT_BATCH_SIZE\", \"8\"))\nNUM_WORKERS = int(os.environ.get(\"AGENT_NUM_WORKERS\", \"0\"))\nEPOCHS = int(os.environ.get(\"AGENT_EPOCHS\", \"3\"))\nPROCESSED_DIR = Path(os.environ.get(\"AGENT_PROCESSED_DIR\", \"data/processed/mels\"))\nCHECKPOINT_IN = os.environ.get(\"AGENT_CHECKPOINT_IN\")\nCHECKPOINT_OUT = os.environ.get(\"AGENT_CHECKPOINT_OUT\", \"checkpoint.pt\")\nSEED = int(os.environ.get(\"AGENT_SEED\", \"42\"))\nLR = float(os.environ.get(\"AGENT_LR\", \"1e-3\"))\nLR_SCHEDULE = os.environ.get(\"AGENT_LR_SCHEDULE\", \"constant\")\nWEIGHT_DECAY = float(os.environ.get(\"AGENT_WEIGHT_DECAY\", \"0.0\"))\n\ntorch.manual_seed(SEED)\n\n\n# ---------- data ----------\nclass LazyMelDataset(Dataset):\n    \"\"\"Reads (x, y) per sample from .npy files listed in a JSON index.\n\n    Used when the processed dir contains ``<split>_index.json`` (the lazy\n    preprocess output) instead of an eager ``<split>.pt`` tensor — lets\n    the loop train on hundreds of thousands of mels without holding them\n    all in RAM.\n    \"\"\"\n\n    def __init__(self, index_path: Path):\n        with index_path.open(\"r\", encoding=\"utf-8\") as fh:\n            payload = json.load(fh)\n        self.spectrograms_dir = Path(payload[\"spectrograms_dir\"])\n        self.num_classes = int(payload[\"num_classes\"])\n        self.entries = payload[\"samples\"]\n\n    def __len__(self) -> int:\n        return len(self.entries)\n\n    def __getitem__(self, idx: int):\n        e = self.entries[idx]\n        arr = np.load(self.spectrograms_dir / f\"{e['sid']}.npy\").astype(\"float32\")\n        if arr.ndim == 2:\n            arr = arr[None]\n        x = torch.from_numpy(arr)\n        y = torch.zeros(self.num_classes, dtype=torch.float32)\n        # Prefer the multi-label index emitted by build_real_shards; fall back\n        # to the legacy single-class field for old indices.\n        indices = e.get(\"class_indices\")\n        if indices is not None:\n            for ci in indices:\n                y[int(ci)] = 1.0\n        else:\n            y[int(e[\"class_idx\"])] = 1.0\n        return x, y\n\n\ndef load_audio_dataset(processed_dir: Path, split: str):\n    \"\"\"Return a Dataset for ``split`` ('train' or 'val').\n\n    Preference order:\n      1. ``<split>_index.json`` -> LazyMelDataset (recommended; full corpus)\n      2. ``<split>.pt`` -> eager TensorDataset (used by the smoke path)\n      3. None when neither file is present (caller falls back to split).\n    \"\"\"\n    index_path = processed_dir / f\"{split}_index.json\"\n    if index_path.exists():\n        return LazyMelDataset(index_path)\n    pt_path = processed_dir / f\"{split}.pt\"\n    if not pt_path.exists():\n        return None\n    blob = torch.load(pt_path, map_location=\"cpu\", weights_only=False)\n    return TensorDataset(blob[\"x\"], blob[\"y\"])\n\n\ndef make_loaders():\n    train = load_audio_dataset(PROCESSED_DIR, \"train\")\n    if train is None:\n        raise FileNotFoundError(\n            f\"missing processed shard: {PROCESSED_DIR / 'train.pt'} \"\n            f\"(or {PROCESSED_DIR / 'train_index.json'})\"\n        )\n    val = load_audio_dataset(PROCESSED_DIR, \"val\")\n    if val is None:\n        n_train = int(0.8 * len(train))\n        train, val = random_split(train, [n_train, len(train) - n_train])\n    return (\n        DataLoader(\n            train,\n            batch_size=BATCH_SIZE,\n            shuffle=True,\n            num_workers=NUM_WORKERS,\n            persistent_workers=NUM_WORKERS > 0,\n        ),\n        DataLoader(\n            val,\n            batch_size=BATCH_SIZE,\n            shuffle=False,\n            num_workers=NUM_WORKERS,\n            persistent_workers=NUM_WORKERS > 0,\n        ),\n    )\n\n\n# --- AGENT_BUILD_MODEL_START ---\nimport torch\nimport torch.nn as nn\nimport torchvision.models as models\n\ndef build_model(num_classes: int):\n    # Load pretrained EfficientNetB0\n    model = models.efficientnet_b0(weights=None)\n    \n    # Modify the first convolution layer to accept 1 channel instead of 3\n    model.features[0][0] = nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1, bias=False)\n    \n    # Replace the classifier head\n    model.classifier = nn.Sequential(\n        nn.Dropout(0.2),\n        nn.Linear(model.classifier[1].in_features, num_classes),\n        nn.Sigmoid()  # For multi-label classification\n    )\n    \n    return model\n# --- AGENT_BUILD_MODEL_END ---\n\n\n# ---------- metrics ----------\ndef _binarise(probs: torch.Tensor, thr: float = 0.5) -> torch.Tensor:\n    return (probs >= thr).float()\n\n\ndef macro_f1(y_true: torch.Tensor, probs: torch.Tensor) -> float:\n    yhat = _binarise(probs)\n    eps = 1e-9\n    tp = (yhat * y_true).sum(dim=0)\n    fp = (yhat * (1 - y_true)).sum(dim=0)\n    fn = ((1 - yhat) * y_true).sum(dim=0)\n    f1 = (2 * tp + eps) / (2 * tp + fp + fn + eps)\n    return float(f1.mean().item())\n\n\ndef macro_roc_auc(y_true: torch.Tensor, probs: torch.Tensor) -> float:\n    \"\"\"Manual ROC-AUC per class, mean over classes with both pos and neg samples.\"\"\"\n    aucs: list[float] = []\n    for c in range(y_true.shape[1]):\n        yt = y_true[:, c].numpy()\n        ps = probs[:, c].numpy()\n        if yt.sum() == 0 or yt.sum() == len(yt):\n            continue\n        order = ps.argsort()[::-1]\n        yt_sorted = yt[order]\n        tp = 0\n        fp = 0\n        prev_score = None\n        auc = 0.0\n        pos = float(yt.sum())\n        neg = float(len(yt) - pos)\n        for i, _ in enumerate(yt_sorted):\n            if yt_sorted[i] == 1:\n                tp += 1\n            else:\n                auc += tp\n                fp += 1\n        if pos == 0 or neg == 0:\n            continue\n        aucs.append(auc / (pos * neg))\n    if not aucs:\n        return 0.0\n    return float(sum(aucs) / len(aucs))\n\n\n# ---------- training ----------\ndef lr_scheduler(opt, schedule, total_steps):\n    if schedule == \"cosine\":\n        return torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=total_steps)\n    if schedule == \"onecycle\":\n        return torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=LR, total_steps=total_steps)\n    return None\n\n\ndef _print(msg: str) -> None:\n    \"\"\"Single source of stdout writes — every line is flushed so the UI's\n    live tail picks it up the moment the subprocess emits it.\"\"\"\n    print(msg, flush=True)\n\n\ndef _ensure_channel_compat(model: nn.Module, in_chan: int) -> nn.Module:\n    \"\"\"Bridge mel-spectrogram channel count to whatever the model expects.\n\n    Mels are 1-channel. Audio-pretrained backbones almost always have a\n    3-channel first conv (ImageNet weights). Without this adapter the\n    first forward pass crashes with ``Given groups=1, weight of size [...,\n    3, ...], expected input ... to have 3 channels``. Detection: walk the\n    model in registration order until we hit the first ``nn.Conv2d``; if\n    its ``in_channels != in_chan`` we wrap the model in a tiny\n    ``Conv2d(in_chan -> expected, 1x1)`` adapter that the optimizer will\n    learn alongside the rest of the network.\n    \"\"\"\n    expected = _first_conv_in_channels(model)\n    if expected is None or expected == in_chan:\n        return model\n\n    _print(\n        f\"[skeleton] wrapping model with Conv2d({in_chan} -> {expected}, 1x1) \"\n        f\"to match the first conv's expected in_channels\"\n    )\n\n    class _ChannelAdapter(nn.Module):\n        def __init__(self, src: int, dst: int, inner: nn.Module):\n            super().__init__()\n            self.adapter = nn.Conv2d(src, dst, kernel_size=1, bias=False)\n            # Initialise the adapter to \"broadcast\" the single channel\n            # equally across the destination channels (close to the common\n            # mel-as-RGB-replication trick) — gives the pretrained network\n            # something close to its expected statistics on the first forward.\n            with torch.no_grad():\n                nn.init.constant_(self.adapter.weight, 1.0 / src)\n            self.inner = inner\n\n        def forward(self, x: torch.Tensor) -> torch.Tensor:\n            return self.inner(self.adapter(x))\n\n    return _ChannelAdapter(in_chan, expected, model)\n\n\ndef _first_conv_in_channels(model: nn.Module) -> int | None:\n    for module in model.modules():\n        if isinstance(module, nn.Conv2d):\n            return module.in_channels\n    return None\n\n\ndef main():\n    train_loader, val_loader = make_loaders()\n    _print(\n        f\"[loader] train_batches={len(train_loader)} val_batches={len(val_loader)} \"\n        f\"batch_size={BATCH_SIZE} num_workers={NUM_WORKERS} device={DEVICE}\"\n    )\n    model = build_model(num_classes=NUM_CLASSES)\n    model = _ensure_channel_compat(model, INPUT_SHAPE[0])\n    if CHECKPOINT_IN and Path(CHECKPOINT_IN).exists():\n        model.load_state_dict(torch.load(CHECKPOINT_IN, map_location=\"cpu\"))\n        _print(f\"[init] warm-started from {CHECKPOINT_IN}\")\n    model.to(DEVICE)\n    n_params = sum(p.numel() for p in model.parameters())\n    _print(f\"[model] params={n_params:,} num_classes={NUM_CLASSES}\")\n    criterion = nn.BCEWithLogitsLoss()\n    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)\n    total_steps = max(1, EPOCHS * len(train_loader))\n    sched = lr_scheduler(optimizer, LR_SCHEDULE, total_steps)\n\n    history = []\n    best_score = float(\"-inf\")\n    no_improve = 0\n    t0 = time.time()\n    stopped_early = False\n\n    for epoch in range(1, EPOCHS + 1):\n        epoch_t0 = time.time()\n        model.train()\n        running = 0.0\n        n = 0\n        log_every = max(1, len(train_loader) // 5)\n        for batch_idx, (x, y) in enumerate(train_loader, start=1):\n            x = x.float().to(DEVICE)\n            y = y.float().to(DEVICE)\n            optimizer.zero_grad()\n            logits = model(x)\n            loss = criterion(logits, y)\n            loss.backward()\n            optimizer.step()\n            if sched is not None:\n                sched.step()\n            running += loss.item() * x.size(0)\n            n += x.size(0)\n            if batch_idx % log_every == 0:\n                _print(\n                    f\"[epoch {epoch}/{EPOCHS}] batch {batch_idx}/{len(train_loader)} \"\n                    f\"running_loss={running / max(1, n):.4f}\"\n                )\n        train_loss = running / max(1, n)\n\n        # val\n        model.eval()\n        ys: list[torch.Tensor] = []\n        ps: list[torch.Tensor] = []\n        with torch.no_grad():\n            for x, y in val_loader:\n                x = x.float().to(DEVICE)\n                logits = model(x)\n                probs = torch.sigmoid(logits).cpu()\n                ys.append(y.float())\n                ps.append(probs)\n        y_true = torch.cat(ys)\n        probs = torch.cat(ps)\n        f1 = macro_f1(y_true, probs)\n        auc = macro_roc_auc(y_true, probs)\n        primary = auc if PRIMARY_METRIC == \"roc_auc_macro\" else f1\n        history.append(\n            {\n                \"epoch\": epoch,\n                \"loss\": float(train_loss),\n                \"f1_macro\": float(f1),\n                \"roc_auc_macro\": float(auc),\n            }\n        )\n\n        improved = primary > best_score\n        if improved:\n            best_score = primary\n            no_improve = 0\n            torch.save(model.state_dict(), CHECKPOINT_OUT)\n        else:\n            no_improve += 1\n\n        epoch_dt = time.time() - epoch_t0\n        _print(\n            f\"[epoch {epoch}/{EPOCHS}] done in {epoch_dt:.1f}s \"\n            f\"loss={train_loss:.4f} f1_macro={f1:.4f} roc_auc_macro={auc:.4f} \"\n            f\"best={best_score:.4f} {'(NEW BEST)' if improved else f'(no improve {no_improve}/3)'}\"\n        )\n\n        if not improved and no_improve >= 3:\n            stopped_early = True\n            _print(\"[stop] early stopping triggered (3 epochs without improvement)\")\n            break\n\n    duration = time.time() - t0\n    _print(\n        f\"[done] best {PRIMARY_METRIC}={best_score:.4f} duration={duration:.1f}s \"\n        f\"epochs_run={len(history)}\"\n    )\n    Path(\"results.json\").write_text(\n        json.dumps(\n            {\n                \"primary_score\": best_score,\n                \"primary_metric\": PRIMARY_METRIC,\n                \"metrics\": {\n                    \"f1_macro\": float(history[-1][\"f1_macro\"]),\n                    \"roc_auc_macro\": float(history[-1][\"roc_auc_macro\"]),\n                },\n                \"history\": history,\n                \"stopped_early\": stopped_early,\n                \"duration_seconds\": duration,\n            },\n            indent=2,\n        )\n    )\n\n\nif __name__ == \"__main__\":\n    main()",
+      "primary_metric": "roc_auc_macro",
+      "primary_score": null,
+      "metrics": {},
+      "history": [],
+      "tasks": [
+        {
+          "name": "propose",
+          "status": "SUCCEEDED",
+          "input": {},
+          "output": {
+            "proposal": {
+              "architecture_name": "EfficientNetB0_Finetune",
+              "family": "efficientnet_pretrained",
+              "lr": 0.001,
+              "lr_schedule": "cosine",
+              "epochs": 10,
+              "init_from_experiment_id": "exp_0000",
+              "weight_decay": 1e-6
+            },
+            "llm_stats": {
+              "provider": "ollama",
+              "model": "qwen3-coder:30b",
+              "prompt_tokens": 1344,
+              "completion_tokens": 81,
+              "total_seconds": 1.874,
+              "tps": 43.22,
+              "ttft_seconds": null
+            }
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "generate",
+          "status": "SUCCEEDED",
+          "input": {},
+          "output": {
+            "llm_stats": {
+              "provider": "ollama",
+              "model": "qwen3-coder:30b",
+              "prompt_tokens": 1094,
+              "completion_tokens": 174,
+              "total_seconds": 2.7224,
+              "tps": 63.91,
+              "ttft_seconds": null
+            }
+          },
+          "prompt_paths": {},
+          "error": null
+        },
+        {
+          "name": "validate",
+          "status": "SUCCEEDED",
+          "input": {
+            "attempt": 0
+          },
+          "output": {
+            "ok": true,
+            "error_type": null
+          },
+          "prompt_paths": {},
+          "error": null
+        }
+      ],
+      "verdict": null,
+      "duration_seconds": null,
+      "sandbox_path": null,
+      "checkpoint_path": null
+    }
+  ],
+  "best_experiment_id": "exp_0000",
+  "best_score": 0.5436988846138022,
+  "study_verdict": null,
+  "created_at": "2026-05-06T14:18:46.306813Z",
+  "finished_at": null,
+  "llm_model": "ollama:qwen3-coder:30b"
+}

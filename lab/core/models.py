@@ -128,6 +128,15 @@ class Proposal(BaseModel):
     epochs: int
     init_from_experiment_id: str | None = None
     weight_decay: float | None = None  # L2 regularization (#40)
+    # When set, the orchestrator skips proposal+generate, reuses the
+    # referenced experiment's stored ``code`` and ``checkpoint_path``,
+    # and runs ``epochs`` *additional* epochs on top of the saved
+    # weights. The architecture, lr, and lr_schedule fields above are
+    # respected as the resume hyperparams (so the LLM can pick a smaller
+    # lr for the continuation phase) but `family` and
+    # `architecture_name` should match the original to avoid surprising
+    # the user — the validator does not enforce this.
+    continue_from_experiment_id: str | None = None
 
 
 class Verdict(BaseModel):

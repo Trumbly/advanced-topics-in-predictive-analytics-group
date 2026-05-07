@@ -15,16 +15,24 @@ from typing import Any, Iterable
 
 from lab.core.models import Experiment, Study, StudyNotFoundError
 
-_MAX_MARKDOWN_BYTES = 3072
+_DEFAULT_MAX_MARKDOWN_BYTES = 8192
 
 
 class Memory:
-    def __init__(self, top_k: int, recent_failures: int, path: Path):
+    def __init__(
+        self,
+        top_k: int,
+        recent_failures: int,
+        path: Path,
+        *,
+        max_markdown_bytes: int = _DEFAULT_MAX_MARKDOWN_BYTES,
+    ):
         if top_k < 0 or recent_failures < 0:
             raise ValueError("top_k and recent_failures must be non-negative")
         self.top_k = top_k
         self.recent_failures = recent_failures
         self.path = Path(path)
+        self.max_markdown_bytes = max_markdown_bytes
         self._wins: list[Experiment] = []
         self._fails: list[Experiment] = []
 
@@ -59,7 +67,7 @@ class Memory:
             lines.append("(none yet)")
         else:
             for i, exp in enumerate(self._wins, start=1):
-                lines.append(self._win_line(i, exp))
+                lines.extend(self._win_block(i, exp))
 
         lines.append("")
         lines.append(f"## Recent failures (last {self.recent_failures})")
@@ -67,15 +75,18 @@ class Memory:
             lines.append("(none yet)")
         else:
             for exp in self._fails:
-                lines.append(self._fail_line(exp))
+                lines.extend(self._fail_block(exp))
 
         md = "\n".join(lines).strip() + "\n"
-        if len(md.encode("utf-8")) > _MAX_MARKDOWN_BYTES:
+        if len(md.encode("utf-8")) > self.max_markdown_bytes:
             md = self._trim_to_budget(md)
         return md
 
-    @staticmethod
-    def _win_line(rank: int, exp: Experiment) -> str:
+    def _win_block(self, rank: int, exp: Experiment) -> list[str]:
+        """Multi-line per-win entry: header + hyperparams + trajectory +
+        verdict rationale + checkpoint pointer. Lets the LLM judge whether
+        a continue-training proposal makes sense without re-reading
+        ``study.json`` from disk."""
         arch = (
             exp.proposal.architecture_name
             if exp.proposal is not None
@@ -87,29 +98,74 @@ class Memory:
             if exp.primary_score is not None
             else f"{exp.primary_metric}=n/a"
         )
-        curve = summarize_curve(exp.history, exp.primary_metric)
-        return f"{rank}. {exp.id} · {arch} ({family}) · {score_repr} · {curve}"
+        out = [f"### {rank}. {exp.id} · {arch} ({family}) · {score_repr}"]
 
-    @staticmethod
-    def _fail_line(exp: Experiment) -> str:
+        if exp.proposal is not None:
+            p = exp.proposal
+            wd = (
+                f", wd={p.weight_decay:.0e}"
+                if p.weight_decay is not None
+                else ""
+            )
+            init = (
+                f", init_from={p.init_from_experiment_id}"
+                if p.init_from_experiment_id
+                else ""
+            )
+            cont = (
+                f", continued_from={p.continue_from_experiment_id}"
+                if p.continue_from_experiment_id
+                else ""
+            )
+            out.append(
+                f"- hp: lr={p.lr:.0e}, sched={p.lr_schedule}, "
+                f"epochs={p.epochs}{wd}{init}{cont}"
+            )
+
+        out.append("- trajectory: " + summarize_curve(exp.history, exp.primary_metric))
+
+        # Last-3-epoch detail so the LLM can judge "still improving" vs
+        # "plateauing" beyond the one-line trend.
+        recent = _recent_epochs(exp.history, exp.primary_metric, n=3)
+        if recent:
+            out.append("- recent epochs: " + recent)
+
+        if exp.verdict is not None:
+            out.append(
+                f"- verdict: **{exp.verdict.verdict}** "
+                f"(conf {exp.verdict.score:.2f}) — {exp.verdict.rationale[:240]}"
+            )
+
+        if exp.checkpoint_path:
+            out.append(f"- checkpoint available → can `continue_from`: {exp.id}")
+
+        out.append("")  # blank line between entries
+        return out
+
+    def _fail_block(self, exp: Experiment) -> list[str]:
         arch = (
             exp.proposal.architecture_name
             if exp.proposal is not None
             else "unknown"
         )
         err = _first_error(exp)
-        if err is None:
-            return f"- {exp.id} · {arch} · {exp.status}"
-        return f"- {exp.id} · {arch} · {err.error_type}: {err.message[:200]}"
+        out = [f"- **{exp.id}** · {arch} · {exp.status}"]
+        if err is not None:
+            out.append(f"  - {err.error_type}: {err.message[:240]}")
+        # Surface the recover attempts so the LLM does not propose the
+        # exact same architecture that just failed N times in a row.
+        n_recover = sum(1 for t in exp.tasks if t.name == "recover")
+        if n_recover:
+            out.append(f"  - {n_recover} recovery attempt(s) before giving up")
+        return out
 
-    @staticmethod
-    def _trim_to_budget(md: str) -> str:
+    def _trim_to_budget(self, md: str) -> str:
         # Drop trailing bullets until under budget.
         kept_lines: list[str] = []
         running = 0
         for line in md.splitlines():
             chunk = (line + "\n").encode("utf-8")
-            if running + len(chunk) > _MAX_MARKDOWN_BYTES:
+            if running + len(chunk) > self.max_markdown_bytes:
                 break
             kept_lines.append(line)
             running += len(chunk)
@@ -198,6 +254,31 @@ def _first_error(exp: Experiment):
         if task.error is not None:
             return task.error
     return None
+
+
+def _recent_epochs(history: list[dict[str, Any]], metric: str, *, n: int = 3) -> str:
+    """Render the last ``n`` epoch rows as ``e7: loss=0.34, metric=0.71``.
+
+    Lets the LLM see fresh signal beyond the single-line trend arrow —
+    useful when judging whether a few more epochs would push the model
+    over a plateau vs. it having genuinely stalled.
+    """
+    if not history:
+        return ""
+    tail = history[-n:]
+    parts: list[str] = []
+    for h in tail:
+        ep = h.get("epoch")
+        loss = h.get("loss")
+        score = h.get(metric)
+        chunk = f"e{ep}" if ep is not None else "e?"
+        if isinstance(loss, (int, float)):
+            chunk += f": loss={loss:.3f}"
+        if isinstance(score, (int, float)):
+            sep = ", " if isinstance(loss, (int, float)) else ": "
+            chunk += f"{sep}{metric}={score:.3f}"
+        parts.append(chunk)
+    return " | ".join(parts)
 
 
 def summarize_curve(history: list[dict[str, Any]], metric: str) -> str:
