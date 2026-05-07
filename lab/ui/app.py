@@ -239,6 +239,71 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=404, detail="report not built; run `lab report`")
         return HTMLResponse(path.read_text(encoding="utf-8"))
 
+    # ---- submission ----
+
+    @app.post("/studies/{study_id}/submission", response_class=HTMLResponse)
+    def build_submission(request: Request, study_id: str):
+        """Build both submission.ipynb and submission.csv for a study.
+
+        - ipynb: rendered from the notebook template; runs on Kaggle to
+          produce the same wide-format CSV directly there.
+        - csv: produced locally by running the best experiment's model
+          over data/raw/test_soundscapes/*.ogg with matching mel params.
+        """
+        from lab.submission.builder import (
+            SubmissionValidationError,
+            build_local_csv_for_study,
+            build_submission_for_study,
+        )
+
+        try:
+            study = Study.load(studies_root, study_id)
+        except StudyNotFoundError:
+            raise HTTPException(status_code=404, detail="study not found")
+
+        errors: list[str] = []
+        notebook_path: Path | None = None
+        csv_path: Path | None = None
+        try:
+            notebook_path = build_submission_for_study(study, settings)
+        except SubmissionValidationError as exc:
+            errors.append(f"notebook: {exc}")
+        try:
+            csv_path = build_local_csv_for_study(study, settings)
+        except SubmissionValidationError as exc:
+            errors.append(f"csv: {exc}")
+
+        return templates.TemplateResponse(
+            request,
+            "submission.html",
+            {
+                "study": study,
+                "notebook_path": notebook_path,
+                "csv_path": csv_path,
+                "errors": errors,
+            },
+        )
+
+    @app.get("/studies/{study_id}/submission.ipynb")
+    def download_submission_notebook(study_id: str):
+        path = studies_root / study_id / "submission.ipynb"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="notebook not built yet")
+        from fastapi.responses import FileResponse
+
+        return FileResponse(
+            path, media_type="application/x-ipynb+json", filename="submission.ipynb"
+        )
+
+    @app.get("/studies/{study_id}/submission.csv")
+    def download_submission_csv(study_id: str):
+        path = studies_root / study_id / "submission.csv"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="csv not built yet")
+        from fastapi.responses import FileResponse
+
+        return FileResponse(path, media_type="text/csv", filename="submission.csv")
+
     # ----- API -----
 
     @app.get("/benchmark", response_class=HTMLResponse)
