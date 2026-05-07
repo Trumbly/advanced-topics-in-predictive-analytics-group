@@ -65,7 +65,8 @@ def build_submission_for_study(study: Study, settings: Settings) -> Path:
 
     rendered_skeleton = render_skeleton(settings)
     build_block = _extract_build_block(best.code)
-    inference_body = _extract_inference_body(rendered_skeleton)
+    prologue = _extract_skeleton_prologue(rendered_skeleton)
+    helpers = _extract_post_build_helpers(rendered_skeleton)
 
     env = Environment(
         loader=FileSystemLoader(_TEMPLATE_DIR),
@@ -74,8 +75,9 @@ def build_submission_for_study(study: Study, settings: Settings) -> Path:
     template = env.get_template("notebook_template.ipynb.j2")
     notebook = template.render(
         env_cell=_env_cell(settings, study),
+        prologue_cell=prologue,
         build_model_cell=build_block,
-        inference_cell=inference_body,
+        inference_cell=helpers + _model_init_cell(),
         submission_csv_cell=_csv_cell(settings),
     )
 
@@ -128,16 +130,34 @@ def _validate_for_submission(code: str, adapter, settings: Settings) -> None:
 
 
 def _env_cell(settings: Settings, study: Study) -> str:
+    """Notebook environment cell: GPU when available, larger batch for
+    inference (no gradients), and an `AGENT_WEIGHTS_PATH` knob the user
+    can point at the Kaggle Dataset where they uploaded the trained
+    checkpoint -- see header comments below."""
     offline = settings.paths.offline_weights
     lines = [
+        f"# Submission notebook for study {study.id}",
+        f"# Best experiment: {study.best_experiment_id}",
+        "#",
+        "# WORKFLOW (BirdCLEF+ 2026 is a code competition — INFERENCE-ONLY):",
+        "#  1. Train the model locally (no time limit).",
+        "#  2. Upload the trained checkpoint as a Kaggle Dataset (Settings ->",
+        "#     'Add Data'). Default path searched: /kaggle/input/**/*.pt",
+        "#  3. Point AGENT_WEIGHTS_PATH at the file if it has a non-standard",
+        "#     name, OR rename your upload to checkpoint.pt to use the default.",
+        "#  4. The notebook only does inference -- runtime budget per Kaggle",
+        "#     code-comp rules covers prediction over test_soundscapes only.",
         "import os",
-        "os.environ['AGENT_DEVICE'] = 'cpu'",
-        f"os.environ['AGENT_BATCH_SIZE'] = '8'",
-        f"os.environ['AGENT_PROCESSED_DIR'] = '/kaggle/input/{settings.task.name}/processed'",
-        f"os.environ['TORCH_HOME'] = {offline!r}",
-        f"os.environ['HF_HOME'] = {offline!r}",
-        f"os.environ['TIMM_HOME'] = {offline!r}",
-        f"# Study: {study.id}, best experiment: {study.best_experiment_id}",
+        "import torch",
+        "os.environ.setdefault('AGENT_DEVICE',",
+        "                       'cuda' if torch.cuda.is_available() else 'cpu')",
+        "os.environ.setdefault('AGENT_BATCH_SIZE', '64')",
+        "os.environ.setdefault('AGENT_NUM_WORKERS', '2')",
+        f"os.environ.setdefault('AGENT_PROCESSED_DIR',",
+        f"                       '/kaggle/input/{settings.task.name}/processed')",
+        f"os.environ.setdefault('TORCH_HOME', {offline!r})",
+        f"os.environ.setdefault('HF_HOME', {offline!r})",
+        f"os.environ.setdefault('TIMM_HOME', {offline!r})",
     ]
     return "\n".join(lines) + "\n"
 
@@ -239,14 +259,53 @@ def _extract_build_block(code: str) -> str:
 
 
 def _extract_inference_body(rendered_skeleton: str) -> str:
-    """Return the skeleton minus the training loop, leaving inference helpers."""
+    """Back-compat wrapper; new builds use prologue + helpers separately."""
+    return _extract_post_build_helpers(rendered_skeleton) + _model_init_cell()
+
+
+def _extract_skeleton_prologue(rendered_skeleton: str) -> str:
+    """Everything BEFORE the build_model markers: imports + constants
+    (NUM_CLASSES, INPUT_SHAPE, env-knob globals) + LazyMelDataset and
+    related dataset helpers. Required so the notebook's later cells can
+    reference these names — the previous build only kept post-build
+    helpers, which made `model = build_model(num_classes=NUM_CLASSES)`
+    crash with NameError on Kaggle."""
+    pre, _, _ = rendered_skeleton.partition(_BUILD_START)
+    return pre.rstrip() + "\n"
+
+
+def _extract_post_build_helpers(rendered_skeleton: str) -> str:
+    """Skeleton block AFTER the build_model marker, minus the training-only
+    main() invocation. Keeps metric helpers + ``_ensure_channel_compat`` +
+    the inference machinery. Drops the train loop because the notebook
+    only does inference on Kaggle."""
     _, _, rest = rendered_skeleton.partition(_BUILD_START)
     _, _, after_build = rest.partition(_BUILD_END)
-    # Drop the `if __name__ == "__main__":` block so the notebook controls
-    # execution explicitly.
     cutoff = after_build.find("if __name__")
     helpers = after_build[:cutoff] if cutoff != -1 else after_build
-    return helpers.strip() + "\n\nmodel = build_model(num_classes=NUM_CLASSES)\n"
+    return helpers.strip() + "\n"
+
+
+def _model_init_cell() -> str:
+    """Build the model + apply the channel adapter + load the trained
+    weights from the Kaggle dataset path. Runs after the prologue + the
+    LLM-authored build_model + the post-build helpers are all in scope."""
+    return (
+        "\n# ---------- model init ----------\n"
+        "model = build_model(num_classes=NUM_CLASSES)\n"
+        "if '_ensure_channel_compat' in globals():\n"
+        "    model = _ensure_channel_compat(model, INPUT_SHAPE[0])\n"
+        "_weights_path = os.environ.get(\n"
+        "    'AGENT_WEIGHTS_PATH',\n"
+        "    str(next(Path('/kaggle/input').rglob('*.pt'), Path('checkpoint.pt'))),\n"
+        ")\n"
+        "_state = torch.load(_weights_path, map_location='cpu', weights_only=False)\n"
+        "if isinstance(_state, dict) and 'state_dict' in _state:\n"
+        "    _state = _state['state_dict']\n"
+        "model.load_state_dict(_state)\n"
+        "model.eval()\n"
+        "print(f'[model] loaded weights from {_weights_path}')\n"
+    )
 
 
 # ---------------------------------------------------------------------------

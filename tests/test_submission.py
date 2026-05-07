@@ -82,10 +82,26 @@ def test_builder_writes_valid_notebook(tmp_path):
     assert nb_path.exists()
     nb = json.loads(nb_path.read_text())
     assert nb["nbformat"] == 4
-    assert len(nb["cells"]) == 4
-    # build_model block survives into cell 2
-    code_cell = nb["cells"][1]["source"]
-    assert "build_model" in code_cell
+    # 5 cells: env / prologue / build_model / helpers+init / csv
+    assert len(nb["cells"]) == 5
+
+    env_cell = nb["cells"][0]["source"]
+    prologue_cell = nb["cells"][1]["source"]
+    build_cell = nb["cells"][2]["source"]
+    inference_cell = nb["cells"][3]["source"]
+
+    # NUM_CLASSES must be defined BEFORE build_model is invoked, otherwise
+    # the notebook crashes with `NameError: name 'NUM_CLASSES' is not defined`
+    # like the user reported on Kaggle.
+    assert "NUM_CLASSES" in prologue_cell
+    assert "import torch" in prologue_cell
+    # build_model lives in its own cell
+    assert "def build_model" in build_cell
+    # Inference cell instantiates the model + loads weights
+    assert "build_model(num_classes=NUM_CLASSES)" in inference_cell
+    assert "load_state_dict" in inference_cell
+    # Env cell points users at AGENT_WEIGHTS_PATH for the Kaggle Dataset
+    assert "AGENT_WEIGHTS_PATH" in inference_cell or "AGENT_WEIGHTS_PATH" in env_cell
 
 
 def test_builder_rejects_network_imports(tmp_path):
@@ -120,7 +136,7 @@ def test_builder_writes_wide_csv_cell(tmp_path):
     code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
     study = _study_with_code(settings, code)
     nb_path = build_submission_for_study(study, settings)
-    csv_cell = json.loads(nb_path.read_text())["cells"][3]["source"]
+    csv_cell = json.loads(nb_path.read_text())["cells"][4]["source"]
     assert "sample_submission.csv" in csv_cell
     assert "species_columns" in csv_cell
     assert "submission.csv" in csv_cell
@@ -140,11 +156,28 @@ def test_builder_inference_cell_loads_ogg_with_matching_mel_params(tmp_path):
     code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
     study = _study_with_code(settings, code)
     nb_path = build_submission_for_study(study, settings)
-    csv_cell = json.loads(nb_path.read_text())["cells"][3]["source"]
+    csv_cell = json.loads(nb_path.read_text())["cells"][4]["source"]
     assert "32000" in csv_cell
     assert "n_fft" in csv_cell.lower()
     assert "hop_length" in csv_cell.lower() or "HOP_LENGTH" in csv_cell
     assert "test_soundscapes" in csv_cell
+
+
+def test_builder_env_cell_defaults_to_gpu_when_available(tmp_path):
+    """Env cell should let the notebook auto-pick CUDA when Kaggle hands us
+    a T4, falling back to CPU. Hard-coded `cpu` like before silently halves
+    the inference budget on the GPU runtime."""
+    settings = _settings_with_smaller_input(tmp_path)
+    rendered = render_skeleton(settings)
+    code = splice_build_model(rendered, _GOOD_BUILD_BLOCK)
+    study = _study_with_code(settings, code)
+    nb_path = build_submission_for_study(study, settings)
+    env_cell = json.loads(nb_path.read_text())["cells"][0]["source"]
+    assert "cuda" in env_cell
+    assert "AGENT_DEVICE" in env_cell
+    # Doc the inference-only workflow so users understand they upload a
+    # checkpoint and run inference, not training.
+    assert "INFERENCE-ONLY" in env_cell or "code competition" in env_cell.lower()
 
 
 def test_local_csv_raises_when_no_test_dir(tmp_path):
