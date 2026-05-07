@@ -4,7 +4,7 @@
 <p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
 <h1>Submission for {{ study.id }}</h1>
 
-{% if notebook_path or csv_path %}
+{% if notebook_path or csv_path or weights_path %}
 <div style="margin:14px 0;padding:10px 14px;border:1px solid #1f6f3a;background:#102018;border-radius:6px">
   <b style="color:#7bd88f">build complete</b>
   <ul style="margin:8px 0 0 0">
@@ -13,9 +13,15 @@
       <a href="/studies/{{ study.id }}/submission.ipynb" style="font-weight:600">
         Download submission.ipynb
       </a>
-      <span style="opacity:0.7;font-size:0.85em">
-        — Kaggle-runnable notebook ({{ notebook_path.name }})
-      </span>
+      <span style="opacity:0.7;font-size:0.85em">— Kaggle-runnable notebook ({{ notebook_path.name }})</span>
+    </li>
+    {% endif %}
+    {% if weights_path %}
+    <li>
+      <a href="/studies/{{ study.id }}/weights.pt" style="font-weight:600">
+        Download weights.pt
+      </a>
+      <span style="opacity:0.7;font-size:0.85em">— trained checkpoint ({{ weights_path.name }})</span>
     </li>
     {% endif %}
     {% if csv_path %}
@@ -23,13 +29,37 @@
       <a href="/studies/{{ study.id }}/submission.csv" style="font-weight:600">
         Download submission.csv
       </a>
-      <span style="opacity:0.7;font-size:0.85em">
-        — already-inferred predictions over data/raw/test_soundscapes/
-      </span>
+      <span style="opacity:0.7;font-size:0.85em">— locally-inferred predictions over data/raw/test_soundscapes/</span>
     </li>
     {% endif %}
   </ul>
 </div>
+{% endif %}
+
+{% if weights_path %}
+<h2>How to submit on Kaggle</h2>
+<ol style="line-height:1.7em">
+  <li>Open Kaggle → <a href="https://www.kaggle.com/datasets" target="_blank" rel="noopener">Datasets</a> → <b>New Dataset</b>.</li>
+  <li>Upload <code>weights.pt</code> (downloaded above). Give it a slug like <code>birdclef-2026-weights-{{ study.id }}</code> and make it private.</li>
+  <li>On the BirdCLEF+ 2026 competition page, open a new notebook and upload <code>submission.ipynb</code>.</li>
+  <li>In the notebook's right sidebar → <b>Add Data</b> → search for the dataset you just created and attach it.</li>
+  <li>Run all cells. The notebook auto-finds <code>weights.pt</code> via <code>Path('/kaggle/input').rglob('*.pt')</code>; override with the env var <code>AGENT_WEIGHTS_PATH</code> if you renamed it.</li>
+  <li>Click <b>Submit</b> on the notebook output → Kaggle scores the resulting <code>submission.csv</code>.</li>
+</ol>
+
+<details style="margin-top:10px;font-size:0.88em;opacity:0.85">
+  <summary>CLI shortcut (using the kaggle CLI)</summary>
+  <pre style="background:#0a0c10;border:1px solid #2a2f37;padding:10px;border-radius:4px;white-space:pre-wrap">
+mkdir -p kaggle-upload && cp weights.pt kaggle-upload/
+cat &gt; kaggle-upload/dataset-metadata.json &lt;&lt;EOF
+{
+  "title": "BirdCLEF 2026 weights {{ study.id }}",
+  "id": "&lt;your-username&gt;/birdclef-2026-weights-{{ study.id }}",
+  "licenses": [{"name": "CC0-1.0"}]
+}
+EOF
+kaggle datasets create -p kaggle-upload</pre>
+</details>
 {% endif %}
 
 {% if errors %}
