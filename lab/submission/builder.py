@@ -143,23 +143,82 @@ def _env_cell(settings: Settings, study: Study) -> str:
 
 
 def _csv_cell(settings: Settings) -> str:
+    """Wide-format submission CSV generator.
+
+    The Kaggle BirdCLEF+ 2026 submission is one row per 5-second window
+    with one column per species (header taken verbatim from
+    ``sample_submission.csv``). Each value is the predicted probability
+    that the species is present in that window.
+
+    Test files live at ``/kaggle/input/birdclef-2026/test_soundscapes/*.ogg``
+    (60 s @ 32 kHz). We slice each into twelve 5 s windows, mel-spec each
+    with the same ``MelParams`` the training cache used (sr=32k, n_fft=2048,
+    hop=512, n_mels=128, dB scaling), feed through the model, and emit
+    ``BC2026_Test_NNNN_..._{end_seconds}`` row IDs matching the
+    sample_submission convention.
+    """
     return (
-        "import pandas as pd\n"
+        "import os\n"
+        "import csv\n"
+        "import numpy as np\n"
         "import torch\n"
+        "import librosa\n"
         "from pathlib import Path\n\n"
+        "BASE = Path(os.environ.get('AGENT_KAGGLE_BASE', '/kaggle/input/birdclef-2026'))\n"
+        "TEST_DIR = BASE / 'test_soundscapes'\n"
+        "SUBMISSION_TEMPLATE = BASE / 'sample_submission.csv'\n\n"
+        "with open(SUBMISSION_TEMPLATE) as fh:\n"
+        "    header = next(csv.reader(fh))\n"
+        "species_columns = header[1:]   # canonical 234-class order from sample_submission\n"
+        "n_species = len(species_columns)\n\n"
+        "SR = 32000\n"
+        "WINDOW_SECONDS = 5\n"
+        "WINDOW_SAMPLES = SR * WINDOW_SECONDS\n"
+        "N_MELS = 128\n"
+        "N_FFT = 2048\n"
+        "HOP_LENGTH = 512\n"
+        "FMIN = 20\n"
+        "FMAX = 16000\n\n"
+        "def _mel(chunk):\n"
+        "    mel = librosa.feature.melspectrogram(\n"
+        "        y=chunk, sr=SR, n_fft=N_FFT, hop_length=HOP_LENGTH,\n"
+        "        n_mels=N_MELS, fmin=FMIN, fmax=FMAX,\n"
+        "    )\n"
+        "    return librosa.power_to_db(mel, ref=np.max).astype('float32')\n\n"
         "model.eval()\n"
         "rows = []\n"
-        "test_dir = Path('/kaggle/input/' + os.environ.get('AGENT_TASK_TESTDIR', 'test'))\n"
-        "for path in sorted(test_dir.glob('*.pt')):\n"
-        "    blob = torch.load(path, map_location='cpu', weights_only=False)\n"
-        "    x = blob['x'].float()\n"
+        "for path in sorted(TEST_DIR.glob('*.ogg')):\n"
+        "    base = path.stem\n"
+        "    audio, _ = librosa.load(path, sr=SR, mono=True)\n"
+        "    n_windows = len(audio) // WINDOW_SAMPLES\n"
+        "    if n_windows == 0:\n"
+        "        continue\n"
+        "    mels = np.stack([\n"
+        "        _mel(audio[i * WINDOW_SAMPLES:(i + 1) * WINDOW_SAMPLES])\n"
+        "        for i in range(n_windows)\n"
+        "    ])[:, None, :, :]   # (n_windows, 1, n_mels, n_frames)\n"
+        "    x = torch.from_numpy(mels)\n"
         "    with torch.no_grad():\n"
         "        probs = torch.sigmoid(model(x)).numpy()\n"
+        "    if probs.shape[1] < n_species:\n"
+        "        # Pad missing species with the dataset prior (0.5 = uniform).\n"
+        "        pad = np.full((probs.shape[0], n_species - probs.shape[1]), 0.5,\n"
+        "                      dtype='float32')\n"
+        "        probs = np.concatenate([probs, pad], axis=1)\n"
+        "    elif probs.shape[1] > n_species:\n"
+        "        probs = probs[:, :n_species]\n"
         "    for i, p in enumerate(probs):\n"
-        "        for cls, prob in enumerate(p):\n"
-        "            rows.append({'row_id': f\"{path.stem}_{i}\", 'species_id': cls, 'probability': float(prob)})\n"
-        "pd.DataFrame(rows).to_csv('submission.csv', index=False)\n"
-        "print('wrote submission.csv with', len(rows), 'rows')\n"
+        "        end_seconds = (i + 1) * WINDOW_SECONDS\n"
+        "        row_id = f\"{base}_{end_seconds}\"\n"
+        "        row = {'row_id': row_id}\n"
+        "        for sp, val in zip(species_columns, p):\n"
+        "            row[sp] = float(val)\n"
+        "        rows.append(row)\n\n"
+        "with open('submission.csv', 'w', newline='') as fh:\n"
+        "    writer = csv.DictWriter(fh, fieldnames=header)\n"
+        "    writer.writeheader()\n"
+        "    writer.writerows(rows)\n"
+        "print('wrote submission.csv with', len(rows), 'rows ×', len(header), 'cols')\n"
     )
 
 
@@ -188,3 +247,159 @@ def _extract_inference_body(rendered_skeleton: str) -> str:
     cutoff = after_build.find("if __name__")
     helpers = after_build[:cutoff] if cutoff != -1 else after_build
     return helpers.strip() + "\n\nmodel = build_model(num_classes=NUM_CLASSES)\n"
+
+
+# ---------------------------------------------------------------------------
+# local CSV inference -- run the best model on data/raw/test_soundscapes
+# ---------------------------------------------------------------------------
+
+
+def build_local_csv_for_study(study: Study, settings: Settings) -> Path:
+    """Run the best experiment's model locally and write submission.csv.
+
+    Reads ``data/raw/test_soundscapes/*.ogg``, slices each into 5 s windows,
+    mel-specs each window with the same params as training, runs the model,
+    and writes a wide-format ``submission.csv`` next to the notebook.
+
+    Returns the path to the written CSV. Raises ``SubmissionValidationError``
+    when prerequisites (best experiment, checkpoint, raw test dir) are
+    missing -- callers can show those errors to the user without crashing
+    the request.
+
+    The function is import-safe: torch / librosa are loaded lazily inside
+    the body so test environments without them can still import the
+    builder module.
+    """
+    if not study.best_experiment_id:
+        raise SubmissionValidationError(
+            "study has no best_experiment_id; nothing to submit",
+            remediation=["Run at least one successful experiment first."],
+        )
+    best = next(
+        (e for e in study.experiments if e.id == study.best_experiment_id),
+        None,
+    )
+    if best is None or best.code is None:
+        raise SubmissionValidationError(
+            "best experiment is missing code on disk",
+            remediation=["Re-run the study to repopulate experiment.code."],
+        )
+    if not best.checkpoint_path or not Path(best.checkpoint_path).exists():
+        raise SubmissionValidationError(
+            "best experiment has no usable checkpoint on disk",
+            remediation=[
+                "Make sure training wrote AGENT_CHECKPOINT_OUT and the file "
+                "still exists.",
+            ],
+        )
+
+    raw_test = Path(settings.task.processed_data_dir).parent.parent / "raw" / "test_soundscapes"
+    if not raw_test.exists():
+        raise SubmissionValidationError(
+            f"missing test audio dir: {raw_test}",
+            remediation=[
+                "Download the BirdCLEF+ 2026 dump and place "
+                "test_soundscapes/ under data/raw/.",
+            ],
+        )
+
+    sample_sub = Path(settings.task.processed_data_dir).parent.parent / "raw" / "sample_submission.csv"
+    if not sample_sub.exists():
+        raise SubmissionValidationError(
+            f"missing {sample_sub}",
+            remediation=["Place sample_submission.csv from the Kaggle dump under data/raw/."],
+        )
+
+    try:
+        import csv as _csv
+        import importlib.util
+        import sys
+
+        import librosa  # type: ignore[import-not-found]
+        import numpy as np
+        import torch
+    except ImportError as exc:
+        raise SubmissionValidationError(
+            f"local inference requires librosa, numpy, torch: {exc}",
+            remediation=[
+                "Install the optional ML deps via `uv pip install -e .`.",
+            ],
+        )
+
+    out_dir = Path(settings.paths.experiments_dir) / study.id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load the LLM-built model from the experiment's stored code (the
+    # full skeleton with the LLM block already spliced in). We import it
+    # as an isolated module so its train-time main() does not run.
+    model_path = out_dir / "submission_model.py"
+    model_path.write_text(best.code, encoding="utf-8")
+    spec = importlib.util.spec_from_file_location(
+        f"_submission_{study.id}", model_path
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    num_classes = settings.task.expected_num_classes
+    model = module.build_model(num_classes=num_classes)
+    if hasattr(module, "_ensure_channel_compat"):
+        model = module._ensure_channel_compat(
+            model, settings.task.input_tensor_shape[0]
+        )
+    state = torch.load(best.checkpoint_path, map_location="cpu", weights_only=False)
+    if isinstance(state, dict) and "state_dict" in state:
+        state = state["state_dict"]
+    model.load_state_dict(state)
+    model.eval()
+
+    with sample_sub.open() as fh:
+        header = next(_csv.reader(fh))
+    species_columns = header[1:]
+    n_species = len(species_columns)
+
+    sr = 32_000
+    win_sec = 5
+    win_samples = sr * win_sec
+    n_fft, hop, n_mels, fmin, fmax = 2048, 512, 128, 20, 16_000
+
+    def _mel(chunk):
+        m = librosa.feature.melspectrogram(
+            y=chunk, sr=sr, n_fft=n_fft, hop_length=hop,
+            n_mels=n_mels, fmin=fmin, fmax=fmax,
+        )
+        return librosa.power_to_db(m, ref=np.max).astype("float32")
+
+    rows: list[dict] = []
+    for path in sorted(raw_test.glob("*.ogg")):
+        base = path.stem
+        audio, _ = librosa.load(path, sr=sr, mono=True)
+        n_windows = len(audio) // win_samples
+        if n_windows == 0:
+            continue
+        mels = np.stack([
+            _mel(audio[i * win_samples:(i + 1) * win_samples])
+            for i in range(n_windows)
+        ])[:, None, :, :]
+        x = torch.from_numpy(mels)
+        with torch.no_grad():
+            probs = torch.sigmoid(model(x)).numpy()
+        if probs.shape[1] < n_species:
+            pad = np.full((probs.shape[0], n_species - probs.shape[1]), 0.5, dtype="float32")
+            probs = np.concatenate([probs, pad], axis=1)
+        elif probs.shape[1] > n_species:
+            probs = probs[:, :n_species]
+        for i, p in enumerate(probs):
+            end_seconds = (i + 1) * win_sec
+            row = {"row_id": f"{base}_{end_seconds}"}
+            for sp, val in zip(species_columns, p):
+                row[sp] = float(val)
+            rows.append(row)
+
+    csv_path = out_dir / "submission.csv"
+    with csv_path.open("w", newline="") as fh:
+        writer = _csv.DictWriter(fh, fieldnames=header)
+        writer.writeheader()
+        writer.writerows(rows)
+    return csv_path

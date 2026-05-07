@@ -33,6 +33,14 @@
 </p>
 {% if study.best_experiment_id %}
 <p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ study.best_experiment_id }}</a> — <b>{{ "%.4f"|format(study.best_score) }}</b></p>
+<form method="post" action="/studies/{{ study.id }}/submission" style="margin:6px 0 14px 0">
+  <button type="submit" style="background:#1d3a6b;color:#e8f0ff;border:1px solid #3a6cd6;border-radius:6px;padding:6px 14px;font-size:0.95em;cursor:pointer">
+    Build Kaggle submission (csv + ipynb)
+  </button>
+  <span style="opacity:0.7;font-size:0.82em;margin-left:8px">
+    runs the best model on data/raw/test_soundscapes/ and writes both files
+  </span>
+</form>
 {% endif %}
 
 {% if current %}
