@@ -10,17 +10,17 @@ llm:
   retry_attempts: 3
   retry_backoff_seconds: 5.0
 compute_budget:
-  max_experiments: 20
+  max_experiments: 5
   max_wallclock_minutes: 240
-  max_experiment_seconds: 1800
+  max_experiment_seconds: 18000
   max_epochs_per_run: 10
   max_codegen_retries: 5
   max_recovery_attempts: 5
-  lr_min: 1.0e-5
-  lr_max: 1.0e-2
-  device: cpu
-  num_workers: 0
-  batch_size: 8
+  lr_min: 0.001
+  lr_max: 0.1
+  device: mps
+  num_workers: 8
+  batch_size: 64
 agent:
   memory_enabled: false
   personality: exploratory
@@ -29,7 +29,7 @@ context:
   memory_top_k: 5
   recent_failures: 5
 logging:
-  level: INFO
+  level: DEBUG
   structured: true
 paths:
   data_root: data
