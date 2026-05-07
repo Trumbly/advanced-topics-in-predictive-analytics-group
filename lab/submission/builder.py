@@ -289,16 +289,42 @@ def _extract_post_build_helpers(rendered_skeleton: str) -> str:
 def _model_init_cell() -> str:
     """Build the model + apply the channel adapter + load the trained
     weights from the Kaggle dataset path. Runs after the prologue + the
-    LLM-authored build_model + the post-build helpers are all in scope."""
+    LLM-authored build_model + the post-build helpers are all in scope.
+
+    The weight-finding logic is verbose on purpose: when no checkpoint is
+    found we list every dataset attached to the notebook so the user can
+    immediately see whether they forgot to attach the weights dataset,
+    versus uploaded it under a different filename.
+    """
     return (
         "\n# ---------- model init ----------\n"
         "model = build_model(num_classes=NUM_CLASSES)\n"
         "if '_ensure_channel_compat' in globals():\n"
         "    model = _ensure_channel_compat(model, INPUT_SHAPE[0])\n"
-        "_weights_path = os.environ.get(\n"
-        "    'AGENT_WEIGHTS_PATH',\n"
-        "    str(next(Path('/kaggle/input').rglob('*.pt'), Path('checkpoint.pt'))),\n"
-        ")\n"
+        "\n"
+        "_weights_path = os.environ.get('AGENT_WEIGHTS_PATH')\n"
+        "if not _weights_path:\n"
+        "    _candidates = []\n"
+        "    for ext in ('*.pt', '*.pth', '*.ckpt', '*.bin', '*.safetensors'):\n"
+        "        _candidates.extend(sorted(Path('/kaggle/input').rglob(ext)))\n"
+        "    # Skip the competition dump (test_audio etc) — only user-uploaded\n"
+        "    # datasets should ship .pt files.\n"
+        "    _candidates = [p for p in _candidates if 'birdclef-2026' not in p.parts]\n"
+        "    if not _candidates:\n"
+        "        _attached = sorted(p.name for p in Path('/kaggle/input').iterdir()) if Path('/kaggle/input').exists() else []\n"
+        "        raise FileNotFoundError(\n"
+        "            'No weight file (*.pt/*.pth/*.ckpt/*.bin/*.safetensors) found under '\n"
+        "            '/kaggle/input. Upload your trained checkpoint as a Kaggle '\n"
+        "            'Dataset and click \"Add Data\" in the notebook sidebar to attach it. '\n"
+        "            f'Datasets currently attached: {_attached or \"(none)\"}. '\n"
+        "            'Override the path explicitly via env var AGENT_WEIGHTS_PATH if your '\n"
+        "            'file lives elsewhere.'\n"
+        "        )\n"
+        "    _weights_path = str(_candidates[0])\n"
+        "    if len(_candidates) > 1:\n"
+        "        print(f'[model] found {len(_candidates)} candidate weight files; '\n"
+        "              f'using {_weights_path} (set AGENT_WEIGHTS_PATH to override). '\n"
+        "              f'Others: {_candidates[1:5]}')\n"
         "_state = torch.load(_weights_path, map_location='cpu', weights_only=False)\n"
         "if isinstance(_state, dict) and 'state_dict' in _state:\n"
         "    _state = _state['state_dict']\n"
