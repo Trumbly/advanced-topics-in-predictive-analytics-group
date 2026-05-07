@@ -14,8 +14,21 @@ system: |
       "lr_schedule": "<one of: constant, cosine, onecycle>",
       "epochs": <integer>,
       "init_from_experiment_id": "<id or null>",
-      "weight_decay": <float or null>
+      "weight_decay": <float or null>,
+      "continue_from_experiment_id": "<id or null>"
     }
+
+  Use ``continue_from_experiment_id`` when an existing experiment in the
+  memory below shows a promising trajectory that has not plateaued yet
+  ("checkpoint available → can `continue_from`: …"). Setting this field
+  will REUSE that experiment's exact code/architecture and resume from
+  its saved weights for ``epochs`` *additional* epochs — no new
+  ``build_model`` is generated. Pick a smaller ``lr`` than the original
+  to fine-tune (typically 1/3 to 1/10 of the previous lr) and ``cosine``
+  scheduling tends to help. When you set ``continue_from_experiment_id``,
+  ``architecture_name`` and ``family`` MUST mirror the source experiment
+  — the orchestrator does not enforce this but a mismatch will confuse
+  later memory lookups.
 
   Use weight_decay to apply L2 regularization (typically between 1e-6 and 1e-2,
   or null when no weight decay is desired).

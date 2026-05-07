@@ -93,13 +93,20 @@ def run_experiment(exp: Experiment, ctx: RunContext) -> Experiment:
     try:
         proposal = _propose(ctx, exp)
         exp.proposal = proposal
-        exp.status = "GENERATING"
-        _progress(ctx)
-        code = _generate(ctx, exp, proposal)
-        exp.code = code
-        exp.status = "VALIDATING"
-        _progress(ctx)
-        validated_code = _validate_with_retry(ctx, exp, code)
+        if proposal.continue_from_experiment_id:
+            # Continuation path: skip generate + validate, reuse the
+            # previously-validated code from the referenced experiment so
+            # the only thing that actually changes between runs is the
+            # number of additional epochs (and optionally lr/wd).
+            validated_code = _resume_code_from(ctx, exp, proposal)
+        else:
+            exp.status = "GENERATING"
+            _progress(ctx)
+            code = _generate(ctx, exp, proposal)
+            exp.code = code
+            exp.status = "VALIDATING"
+            _progress(ctx)
+            validated_code = _validate_with_retry(ctx, exp, code)
         exp.code = validated_code
         exp.status = "EXECUTING"
         _progress(ctx)
@@ -460,20 +467,64 @@ def _sandbox_path(ctx: RunContext, exp: Experiment) -> Path:
 
 
 def _resolve_warm_start(ctx: RunContext, proposal: Proposal) -> str | None:
-    """Return the AGENT_CHECKPOINT_IN value, gated by ADR-007 and predecessor memory."""
-    if not ctx.settings.agent.memory_enabled:
-        return None
-    if not proposal.init_from_experiment_id:
+    """Return the AGENT_CHECKPOINT_IN value, gated by ADR-007 and predecessor memory.
+
+    Two ways to warm-start:
+      1. ``continue_from_experiment_id`` — explicit "resume training" path.
+         Honoured even when ``agent.memory_enabled`` is False because the
+         continuation references the same study and is not transfer.
+      2. ``init_from_experiment_id`` — transfer-learning style warm start;
+         only honoured when memory is on (ADR-007).
+    """
+    target = proposal.continue_from_experiment_id or (
+        proposal.init_from_experiment_id
+        if ctx.settings.agent.memory_enabled
+        else None
+    )
+    if not target:
         return None
     for w in ctx.memory.wins:
-        if w.id == proposal.init_from_experiment_id and w.checkpoint_path:
+        if w.id == target and w.checkpoint_path:
             return str(w.checkpoint_path)
     telemetry.log_event(
         "recover",
         level="warn",
-        message=f"warm-start checkpoint missing for {proposal.init_from_experiment_id}; running cold",
+        message=f"warm-start checkpoint missing for {target}; running cold",
     )
     return None
+
+
+def _resume_code_from(
+    ctx: RunContext, exp: Experiment, proposal: Proposal
+) -> str:
+    """Continuation path: pull the previous experiment's validated code so
+    the LLM does not have to re-emit a build_model block. The code stays
+    byte-identical between the original run and the continuation, so any
+    score change is purely epoch-driven."""
+    target = proposal.continue_from_experiment_id
+    assert target  # caller already checked
+    for source in ctx.memory.wins:
+        if source.id == target and source.code:
+            exp.tasks.append(
+                Task(
+                    name="generate",
+                    status="SUCCEEDED",
+                    input={"continued_from": target},
+                    output={"reused_code_from": target},
+                )
+            )
+            _progress(ctx)
+            return source.code
+    raise _HardFailure(
+        task_name="generate",
+        error=TaskError(
+            error_type="Other",
+            message=(
+                f"continue_from_experiment_id={target} not found in memory "
+                "(or no stored code); cannot resume"
+            ),
+        ),
+    )
 
 
 def _capture(exp: Experiment, result: ExecutionResult) -> None:

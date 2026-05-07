@@ -86,14 +86,27 @@ def test_recent_failures_keeps_last_n(tmp_path: Path):
     assert [e.index for e in m.failures] == [3, 4]
 
 
-def test_to_markdown_under_budget(tmp_path: Path):
+def test_to_markdown_under_default_8kb_budget(tmp_path: Path):
     m = Memory(top_k=20, recent_failures=20, path=tmp_path / "mem.json")
     for i in range(20):
         m.add(_success(i, 0.5 + 0.01 * i))
     for i in range(20):
         m.add(_failure(i, msg="x" * 200))
     md = m.to_markdown()
-    assert len(md.encode("utf-8")) <= 3072
+    assert len(md.encode("utf-8")) <= 8192
+
+
+def test_to_markdown_respects_custom_budget(tmp_path: Path):
+    m = Memory(
+        top_k=20,
+        recent_failures=20,
+        path=tmp_path / "mem.json",
+        max_markdown_bytes=2048,
+    )
+    for i in range(20):
+        m.add(_success(i, 0.5 + 0.01 * i))
+    md = m.to_markdown()
+    assert len(md.encode("utf-8")) <= 2048
 
 
 # -------- seeding --------
