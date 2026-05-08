@@ -55,7 +55,12 @@ def create_app(settings: Settings) -> FastAPI:
             experiment_summary,
             study_summary,
         )
-        from lab.ui.learning_curves import collect_series, render_svg
+        from lab.ui.learning_curves import (
+            collect_series,
+            render_study_loss_svg,
+            render_svg,
+            study_loss_series,
+        )
         from lab.ui.pipeline import (
             PHASES,
             current_step,
@@ -78,6 +83,8 @@ def create_app(settings: Settings) -> FastAPI:
             )
             for e in study.experiments
         }
+        cross_series, dividers = study_loss_series(study.experiments)
+        cross_loss_svg = render_study_loss_svg(cross_series, dividers)
         return templates.TemplateResponse(
             request,
             "study.html",
@@ -90,6 +97,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "llm_summary": llm_summary,
                 "exp_llm": exp_llm,
                 "exp_curves": exp_curves,
+                "cross_loss_svg": cross_loss_svg,
             },
         )
 
