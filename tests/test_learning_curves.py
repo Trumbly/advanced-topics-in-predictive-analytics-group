@@ -135,3 +135,125 @@ def test_last_epoch_summary_falls_back_to_legacy_loss():
 
 def test_last_epoch_summary_empty_history_is_empty_dict():
     assert last_epoch_summary([], "roc_auc_macro") == {}
+
+
+# ---------- cross-experiment study chart ----------
+
+
+from dataclasses import dataclass
+
+from lab.ui.learning_curves import render_study_loss_svg, study_loss_series
+
+
+@dataclass
+class _StubProposal:
+    continue_from_experiment_id: str | None = None
+
+
+@dataclass
+class _StubExp:
+    id: str
+    history: list[dict]
+    proposal: _StubProposal | None = None
+
+
+def test_study_loss_series_concatenates_continuation_after_source():
+    """A continued experiment's epochs offset by the source's epoch count
+    so the chart looks like one continuous trajectory instead of two
+    separate snippets — that's the whole point of the
+    `continue_from_experiment_id` action."""
+    a = _StubExp(
+        "exp_a",
+        [
+            {"epoch": 1, "train_loss": 0.7, "val_loss": 0.8},
+            {"epoch": 2, "train_loss": 0.5, "val_loss": 0.6},
+        ],
+    )
+    b = _StubExp(
+        "exp_b",
+        [
+            {"epoch": 1, "train_loss": 0.4, "val_loss": 0.55},
+            {"epoch": 2, "train_loss": 0.3, "val_loss": 0.5},
+        ],
+        proposal=_StubProposal(continue_from_experiment_id="exp_a"),
+    )
+    series, dividers = study_loss_series([a, b])
+
+    # Pull exp_b's train series out — its xs should start at 3 (offset 2).
+    b_train = next(s for s in series if s.label == "exp_b train")
+    xs = [x for x, _ in b_train.points]
+    assert xs == [3.0, 4.0]
+    assert ("exp_a", 2.0) in {(label, last_x) for last_x, label in dividers} or any(
+        label == "exp_a" for _, label in dividers
+    )
+
+
+def test_study_loss_series_independent_runs_concatenate_chronologically():
+    """When experiments are NOT continuations, each one starts where the
+    previous left off so all curves fit on a single x-axis without
+    overlapping."""
+    a = _StubExp("exp_a", [{"epoch": 1, "train_loss": 0.5, "val_loss": 0.6}])
+    b = _StubExp("exp_b", [{"epoch": 1, "train_loss": 0.4, "val_loss": 0.5}])
+    series, _ = study_loss_series([a, b])
+    # exp_b should start at x=2 (after exp_a's only epoch at x=1)
+    b_train = next(s for s in series if s.label == "exp_b train")
+    assert b_train.points[0][0] == 2.0
+
+
+def test_study_loss_series_emits_train_and_val_per_experiment():
+    a = _StubExp("exp_a", [
+        {"epoch": 1, "train_loss": 0.5, "val_loss": 0.6},
+        {"epoch": 2, "train_loss": 0.3, "val_loss": 0.55},
+    ])
+    series, _ = study_loss_series([a])
+    labels = sorted(s.label for s in series)
+    assert labels == ["exp_a train", "exp_a val"]
+
+
+def test_study_loss_series_skips_experiments_without_history():
+    a = _StubExp("exp_a", [])
+    b = _StubExp("exp_b", [{"epoch": 1, "train_loss": 0.5, "val_loss": 0.6}])
+    series, dividers = study_loss_series([a, b])
+    # only exp_b shows up in series + dividers
+    assert all("exp_a" not in s.label for s in series)
+    assert any("exp_b" == label for _, label in dividers)
+
+
+def test_render_study_loss_svg_marks_train_solid_val_dashed():
+    """Crucial for the overfit story: the user must be able to tell at
+    a glance which line is which without consulting the legend."""
+    series = [
+        Series("exp_a train", ((1, 0.7), (2, 0.5)), "#3a6cd6"),
+        Series("exp_a val", ((1, 0.8), (2, 0.6)), "#3a6cd6"),
+    ]
+    svg = render_study_loss_svg(series, dividers=[(2.0, "exp_a")])
+    # Train path must NOT carry stroke-dasharray; val MUST.
+    assert svg.count("stroke-dasharray=") >= 1   # at least val
+    paths = [
+        line for line in svg.split("<path ") if line.startswith('d="')
+    ]
+    assert len(paths) == 2
+    # Find the train path (the one without stroke-dasharray)
+    n_dashed_paths = sum(1 for p in paths if "stroke-dasharray" in p)
+    assert n_dashed_paths == 1   # exactly the val path
+
+
+def test_render_study_loss_svg_uses_distinct_colors_per_experiment():
+    series, _ = study_loss_series([
+        _StubExp("exp_a", [{"epoch": 1, "train_loss": 0.5, "val_loss": 0.6}]),
+        _StubExp("exp_b", [{"epoch": 1, "train_loss": 0.4, "val_loss": 0.55}]),
+    ])
+    a_color = next(s.color for s in series if s.label.startswith("exp_a"))
+    b_color = next(s.color for s in series if s.label.startswith("exp_b"))
+    assert a_color != b_color
+
+
+def test_render_study_loss_svg_empty_series_yields_empty_string():
+    assert render_study_loss_svg([], []) == ""
+
+
+def test_render_study_loss_svg_includes_overfit_legend_hint():
+    series = [Series("exp_a train", ((1, 0.5),), "#3a6cd6")]
+    svg = render_study_loss_svg(series, dividers=[(1.0, "exp_a")])
+    assert "overfit" in svg.lower()
+    assert "solid" in svg.lower() and "dashed" in svg.lower()
