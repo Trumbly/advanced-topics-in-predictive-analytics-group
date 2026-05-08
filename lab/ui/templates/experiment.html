@@ -45,15 +45,56 @@
 {% endif %}
 
 {% if exp.history %}
+{% if last_epoch %}
+<h2>Last epoch summary</h2>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+  <div style="border:1px solid #2a2f37;border-radius:6px;padding:10px 14px;background:#15191f">
+    <div style="font-size:0.78em;opacity:0.7;text-transform:uppercase">epoch</div>
+    <div style="font-size:1.4em;font-weight:600">{{ last_epoch.epoch }}{% if last_epoch.n_epochs %} <span style="opacity:0.6;font-size:0.6em">/ {{ last_epoch.n_epochs }} total</span>{% endif %}</div>
+  </div>
+  {% if last_epoch.train_loss is not none %}
+  <div style="border:1px solid #2a2f37;border-radius:6px;padding:10px 14px;background:#15191f">
+    <div style="font-size:0.78em;opacity:0.7;text-transform:uppercase;color:#3a6cd6">train_loss</div>
+    <div style="font-size:1.4em;font-weight:600">{{ "%.4f"|format(last_epoch.train_loss) }}</div>
+  </div>
+  {% endif %}
+  {% if last_epoch.val_loss is not none %}
+  <div style="border:1px solid #2a2f37;border-radius:6px;padding:10px 14px;background:#15191f">
+    <div style="font-size:0.78em;opacity:0.7;text-transform:uppercase;color:#d6843a">val_loss</div>
+    <div style="font-size:1.4em;font-weight:600">{{ "%.4f"|format(last_epoch.val_loss) }}</div>
+  </div>
+  {% endif %}
+  {% if last_epoch[exp.primary_metric] is not none %}
+  <div style="border:1px solid #2a2f37;border-radius:6px;padding:10px 14px;background:#15191f">
+    <div style="font-size:0.78em;opacity:0.7;text-transform:uppercase;color:#7bd88f">{{ exp.primary_metric }}</div>
+    <div style="font-size:1.4em;font-weight:600">{{ "%.4f"|format(last_epoch[exp.primary_metric]) }}</div>
+  </div>
+  {% endif %}
+  {% if last_epoch.f1_macro is not none and exp.primary_metric != "f1_macro" %}
+  <div style="border:1px solid #2a2f37;border-radius:6px;padding:10px 14px;background:#15191f">
+    <div style="font-size:0.78em;opacity:0.7;text-transform:uppercase;color:#b894ff">f1_macro</div>
+    <div style="font-size:1.4em;font-weight:600">{{ "%.4f"|format(last_epoch.f1_macro) }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if learning_curve_svg %}
+<h2>Learning curves</h2>
+<div style="margin-bottom:14px">{{ learning_curve_svg | safe }}</div>
+{% endif %}
+
 <h2>History</h2>
 <table>
-  <thead><tr><th>epoch</th><th>loss</th><th>{{ exp.primary_metric }}</th></tr></thead>
+  <thead><tr><th>epoch</th><th>train_loss</th><th>val_loss</th><th>{{ exp.primary_metric }}</th><th>f1_macro</th></tr></thead>
   <tbody>
   {% for h in exp.history %}
     <tr>
       <td>{{ h.get("epoch") }}</td>
-      <td>{{ h.get("loss") }}</td>
-      <td>{{ h.get(exp.primary_metric) }}</td>
+      <td>{% set tl = h.get("train_loss", h.get("loss")) %}{% if tl is not none %}{{ "%.4f"|format(tl) }}{% else %}—{% endif %}</td>
+      <td>{% if h.get("val_loss") is not none %}{{ "%.4f"|format(h.get("val_loss")) }}{% else %}—{% endif %}</td>
+      <td>{% if h.get(exp.primary_metric) is not none %}{{ "%.4f"|format(h.get(exp.primary_metric)) }}{% else %}—{% endif %}</td>
+      <td>{% if h.get("f1_macro") is not none %}{{ "%.4f"|format(h.get("f1_macro")) }}{% else %}—{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

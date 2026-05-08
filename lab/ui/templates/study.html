@@ -107,6 +107,11 @@
     </div>
     {% endif %}
 
+    {% set curve = exp_curves.get(e.id) if exp_curves else None %}
+    {% if curve %}
+    <div style="margin-top:8px">{{ curve | safe }}</div>
+    {% endif %}
+
     {% set r = rates.get(e.id) if rates else None %}
     {% if r and (r.validate_attempts or r.execute_attempts) %}
     <div style="margin-top:8px;font-size:0.83em;display:flex;gap:18px;flex-wrap:wrap;opacity:0.92">
