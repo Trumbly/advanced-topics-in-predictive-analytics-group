@@ -30,8 +30,44 @@ def repo_root_for(settings: Settings) -> Path:
 
 
 def read_global_yaml(repo_root: Path) -> dict[str, Any]:
+    """On-disk YAML augmented with model defaults for any field the user
+    hasn't set yet — without this, a freshly-added pydantic field never
+    appears on the settings page until someone hand-edits the YAML."""
     path = repo_root / _GLOBAL_CONFIG
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    on_disk = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return _merge_pydantic_defaults(on_disk)
+
+
+def _merge_pydantic_defaults(payload: dict[str, Any]) -> dict[str, Any]:
+    """Fill missing fields per section with their pydantic defaults so
+    the settings page renders every knob the model defines."""
+    from lab.config import (
+        AgentConfig,
+        ComputeBudget,
+        ContextConfig,
+        LLMConfig,
+        UIConfig,
+    )
+
+    section_models = {
+        "llm": LLMConfig,
+        "compute_budget": ComputeBudget,
+        "agent": AgentConfig,
+        "context": ContextConfig,
+        "ui": UIConfig,
+    }
+    out = dict(payload)
+    for name, model in section_models.items():
+        if name not in out or not isinstance(out[name], dict):
+            continue
+        defaults: dict[str, Any] = {}
+        for field_name, field_info in model.model_fields.items():
+            default = field_info.default
+            if str(default) == "PydanticUndefined":
+                continue
+            defaults[field_name] = default
+        out[name] = {**defaults, **out[name]}
+    return out
 
 
 def write_global_yaml(repo_root: Path, payload: dict[str, Any]) -> None:

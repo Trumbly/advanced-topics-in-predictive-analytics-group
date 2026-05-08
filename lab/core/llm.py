@@ -91,7 +91,10 @@ class LLMClient:
         sleep: "callable[[float], None] | None" = None,
     ):
         self.cfg = cfg
-        self.http: HTTPPoster = http or _UrllibPoster()
+        # Honour the LLMConfig timeout (default 300s) for stdlib urllib;
+        # injected HTTPPoster instances (tests) ignore this since they
+        # don't make real network calls.
+        self.http: HTTPPoster = http or _UrllibPoster(timeout_seconds=cfg.timeout_seconds)
         self._sleep = sleep or time.sleep
         # Last successful call's stats. Read by the orchestrator after
         # each chat() to stamp the surrounding Task with token counts +
