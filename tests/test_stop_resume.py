@@ -86,11 +86,45 @@ def test_stop_endpoint_calls_abort_on_registered_runner(client):
     assert aborted == [True]
 
 
-def test_stop_endpoint_returns_404_when_not_registered(client):
+def test_stop_endpoint_marks_stale_running_study_as_aborted(client):
+    """Stale UI scenario: study.json says RUNNING but no runner is
+    registered (UI was restarted, or CLI-launched study finished without
+    the UI noticing). Stop click must NOT 404 — instead flip the saved
+    status to ABORTED so the page reload shows the resume button."""
+    c, s = client
+    _study("study_stale", status="RUNNING").save(Path(s.paths.experiments_dir))
+
+    r = c.post("/studies/study_stale/stop", follow_redirects=False)
+    assert r.status_code == 303
+
+    # Reload from disk and confirm the status was flipped.
+    reloaded = Study.load(Path(s.paths.experiments_dir), "study_stale")
+    assert reloaded.status == "ABORTED"
+    assert reloaded.finished_at is not None
+
+
+def test_stop_endpoint_returns_404_when_study_does_not_exist(client):
     c, _s = client
     r = c.post("/studies/study_unknown/stop")
     assert r.status_code == 404
-    assert "running" in r.json()["detail"].lower()
+    assert "study not found" in r.json()["detail"].lower()
+
+
+def test_stop_endpoint_leaves_finished_study_untouched(client):
+    """A study already marked COMPLETED/ABORTED on disk should redirect
+    without rewriting the file (no spurious finished_at update)."""
+    c, s = client
+    finished = _study("study_done", status="COMPLETED")
+    finished.save(Path(s.paths.experiments_dir))
+    original_finished_at = Study.load(
+        Path(s.paths.experiments_dir), "study_done"
+    ).finished_at
+
+    r = c.post("/studies/study_done/stop", follow_redirects=False)
+    assert r.status_code == 303
+    reloaded = Study.load(Path(s.paths.experiments_dir), "study_done")
+    assert reloaded.status == "COMPLETED"
+    assert reloaded.finished_at == original_finished_at
 
 
 # ---------- resume endpoint ----------

@@ -345,20 +345,30 @@ def create_app(settings: Settings) -> FastAPI:
         The runner's loop checks the flag between experiments, so the
         currently-running experiment finishes before the study exits.
         Real-time interrupt mid-experiment is not supported (subprocess
-        watchdog catches frozen runs separately). Returns 404 when no
-        runner is registered for ``study_id`` -- the run already
-        finished or this UI process never owned it.
+        watchdog catches frozen runs separately).
+
+        When no runner is registered (UI restarted, CLI-launched run, or
+        the runner already finished but study.json wasn't refreshed yet),
+        we treat that as "already stopped" -- mark study.status=ABORTED
+        on disk so the UI's running/finished split picks the resume
+        button next time. Avoids spurious 404 errors from a stale UI.
         """
+        from datetime import datetime, timezone
+
         from lab.core.lifecycle import get_running_runner
 
         runner = get_running_runner(study_id)
         if runner is None:
-            raise HTTPException(
-                status_code=404,
-                detail=(
-                    "no running study with this id in this process — "
-                    "either it already finished or the UI was restarted"
-                ),
+            try:
+                study = Study.load(studies_root, study_id)
+            except StudyNotFoundError:
+                raise HTTPException(status_code=404, detail="study not found")
+            if study.status == "RUNNING":
+                study.status = "ABORTED"
+                study.finished_at = datetime.now(timezone.utc)
+                study.save(studies_root)
+            return RedirectResponse(
+                url=f"/studies/{study_id}", status_code=303
             )
         runner.abort()
         return RedirectResponse(url=f"/studies/{study_id}", status_code=303)
