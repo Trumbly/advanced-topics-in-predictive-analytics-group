@@ -79,9 +79,13 @@
 </div>
 {% endif %}
 
-{% if learning_curve_svg %}
-<h2>Learning curves</h2>
-<div style="margin-bottom:14px">{{ learning_curve_svg | safe }}</div>
+{% if exp_chart_data and exp_chart_data.metrics %}
+<h2>Learning curves <small style="font-weight:normal;opacity:0.7">— toggle metrics, y-axis auto-rescales</small></h2>
+{% include "_chart_js.html" %}
+<div class="lab-chart"
+     data-chart='{{ exp_chart_data | tojson }}'
+     data-mode="experiment"
+     data-width="720" data-height="320"></div>
 {% endif %}
 
 <h2>History</h2>
