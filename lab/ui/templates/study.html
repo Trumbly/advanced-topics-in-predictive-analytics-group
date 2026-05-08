@@ -25,6 +25,31 @@
 </style>
 
 <h1>{{ study.id }} <span class="pill" id="status-pill">{{ study.status }}</span></h1>
+
+<div style="margin:8px 0 14px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+{% if study.status == "RUNNING" %}
+  <form method="post" action="/studies/{{ study.id }}/stop" style="margin:0">
+    <button type="submit"
+            onclick="return confirm('Stop this study after the current experiment finishes?')"
+            style="background:#3d2916;color:#ffd9a3;border:1px solid #7a5a2a;border-radius:6px;padding:5px 12px;cursor:pointer">
+      Stop study
+    </button>
+  </form>
+  <span style="opacity:0.7;font-size:0.82em">
+    abort flag flips between experiments — current run finishes first
+  </span>
+{% else %}
+  <form method="post" action="/studies/{{ study.id }}/resume" style="margin:0">
+    <button type="submit"
+            style="background:#163d22;color:#b3f0c1;border:1px solid #1f6f3a;border-radius:6px;padding:5px 12px;cursor:pointer">
+      Resume (new study from this one)
+    </button>
+  </form>
+  <span style="opacity:0.7;font-size:0.82em">
+    launches a new study with this one as predecessor — memory carries over
+  </span>
+{% endif %}
+</div>
 <p>
   task <b>{{ study.task_name }}</b> ·
   personality <b>{{ study.personality }}</b> ·

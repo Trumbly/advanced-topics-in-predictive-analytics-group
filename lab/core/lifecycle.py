@@ -19,6 +19,24 @@ _WATCHDOG_TIMEOUT_ENV = "AGENT_WATCHDOG_TIMEOUT_S"
 _WATCHDOG_DEFAULT_TIMEOUT_S = 1800
 
 
+# Registry of in-flight runners keyed by study_id. Populated when a runner
+# enters its run loop and removed on exit, so the UI / external callers
+# can flip the abort flag mid-run without poking thread internals. Lives
+# at module scope on purpose -- the FastAPI process keeps it across
+# requests; kill the process and any registered runners go with it.
+_RUNNING_RUNNERS: dict[str, "StudyRunner"] = {}
+
+
+def get_running_runner(study_id: str) -> "StudyRunner | None":
+    """Return the live StudyRunner for ``study_id`` if one is registered.
+
+    Returns None when the study is no longer running (already finished,
+    aborted, or never started in this process). The UI's stop button
+    uses this to know whether the request can do anything useful.
+    """
+    return _RUNNING_RUNNERS.get(study_id)
+
+
 class StudyRunner:
     def __init__(self, ctx: RunContext):
         self.ctx = ctx
@@ -45,6 +63,15 @@ class StudyRunner:
         telemetry.log_event("study_start", task=study.task_name)
         study.save(Path(self.ctx.settings.paths.experiments_dir))
 
+        # Make ourselves reachable by the UI's stop endpoint. The slot is
+        # cleared in the finally below regardless of how the run exits.
+        _RUNNING_RUNNERS[study.id] = self
+        try:
+            return self._run_body(study, predecessor, cb)
+        finally:
+            _RUNNING_RUNNERS.pop(study.id, None)
+
+    def _run_body(self, study: Study, predecessor: Study | None, cb) -> Study:
         self._wire_agent_memory(study, predecessor)
 
         self._install_sigint(study)
