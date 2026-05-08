@@ -67,6 +67,13 @@
 </div>
 {% endif %}
 
+{% if cross_loss_svg %}
+<h2>Cross-experiment loss (train solid · val dashed)
+  <small style="font-weight:normal;opacity:0.7">— overfit check + run-to-run comparison</small>
+</h2>
+<div style="margin-bottom:14px">{{ cross_loss_svg | safe }}</div>
+{% endif %}
+
 <h2>Experiments <small id="exp-count">({{ study.experiments|length }})</small></h2>
 <div id="experiments">
 {% for e in study.experiments %}
