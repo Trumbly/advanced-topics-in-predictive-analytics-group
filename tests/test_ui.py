@@ -43,6 +43,7 @@ def _study(sid: str = "study_test_xxxx") -> Study:
         best_experiment_id=exp.id,
         best_score=0.55,
         created_at=datetime(2026, 5, 4, tzinfo=timezone.utc),
+        llm_model="ollama:gemma4:e4b",
     )
 
 
@@ -64,12 +65,16 @@ def test_studies_list_renders(client):
     r = client.get("/studies")
     assert r.status_code == 200
     assert "study_test_xxxx" in r.text
+    # llm column carries the provider:model tag
+    assert "ollama:gemma4:e4b" in r.text
 
 
 def test_study_detail_renders_and_no_500_on_completed(client):
     r = client.get("/studies/study_test_xxxx")
     assert r.status_code == 200
     assert "exp_0001" in r.text
+    # llm shown in the header row
+    assert "ollama:gemma4:e4b" in r.text
 
 
 def test_experiment_detail_renders(client):

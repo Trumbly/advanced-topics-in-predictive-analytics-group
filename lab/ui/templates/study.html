@@ -52,6 +52,7 @@
 </div>
 <p>
   task <b>{{ study.task_name }}</b> ·
+  llm <b style="font-family:ui-monospace,monospace">{{ study.llm_model or "?" }}</b> ·
   personality <b>{{ study.personality }}</b> ·
   agent-memory <b>{{ study.agent_memory_enabled }}</b>
   {% if study.predecessor_id %}· predecessor <a href="/studies/{{ study.predecessor_id }}">{{ study.predecessor_id }}</a>{% endif %}

@@ -12,12 +12,13 @@
 {% endif %}
 <h1>Studies ({{ studies|length }})</h1>
 <table>
-  <thead><tr><th>id</th><th>task</th><th>status</th><th>experiments</th><th>best score</th></tr></thead>
+  <thead><tr><th>id</th><th>task</th><th>llm</th><th>status</th><th>experiments</th><th>best score</th></tr></thead>
   <tbody>
   {% for s in studies %}
     <tr>
       <td><a href="/studies/{{ s.id }}">{{ s.id }}</a></td>
       <td>{{ s.task_name }}</td>
+      <td style="font-family:ui-monospace,monospace;font-size:0.88em;opacity:0.9">{{ s.llm_model or "—" }}</td>
       <td><span class="pill">{{ s.status }}</span></td>
       <td>{{ s.experiments|length }}</td>
       <td>{{ "%.4f"|format(s.best_score) if s.best_score is not none else "—" }}</td>
