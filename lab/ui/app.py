@@ -338,6 +338,62 @@ def create_app(settings: Settings) -> FastAPI:
 
         return FileResponse(path, media_type="text/csv", filename="submission.csv")
 
+    @app.post("/studies/{study_id}/stop")
+    def stop_study(study_id: str):
+        """Flip the abort flag on the in-flight runner.
+
+        The runner's loop checks the flag between experiments, so the
+        currently-running experiment finishes before the study exits.
+        Real-time interrupt mid-experiment is not supported (subprocess
+        watchdog catches frozen runs separately). Returns 404 when no
+        runner is registered for ``study_id`` -- the run already
+        finished or this UI process never owned it.
+        """
+        from lab.core.lifecycle import get_running_runner
+
+        runner = get_running_runner(study_id)
+        if runner is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "no running study with this id in this process — "
+                    "either it already finished or the UI was restarted"
+                ),
+            )
+        runner.abort()
+        return RedirectResponse(url=f"/studies/{study_id}", status_code=303)
+
+    @app.post("/studies/{study_id}/resume")
+    def resume_study(study_id: str):
+        """Launch a NEW study seeded from ``study_id`` as predecessor.
+
+        Memory carries over via Memory.seed_from_predecessor (top-K wins
+        + recent failures), and the LLM can pick `continue_from` on any
+        of the source's experiments via the existing proposal field.
+        That's resume in the agent-loop sense — same task, full memory,
+        free to pick up where the stopped run left off.
+        """
+        try:
+            source = Study.load(studies_root, study_id)
+        except StudyNotFoundError:
+            raise HTTPException(status_code=404, detail="study not found")
+        from lab.cli import cmd_run
+
+        class _Args:
+            pass
+
+        args = _Args()
+        args.task = source.task_name
+        args.predecessor = source.id
+        args.use_best_prompts = False
+        args.agent_memory = True
+        args.personality = source.personality
+        args.max_experiments = None
+        args.max_wallclock_min = None
+        args.llm_model = None
+        threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
+        return RedirectResponse(url="/studies?launched=1", status_code=303)
+
     @app.get("/studies/{study_id}/weights.pt")
     def download_weights(study_id: str):
         path = studies_root / study_id / "weights.pt"
