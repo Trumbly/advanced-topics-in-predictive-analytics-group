@@ -395,6 +395,89 @@ def render_study_loss_svg(
     return "".join(parts)
 
 
+_METRIC_COLORS: dict[str, str] = {
+    "train_loss": "#3a6cd6",
+    "val_loss": "#d6843a",
+    "roc_auc_macro": "#7bd88f",
+    "f1_macro": "#b894ff",
+}
+
+
+def history_to_chart_data(history: Iterable[dict], primary_metric: str) -> dict:
+    """Per-experiment chart payload for the JS renderer.
+
+    Each metric is a list of ``[epoch, value]`` pairs. The renderer can
+    toggle individual metrics on/off and recompute the y-axis from
+    whatever is visible. ``loss`` (legacy) is mapped onto ``train_loss``
+    so old experiments still draw."""
+    history = list(history)
+    out: dict[str, object] = {
+        "primary_metric": primary_metric,
+        "metrics": {},
+        "colors": dict(_METRIC_COLORS),
+    }
+    metric_keys = ("train_loss", "val_loss", "roc_auc_macro", "f1_macro")
+    for key in metric_keys:
+        points: list[list[float]] = []
+        for h in history:
+            ep = h.get("epoch")
+            value = h.get(key)
+            if value is None and key == "train_loss":
+                value = h.get("loss")
+            if isinstance(ep, (int, float)) and isinstance(value, (int, float)):
+                points.append([float(ep), float(value)])
+        if points:
+            out["metrics"][key] = points
+    return out
+
+
+def study_to_chart_data(experiments) -> dict:
+    """Cross-experiment payload: one entry per experiment with its
+    metric series, x_offset (epochs accumulated from earlier
+    experiments / source of a continuation), and a stable colour.
+
+    The JS renderer adds ``x_offset`` to each epoch for the global axis;
+    when the user un-checks an experiment it gets removed from the
+    rescale calculation too.
+    """
+    out: list[dict] = []
+    end_x_by_exp: dict[str, float] = {}
+    cumulative_offset = 0.0
+
+    for idx, exp in enumerate(experiments):
+        if not exp.history:
+            continue
+        proposal = getattr(exp, "proposal", None)
+        cont_from = getattr(proposal, "continue_from_experiment_id", None) if proposal else None
+        offset = end_x_by_exp.get(cont_from, cumulative_offset) if cont_from else cumulative_offset
+
+        chart = history_to_chart_data(exp.history, exp.primary_metric)
+        if not chart["metrics"]:
+            continue
+
+        # Every experiment carries every epoch present in its history;
+        # use the max to advance the global cursor.
+        last_local_epoch = max(
+            (p[0] for points in chart["metrics"].values() for p in points),
+            default=0.0,
+        )
+
+        out.append(
+            {
+                "id": exp.id,
+                "label": exp.id,
+                "x_offset": offset,
+                "color": _exp_color(idx),
+                "primary_metric": exp.primary_metric,
+                "metrics": chart["metrics"],
+                "continued_from": cont_from,
+            }
+        )
+        end_x_by_exp[exp.id] = offset + last_local_epoch
+        cumulative_offset = offset + last_local_epoch
+    return {"experiments": out, "metric_colors": dict(_METRIC_COLORS)}
+
+
 def last_epoch_summary(history: Iterable[dict], primary_metric: str) -> dict:
     """One-shot dict of last-epoch values for the summary card."""
     history = list(history)
