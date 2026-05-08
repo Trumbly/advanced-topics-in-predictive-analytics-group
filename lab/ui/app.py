@@ -55,6 +55,7 @@ def create_app(settings: Settings) -> FastAPI:
             experiment_summary,
             study_summary,
         )
+        from lab.ui.learning_curves import collect_series, render_svg
         from lab.ui.pipeline import (
             PHASES,
             current_step,
@@ -68,6 +69,15 @@ def create_app(settings: Settings) -> FastAPI:
         rates = {r.experiment_id: r for r in study_rates(study)}
         llm_summary = study_summary(study).to_dict()
         exp_llm = {e.id: experiment_summary(e).to_dict() for e in study.experiments}
+        # One mini-sparkline per experiment so the user can scan
+        # convergence shape across the whole study at a glance.
+        exp_curves = {
+            e.id: render_svg(
+                collect_series(e.history, e.primary_metric),
+                width=360, height=120, pad_left=36, pad_top=10, pad_bottom=22,
+            )
+            for e in study.experiments
+        }
         return templates.TemplateResponse(
             request,
             "study.html",
@@ -79,6 +89,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "rates": rates,
                 "llm_summary": llm_summary,
                 "exp_llm": exp_llm,
+                "exp_curves": exp_curves,
             },
         )
 
@@ -87,6 +98,11 @@ def create_app(settings: Settings) -> FastAPI:
     )
     def experiment_detail(request: Request, study_id: str, exp_id: str):
         from lab.core.llm_metrics import experiment_summary
+        from lab.ui.learning_curves import (
+            collect_series,
+            last_epoch_summary,
+            render_svg,
+        )
 
         try:
             study = Study.load(studies_root, study_id)
@@ -95,6 +111,7 @@ def create_app(settings: Settings) -> FastAPI:
         exp = next((e for e in study.experiments if e.id == exp_id), None)
         if exp is None:
             raise HTTPException(status_code=404, detail="experiment not in study")
+        series = collect_series(exp.history, exp.primary_metric)
         return templates.TemplateResponse(
             request,
             "experiment.html",
@@ -102,6 +119,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "study": study,
                 "exp": exp,
                 "llm_summary": experiment_summary(exp).to_dict(),
+                "learning_curve_svg": render_svg(series, width=720, height=300),
+                "last_epoch": last_epoch_summary(exp.history, exp.primary_metric),
             },
         )
 

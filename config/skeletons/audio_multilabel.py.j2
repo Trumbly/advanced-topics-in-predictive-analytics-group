@@ -302,22 +302,32 @@ def main():
         model.eval()
         ys: list[torch.Tensor] = []
         ps: list[torch.Tensor] = []
+        logits_acc: list[torch.Tensor] = []
         with torch.no_grad():
             for x, y in val_loader:
                 x = x.float().to(DEVICE)
                 logits = model(x)
+                logits_acc.append(logits.cpu())
                 probs = torch.sigmoid(logits).cpu()
                 ys.append(y.float())
                 ps.append(probs)
         y_true = torch.cat(ys)
         probs = torch.cat(ps)
+        # val_loss is the same BCE-with-logits we used for training, so the
+        # train/val curves can be compared on the same y-scale and the user
+        # can see overfitting (train down, val up) directly.
+        val_loss = float(criterion(torch.cat(logits_acc), y_true).item())
         f1 = macro_f1(y_true, probs)
         auc = macro_roc_auc(y_true, probs)
         primary = auc if PRIMARY_METRIC == "roc_auc_macro" else f1
         history.append(
             {
                 "epoch": epoch,
+                # `loss` retained for back-compat with old reports + memory
+                # snippets; new code should read `train_loss` / `val_loss`.
                 "loss": float(train_loss),
+                "train_loss": float(train_loss),
+                "val_loss": val_loss,
                 "f1_macro": float(f1),
                 "roc_auc_macro": float(auc),
             }
@@ -334,7 +344,8 @@ def main():
         epoch_dt = time.time() - epoch_t0
         _print(
             f"[epoch {epoch}/{EPOCHS}] done in {epoch_dt:.1f}s "
-            f"loss={train_loss:.4f} f1_macro={f1:.4f} roc_auc_macro={auc:.4f} "
+            f"train_loss={train_loss:.4f} val_loss={val_loss:.4f} "
+            f"f1_macro={f1:.4f} roc_auc_macro={auc:.4f} "
             f"best={best_score:.4f} {'(NEW BEST)' if improved else f'(no improve {no_improve}/3)'}"
         )
 
