@@ -67,11 +67,15 @@
 </div>
 {% endif %}
 
-{% if cross_loss_svg %}
-<h2>Cross-experiment loss (train solid · val dashed)
-  <small style="font-weight:normal;opacity:0.7">— overfit check + run-to-run comparison</small>
+{% if study_chart_data and study_chart_data.experiments %}
+<h2>Cross-experiment learning curves
+  <small style="font-weight:normal;opacity:0.7">— pick metrics + experiments, y-axis auto-rescales</small>
 </h2>
-<div style="margin-bottom:14px">{{ cross_loss_svg | safe }}</div>
+{% include "_chart_js.html" %}
+<div class="lab-chart"
+     data-chart='{{ study_chart_data | tojson }}'
+     data-mode="study"
+     data-width="900" data-height="340"></div>
 {% endif %}
 
 <h2>Experiments <small id="exp-count">({{ study.experiments|length }})</small></h2>

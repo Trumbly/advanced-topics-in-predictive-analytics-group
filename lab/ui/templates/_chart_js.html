@@ -1,0 +1,333 @@
+{# Inline chart renderer + interactive metric/experiment toggles.
+
+   Usage:
+     {% include "_chart_js.html" %}
+     <div class="lab-chart"
+          data-chart='{{ chart_data | tojson }}'
+          data-mode="experiment"   <!-- or "study" -->
+          data-width="720"
+          data-height="300"></div>
+
+   Each <div class="lab-chart"> is rendered into checkbox controls + an
+   inline SVG. Toggling a checkbox redraws and rescales the y-axis from
+   the currently visible data only. -#}
+<style>
+  .lab-chart { margin: 8px 0 16px 0; }
+  .lab-chart .controls {
+    display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px;
+    font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .lab-chart .control-group {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 6px 10px; border: 1px solid #2a2f37; border-radius: 6px;
+    background: #15191f;
+  }
+  .lab-chart .control-group b { opacity: 0.7; font-weight: 600; margin-right: 4px; }
+  .lab-chart .control-group label {
+    cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .lab-chart .swatch {
+    display: inline-block; width: 10px; height: 2px; vertical-align: middle;
+  }
+  .lab-chart .swatch.dashed {
+    height: 0; border-top: 2px dashed currentColor;
+  }
+  .lab-chart .quick { font-size: 11px; opacity: 0.65; cursor: pointer; text-decoration: underline; }
+  .lab-chart svg { background: #0a0c10; border: 1px solid #2a2f37; border-radius: 6px; max-width: 100%; }
+</style>
+
+<script>
+(function () {
+  if (window.__labChartLoaded) return;
+  window.__labChartLoaded = true;
+
+  const METRIC_LABELS = {
+    train_loss: "train_loss",
+    val_loss: "val_loss",
+    roc_auc_macro: "ROC-AUC",
+    f1_macro: "F1",
+  };
+  const METRIC_DASHED = { val_loss: true };  // val_loss drawn dashed
+
+  function renderAll() {
+    document.querySelectorAll(".lab-chart").forEach(setupChart);
+  }
+
+  function setupChart(host) {
+    if (host.__inited) return;
+    host.__inited = true;
+    const data = JSON.parse(host.dataset.chart);
+    const mode = host.dataset.mode || "experiment";
+    const width = parseInt(host.dataset.width || "720", 10);
+    const height = parseInt(host.dataset.height || "300", 10);
+
+    // ---- state ----
+    // pick metrics that are present + defaults
+    const presentMetrics = collectPresentMetrics(data, mode);
+    const state = {
+      metrics: new Set(presentMetrics),
+      experiments: new Set(),
+    };
+    if (mode === "study") {
+      data.experiments.forEach(e => state.experiments.add(e.id));
+    }
+
+    // ---- controls ----
+    const controls = document.createElement("div");
+    controls.className = "controls";
+    host.appendChild(controls);
+
+    const metricsGroup = document.createElement("div");
+    metricsGroup.className = "control-group";
+    metricsGroup.appendChild(headerLabel("metrics:"));
+    presentMetrics.forEach(m => {
+      const color = (data.metric_colors || data.colors || {})[m] || "#7a8493";
+      metricsGroup.appendChild(
+        checkbox(m, METRIC_LABELS[m] || m, color, true, on => {
+          if (on) state.metrics.add(m); else state.metrics.delete(m);
+          draw();
+        }, METRIC_DASHED[m])
+      );
+    });
+    controls.appendChild(metricsGroup);
+
+    if (mode === "study") {
+      const expsGroup = document.createElement("div");
+      expsGroup.className = "control-group";
+      expsGroup.appendChild(headerLabel("experiments:"));
+      const allLink = document.createElement("span");
+      allLink.className = "quick";
+      allLink.textContent = "all";
+      allLink.onclick = () => toggleAll(true);
+      const noneLink = document.createElement("span");
+      noneLink.className = "quick";
+      noneLink.textContent = "none";
+      noneLink.onclick = () => toggleAll(false);
+      data.experiments.forEach(exp => {
+        expsGroup.appendChild(
+          checkbox(exp.id, exp.label, exp.color, true, on => {
+            if (on) state.experiments.add(exp.id); else state.experiments.delete(exp.id);
+            draw();
+          })
+        );
+      });
+      expsGroup.appendChild(allLink);
+      expsGroup.appendChild(noneLink);
+      controls.appendChild(expsGroup);
+
+      function toggleAll(on) {
+        state.experiments.clear();
+        if (on) data.experiments.forEach(e => state.experiments.add(e.id));
+        // sync DOM checkboxes
+        expsGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = on;
+        });
+        draw();
+      }
+    }
+
+    // ---- svg ----
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.style.width = "100%";
+    svg.style.maxWidth = width + "px";
+    host.appendChild(svg);
+
+    function draw() {
+      // collect visible series
+      const lines = collectLines(data, mode, state);
+      svg.innerHTML = "";
+      if (lines.length === 0) {
+        const text = document.createElementNS(svgNS, "text");
+        text.setAttribute("x", width / 2);
+        text.setAttribute("y", height / 2);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("fill", "#7a8493");
+        text.style.fontFamily = "ui-monospace,monospace";
+        text.style.fontSize = "12px";
+        text.textContent = "(no series selected)";
+        svg.appendChild(text);
+        return;
+      }
+      const xs = lines.flatMap(l => l.points.map(p => p[0]));
+      const ys = lines.flatMap(l => l.points.map(p => p[1]));
+      let xMin = Math.min(...xs), xMax = Math.max(...xs);
+      let yMin = Math.min(...ys), yMax = Math.max(...ys);
+      if (xMax === xMin) xMax = xMin + 1;
+      if (yMax === yMin) yMax = yMin + 1;
+      const span = yMax - yMin;
+      yMin -= span * 0.05;
+      yMax += span * 0.05;
+
+      const padL = 50, padR = 16, padT = 14, padB = 38;
+      const plotW = width - padL - padR;
+      const plotH = height - padT - padB;
+      const xToPx = x => padL + ((x - xMin) / (xMax - xMin)) * plotW;
+      const yToPx = y => padT + (1 - (y - yMin) / (yMax - yMin)) * plotH;
+
+      // gridlines + y ticks
+      for (let i = 0; i <= 4; i++) {
+        const yVal = yMin + (yMax - yMin) * i / 4;
+        const yPx = yToPx(yVal);
+        appendLine(svg, padL, yPx, width - padR, yPx, "#1c2129", 0.5);
+        appendText(svg, padL - 4, yPx + 3, yVal.toFixed(3), "#7a8493", "end");
+      }
+      // axes
+      appendLine(svg, padL, padT, padL, height - padB, "#3a4150", 1);
+      appendLine(svg, padL, height - padB, width - padR, height - padB, "#3a4150", 1);
+
+      // x ticks (epochs)
+      const epochSet = new Set(xs.map(x => Math.round(x)));
+      const epochs = Array.from(epochSet).sort((a, b) => a - b);
+      const stride = Math.max(1, Math.ceil(epochs.length / 8));
+      epochs.filter((_, i) => i % stride === 0).forEach(ep => {
+        const xPx = xToPx(ep);
+        appendLine(svg, xPx, height - padB, xPx, height - padB + 4, "#7a8493", 1);
+        appendText(svg, xPx, height - padB + 14, "e" + ep, "#7a8493", "middle");
+      });
+
+      // dividers between experiments (study mode)
+      if (mode === "study") {
+        const sortedExps = data.experiments
+          .filter(e => state.experiments.has(e.id))
+          .map(e => ({ id: e.id, x: e.x_offset + maxLocalEpoch(e, state.metrics) }))
+          .sort((a, b) => a.x - b.x);
+        sortedExps.slice(0, -1).forEach(e => {
+          const x = xToPx(e.x);
+          appendLine(svg, x, padT, x, height - padB, "#3a4150", 1, "2,3");
+        });
+        sortedExps.forEach(e => {
+          const x = xToPx(e.x);
+          appendText(svg, x, height - padB + 26, e.id, "#7a8493", "middle", 9);
+        });
+      }
+
+      // series
+      lines.forEach(line => {
+        const d = line.points.map((p, i) =>
+          `${i === 0 ? "M" : "L"}${xToPx(p[0]).toFixed(1)},${yToPx(p[1]).toFixed(1)}`
+        ).join(" ");
+        const path = document.createElementNS(svgNS, "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", line.color);
+        path.setAttribute("stroke-width", "1.5");
+        if (line.dashed) path.setAttribute("stroke-dasharray", "4,3");
+        svg.appendChild(path);
+      });
+    }
+
+    draw();
+  }
+
+  function collectPresentMetrics(data, mode) {
+    const seen = new Set();
+    if (mode === "experiment") {
+      Object.keys(data.metrics || {}).forEach(k => seen.add(k));
+    } else {
+      data.experiments.forEach(e => Object.keys(e.metrics || {}).forEach(k => seen.add(k)));
+    }
+    // canonical order
+    return ["train_loss", "val_loss", "roc_auc_macro", "f1_macro"].filter(k => seen.has(k));
+  }
+
+  function collectLines(data, mode, state) {
+    const lines = [];
+    if (mode === "experiment") {
+      const colors = data.colors || {};
+      Object.entries(data.metrics || {}).forEach(([metric, points]) => {
+        if (!state.metrics.has(metric)) return;
+        lines.push({
+          color: colors[metric] || "#7a8493",
+          points: points,
+          dashed: METRIC_DASHED[metric] || false,
+          label: metric,
+        });
+      });
+    } else {
+      data.experiments.forEach(exp => {
+        if (!state.experiments.has(exp.id)) return;
+        Object.entries(exp.metrics || {}).forEach(([metric, points]) => {
+          if (!state.metrics.has(metric)) return;
+          const shifted = points.map(([x, y]) => [x + exp.x_offset, y]);
+          lines.push({
+            color: exp.color,
+            points: shifted,
+            dashed: METRIC_DASHED[metric] || false,
+            label: `${exp.id}/${metric}`,
+          });
+        });
+      });
+    }
+    return lines;
+  }
+
+  function maxLocalEpoch(exp, visibleMetrics) {
+    let mx = 0;
+    Object.entries(exp.metrics).forEach(([metric, points]) => {
+      if (!visibleMetrics.has(metric)) return;
+      points.forEach(p => { if (p[0] > mx) mx = p[0]; });
+    });
+    return mx;
+  }
+
+  function appendLine(svg, x1, y1, x2, y2, stroke, width, dasharray) {
+    const ns = "http://www.w3.org/2000/svg";
+    const el = document.createElementNS(ns, "line");
+    el.setAttribute("x1", x1);
+    el.setAttribute("y1", y1);
+    el.setAttribute("x2", x2);
+    el.setAttribute("y2", y2);
+    el.setAttribute("stroke", stroke);
+    el.setAttribute("stroke-width", width);
+    if (dasharray) el.setAttribute("stroke-dasharray", dasharray);
+    svg.appendChild(el);
+  }
+
+  function appendText(svg, x, y, text, fill, anchor, size) {
+    const ns = "http://www.w3.org/2000/svg";
+    const el = document.createElementNS(ns, "text");
+    el.setAttribute("x", x);
+    el.setAttribute("y", y);
+    el.setAttribute("fill", fill);
+    el.setAttribute("text-anchor", anchor);
+    el.setAttribute("font-family", "ui-monospace,monospace");
+    el.setAttribute("font-size", size || 10);
+    el.textContent = text;
+    svg.appendChild(el);
+  }
+
+  function checkbox(id, label, color, defaultOn, onChange, dashed) {
+    const wrap = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = defaultOn;
+    cb.dataset.id = id;
+    cb.addEventListener("change", () => onChange(cb.checked));
+    const swatch = document.createElement("span");
+    swatch.className = "swatch" + (dashed ? " dashed" : "");
+    swatch.style.color = color;
+    swatch.style.background = dashed ? "transparent" : color;
+    const text = document.createElement("span");
+    text.textContent = label;
+    text.style.color = color;
+    wrap.appendChild(cb);
+    wrap.appendChild(swatch);
+    wrap.appendChild(text);
+    return wrap;
+  }
+
+  function headerLabel(text) {
+    const b = document.createElement("b");
+    b.textContent = text;
+    return b;
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderAll);
+  } else {
+    renderAll();
+  }
+})();
+</script>

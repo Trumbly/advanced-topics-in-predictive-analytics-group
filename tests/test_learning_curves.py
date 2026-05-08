@@ -155,6 +155,7 @@ class _StubExp:
     id: str
     history: list[dict]
     proposal: _StubProposal | None = None
+    primary_metric: str = "roc_auc_macro"
 
 
 def test_study_loss_series_concatenates_continuation_after_source():
@@ -257,3 +258,77 @@ def test_render_study_loss_svg_includes_overfit_legend_hint():
     svg = render_study_loss_svg(series, dividers=[(1.0, "exp_a")])
     assert "overfit" in svg.lower()
     assert "solid" in svg.lower() and "dashed" in svg.lower()
+
+
+# ---------- chart-data payloads (for the JS renderer) ----------
+
+
+from lab.ui.learning_curves import history_to_chart_data, study_to_chart_data
+
+
+def test_history_to_chart_data_includes_every_present_metric():
+    history = _hist(
+        {"epoch": 1, "train_loss": 0.7, "val_loss": 0.8, "roc_auc_macro": 0.55, "f1_macro": 0.5},
+        {"epoch": 2, "train_loss": 0.5, "val_loss": 0.6, "roc_auc_macro": 0.65, "f1_macro": 0.6},
+    )
+    out = history_to_chart_data(history, "roc_auc_macro")
+    assert set(out["metrics"]) == {"train_loss", "val_loss", "roc_auc_macro", "f1_macro"}
+    assert out["metrics"]["train_loss"] == [[1.0, 0.7], [2.0, 0.5]]
+    assert "colors" in out
+
+
+def test_history_to_chart_data_uses_legacy_loss_for_train_loss():
+    history = _hist({"epoch": 1, "loss": 0.42, "roc_auc_macro": 0.6})
+    out = history_to_chart_data(history, "roc_auc_macro")
+    assert out["metrics"]["train_loss"] == [[1.0, 0.42]]
+
+
+def test_history_to_chart_data_skips_metrics_without_points():
+    """A history with only train_loss must NOT carry empty val_loss/etc.
+    keys — the JS renderer would try to draw an empty series and the
+    metric checkbox would always toggle a no-op."""
+    history = _hist({"epoch": 1, "train_loss": 0.5})
+    out = history_to_chart_data(history, "roc_auc_macro")
+    assert set(out["metrics"]) == {"train_loss"}
+
+
+def test_study_to_chart_data_emits_one_entry_per_experiment():
+    a = _StubExp("exp_a", [
+        {"epoch": 1, "train_loss": 0.7, "val_loss": 0.8},
+        {"epoch": 2, "train_loss": 0.5, "val_loss": 0.6},
+    ])
+    b = _StubExp("exp_b", [
+        {"epoch": 1, "train_loss": 0.4, "val_loss": 0.55},
+    ])
+    out = study_to_chart_data([a, b])
+    ids = [e["id"] for e in out["experiments"]]
+    assert ids == ["exp_a", "exp_b"]
+    # Independent runs concatenate: b starts at x_offset = 2 (a's last epoch)
+    a_entry = out["experiments"][0]
+    b_entry = out["experiments"][1]
+    assert a_entry["x_offset"] == 0.0
+    assert b_entry["x_offset"] == 2.0
+    # Distinct colours so the JS palette doesn't collapse
+    assert a_entry["color"] != b_entry["color"]
+
+
+def test_study_to_chart_data_continuation_offsets_to_source_end():
+    a = _StubExp("exp_a", [
+        {"epoch": 1, "train_loss": 0.7, "val_loss": 0.8},
+        {"epoch": 2, "train_loss": 0.5, "val_loss": 0.6},
+    ])
+    b = _StubExp(
+        "exp_b",
+        [{"epoch": 1, "train_loss": 0.4, "val_loss": 0.55}],
+        proposal=_StubProposal(continue_from_experiment_id="exp_a"),
+    )
+    out = study_to_chart_data([a, b])
+    b_entry = next(e for e in out["experiments"] if e["id"] == "exp_b")
+    # Continuation lands at the source's end (= a's last epoch = 2)
+    assert b_entry["x_offset"] == 2.0
+    assert b_entry["continued_from"] == "exp_a"
+
+
+def test_study_to_chart_data_skips_experiments_without_history():
+    out = study_to_chart_data([_StubExp("exp_a", [])])
+    assert out["experiments"] == []
