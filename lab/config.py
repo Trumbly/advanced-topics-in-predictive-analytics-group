@@ -22,6 +22,10 @@ class LLMConfig(BaseModel):
     retry_attempts: int = Field(ge=0)
     retry_backoff_seconds: float = Field(ge=0.0)
     api_key: str | None = None
+    # Per-request HTTP timeout for LLM chat() calls. Larger Ollama models
+    # on CPU can need 5+ minutes per response, so the default tolerates
+    # that; the settings page lets you tighten it for fast remote APIs.
+    timeout_seconds: float = Field(default=300.0, gt=0.0, le=3600.0)
 
 
 class ComputeBudget(BaseModel):

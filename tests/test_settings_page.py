@@ -43,6 +43,22 @@ def test_read_global_yaml(repo_root):
     assert "compute_budget" in payload
 
 
+def test_read_global_yaml_fills_in_pydantic_defaults(repo_root, tmp_path):
+    """Newly-added fields on the LLMConfig model must show up on the
+    settings page even when the on-disk YAML pre-dates the field. Without
+    the default-merge step the new knob would be invisible to the user
+    until someone hand-edits config.yaml."""
+    # Write a config without the new timeout_seconds field
+    cfg_path = repo_root / "config" / "config.yaml"
+    cfg = yaml.safe_load(cfg_path.read_text())
+    cfg["llm"].pop("timeout_seconds", None)
+    cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+
+    payload = read_global_yaml(repo_root)
+    assert "timeout_seconds" in payload["llm"]
+    assert payload["llm"]["timeout_seconds"] == 300.0   # LLMConfig default
+
+
 def test_parse_form_into_yaml_coerces_types(repo_root):
     current = read_global_yaml(repo_root)
     form = {
