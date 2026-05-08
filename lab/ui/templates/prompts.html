@@ -23,9 +23,21 @@
       <td><span class="pill">{{ t.active or "—" }}</span></td>
       <td>
         {% for v in t.versions %}
-          <a href="/prompts/{{ t.name }}/{{ v }}"
-             class="pill"
-             style="text-decoration:none;{% if v == t.active %}background:#163d22;{% endif %}">{{ v }}</a>
+          <span style="display:inline-block;margin-right:4px;white-space:nowrap">
+            <a href="/prompts/{{ t.name }}/{{ v }}"
+               class="pill"
+               style="text-decoration:none;{% if v == t.active %}background:#163d22;{% endif %}">{{ v }}</a>
+            {% if v != t.active %}
+              <form method="post" action="/prompts/{{ t.name }}/activate?version={{ v }}"
+                    style="display:inline;margin:0">
+                <button type="submit"
+                        title="activate {{ v }} without writing a new version file"
+                        style="background:transparent;border:none;color:#7bd88f;cursor:pointer;font-size:0.78em;padding:0 2px">
+                  ↑activate
+                </button>
+              </form>
+            {% endif %}
+          </span>
         {% endfor %}
       </td>
       <td>

@@ -154,3 +154,53 @@ def test_save_returns_400_when_field_missing(client):
     )
     # FastAPI validation error
     assert r.status_code in (400, 422)
+
+
+# ---------- activate without saving (no duplication) ----------
+
+
+def test_activate_existing_version_does_not_duplicate(client):
+    """Bug: previously the only way to make an inactive version active
+    was the 'save & activate' button, which always wrote vN+1. Activating
+    v2 should just flip the registry pointer to v2 without writing v3."""
+    c, root = client
+    before_files = sorted(p.name for p in (root / "propose_architecture").iterdir())
+
+    r = c.post(
+        "/prompts/propose_architecture/activate?version=v2",
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+
+    after_files = sorted(p.name for p in (root / "propose_architecture").iterdir())
+    assert before_files == after_files   # no v3.yaml etc. added
+
+    registry = yaml.safe_load((root / "_registry.yaml").read_text())
+    assert registry["propose_architecture"] == "v2"
+
+
+def test_edit_page_renders_activate_button_for_inactive_version(client):
+    c, _ = client
+    r = c.get("/prompts/propose_architecture/v2")
+    assert r.status_code == 200
+    # The 'Activate this version' form points at the activate route with
+    # the version baked into the query string, NOT the edit route.
+    assert "/prompts/propose_architecture/activate?version=v2" in r.text
+    assert "Activate this version" in r.text
+
+
+def test_edit_page_hides_activate_button_when_already_active(client):
+    c, _ = client
+    r = c.get("/prompts/propose_architecture/v1")   # v1 is the active one
+    assert r.status_code == 200
+    assert "Activate this version" not in r.text
+
+
+def test_prompts_index_has_activate_quick_link_per_inactive_version(client):
+    c, _ = client
+    r = c.get("/prompts")
+    assert r.status_code == 200
+    # v2 is inactive on the seeded fixture so the quick-activate button
+    # should be present for it.
+    assert "/prompts/propose_architecture/activate?version=v2" in r.text
+    assert "↑activate" in r.text
