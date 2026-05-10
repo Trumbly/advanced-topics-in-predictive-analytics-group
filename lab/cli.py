@@ -129,6 +129,52 @@ def _build_parser() -> argparse.ArgumentParser:
             "ordering from sample_submission.csv"
         ),
     )
+    preprocess.add_argument(
+        "--regroup-indexes",
+        action="store_true",
+        help=(
+            "rewrite an existing train_index.json + val_index.json so that "
+            "every recording's windows live entirely on one side of the "
+            "split (fixes the recording-level leak that inflates val "
+            "ROC-AUC). Reads the current index files in place; spectrogram "
+            "cache is untouched."
+        ),
+    )
+    preprocess.add_argument(
+        "--backbone",
+        choices=["perch", "birdnet"],
+        default=None,
+        help=(
+            "extract precomputed audio embeddings using the named "
+            "backbone (perch / birdnet). Reads the existing lazy mel "
+            "indexes for the sample list, runs the backbone over the "
+            "matching audio windows, and writes "
+            "data/processed/<backbone>_emb/<sid>.npy plus a mirrored "
+            "lazy index. Required for the *_embedding architecture "
+            "families. Mutually exclusive with the standard preprocess "
+            "modes above."
+        ),
+    )
+    preprocess.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help=(
+            "with --backbone: stop after N successfully embedded windows "
+            "(useful for smoke-testing the extractor before kicking off "
+            "the full ~225K-window pass)"
+        ),
+    )
+    preprocess.add_argument(
+        "--val-fraction",
+        type=float,
+        default=0.2,
+        help=(
+            "fraction of recordings (or samples in --samples-per-class mode) "
+            "routed to val. Used by --regroup-indexes and the default split "
+            "path. Default 0.2."
+        ),
+    )
 
     sub.add_parser("benchmark", help="cross-study (family, arch) leaderboard")
 
@@ -317,12 +363,43 @@ def cmd_preprocess(args) -> int:
     if getattr(args, "unify_labels", False):
         return _run_unify_labels(settings)
 
+    if getattr(args, "regroup_indexes", False):
+        from lab.tasks.real_preprocess import regroup_lazy_indexes
+
+        try:
+            train_path, val_path = regroup_lazy_indexes(
+                settings,
+                val_fraction=getattr(args, "val_fraction", 0.2),
+            )
+        except FileNotFoundError as exc:
+            print(f"regroup failed: {exc}", file=sys.stderr)
+            return 2
+        print(f"regrouped indexes: {train_path}  +  {val_path}")
+        return 0
+
+    if getattr(args, "backbone", None):
+        from lab.tasks.embedding_preprocess import extract_embeddings
+
+        try:
+            train_path, val_path = extract_embeddings(
+                settings,
+                backbone=args.backbone,
+                overwrite=getattr(args, "overwrite", False),
+                limit=getattr(args, "limit", None),
+            )
+        except (FileNotFoundError, RuntimeError, ValueError) as exc:
+            print(f"embedding extract failed: {exc}", file=sys.stderr)
+            return 2
+        print(f"embedding indexes written: {train_path}  +  {val_path}")
+        return 0
+
     from lab.tasks.real_preprocess import build_real_shards
 
     try:
         train_path, val_path = build_real_shards(
             settings,
             samples_per_class=getattr(args, "samples_per_class", None),
+            val_fraction=getattr(args, "val_fraction", 0.2),
             overwrite=getattr(args, "overwrite", False),
         )
     except FileNotFoundError as exc:
