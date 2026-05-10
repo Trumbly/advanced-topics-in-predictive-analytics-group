@@ -15,6 +15,17 @@ valid_architecture_families:
   - efficientnet_pretrained
   - mobilenet_pretrained
   - yamnet_feature
+  - perch_embedding
+  - birdnet_embedding
+embedding_skeleton_path: config/skeletons/audio_embedding_multilabel.py.j2
+embedding_input_shapes:
+  perch_embedding:
+    - 1280
+  birdnet_embedding:
+    - 1024
+embedding_processed_dirs:
+  perch_embedding: data/processed/perch_emb
+  birdnet_embedding: data/processed/birdnet_emb
 task_description: >-
   Multi-label bird species classification from 5-second mel-spectrogram windows
   collected by acoustic recorders in the Pantanal wetlands. Predict the

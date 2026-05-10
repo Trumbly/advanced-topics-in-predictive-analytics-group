@@ -1,0 +1,310 @@
+"""Track B audio embedding-based multi-label training skeleton.
+
+Used when the proposed architecture family ends in ``_embedding`` (e.g.
+``perch_embedding``, ``birdnet_embedding``). Inputs are 1-D embedding
+vectors precomputed by ``lab preprocess --backbone <name>`` and stored as
+``.npy`` files in ``data/processed/<backbone>_emb/<sid>.npy``. The agent
+implements only the ``build_model`` block — the head sits on top of the
+fixed embeddings.
+
+Render-time (Jinja) variables filled in by the orchestrator:
+- num_classes, input_tensor_shape, primary_metric
+
+Run-time (env) knobs read from os.environ:
+- AGENT_DEVICE, AGENT_BATCH_SIZE, AGENT_EPOCHS, AGENT_PROCESSED_DIR,
+  AGENT_CHECKPOINT_IN (optional), AGENT_CHECKPOINT_OUT, AGENT_SEED,
+  AGENT_LR, AGENT_LR_SCHEDULE, AGENT_WEIGHT_DECAY.
+"""
+from __future__ import annotations
+
+import json
+import os
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
+
+# ---------- runtime knobs ----------
+NUM_CLASSES = {{ num_classes }}
+INPUT_SHAPE = tuple({{ input_tensor_shape }})
+PRIMARY_METRIC = {{ primary_metric | tojson }}
+
+DEVICE = os.environ.get("AGENT_DEVICE", "cpu")
+BATCH_SIZE = int(os.environ.get("AGENT_BATCH_SIZE", "256"))
+NUM_WORKERS = int(os.environ.get("AGENT_NUM_WORKERS", "0"))
+EPOCHS = int(os.environ.get("AGENT_EPOCHS", "10"))
+PROCESSED_DIR = Path(os.environ.get("AGENT_PROCESSED_DIR", "data/processed/perch_emb"))
+CHECKPOINT_IN = os.environ.get("AGENT_CHECKPOINT_IN")
+CHECKPOINT_OUT = os.environ.get("AGENT_CHECKPOINT_OUT", "checkpoint.pt")
+SEED = int(os.environ.get("AGENT_SEED", "42"))
+LR = float(os.environ.get("AGENT_LR", "1e-3"))
+LR_SCHEDULE = os.environ.get("AGENT_LR_SCHEDULE", "constant")
+WEIGHT_DECAY = float(os.environ.get("AGENT_WEIGHT_DECAY", "0.0"))
+
+torch.manual_seed(SEED)
+
+
+# ---------- data ----------
+class LazyEmbeddingDataset(Dataset):
+    """Loads precomputed embedding vectors from per-sample .npy files."""
+
+    def __init__(self, index_path: Path):
+        with index_path.open("r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        self.embeddings_dir = Path(payload["embeddings_dir"])
+        self.num_classes = int(payload["num_classes"])
+        self.entries = payload["samples"]
+
+    def __len__(self) -> int:
+        return len(self.entries)
+
+    def __getitem__(self, idx: int):
+        e = self.entries[idx]
+        arr = np.load(self.embeddings_dir / f"{e['sid']}.npy").astype("float32")
+        x = torch.from_numpy(arr).reshape(-1)  # flatten to 1-D
+        y = torch.zeros(self.num_classes, dtype=torch.float32)
+        indices = e.get("class_indices")
+        if indices is not None:
+            for ci in indices:
+                y[int(ci)] = 1.0
+        else:
+            y[int(e["class_idx"])] = 1.0
+        return x, y
+
+
+def load_embedding_dataset(processed_dir: Path, split: str):
+    index_path = processed_dir / f"{split}_index.json"
+    if index_path.exists():
+        return LazyEmbeddingDataset(index_path)
+    pt_path = processed_dir / f"{split}.pt"
+    if not pt_path.exists():
+        return None
+    blob = torch.load(pt_path, map_location="cpu", weights_only=False)
+    return TensorDataset(blob["x"], blob["y"])
+
+
+def make_loaders():
+    train = load_embedding_dataset(PROCESSED_DIR, "train")
+    if train is None:
+        raise FileNotFoundError(
+            f"missing embedding shards: {PROCESSED_DIR / 'train_index.json'} "
+            f"(or {PROCESSED_DIR / 'train.pt'}). Run "
+            "`lab preprocess --backbone perch` to extract embeddings."
+        )
+    val = load_embedding_dataset(PROCESSED_DIR, "val")
+    if val is None:
+        n_train = int(0.8 * len(train))
+        train, val = random_split(train, [n_train, len(train) - n_train])
+    return (
+        DataLoader(
+            train,
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            num_workers=NUM_WORKERS,
+            persistent_workers=NUM_WORKERS > 0,
+        ),
+        DataLoader(
+            val,
+            batch_size=BATCH_SIZE,
+            shuffle=False,
+            num_workers=NUM_WORKERS,
+            persistent_workers=NUM_WORKERS > 0,
+        ),
+    )
+
+
+# --- AGENT_BUILD_MODEL_START ---
+def build_model(num_classes: int) -> nn.Module:
+    """LLM-authored block. Default: a simple linear probe over the
+    precomputed embedding vector."""
+    in_dim = INPUT_SHAPE[0]
+    return nn.Sequential(
+        nn.LayerNorm(in_dim),
+        nn.Dropout(0.2),
+        nn.Linear(in_dim, num_classes),
+    )
+# --- AGENT_BUILD_MODEL_END ---
+
+
+# ---------- metrics ----------
+def _binarise(probs: torch.Tensor, thr: float = 0.5) -> torch.Tensor:
+    return (probs >= thr).float()
+
+
+def macro_f1(y_true: torch.Tensor, probs: torch.Tensor) -> float:
+    yhat = _binarise(probs)
+    eps = 1e-9
+    tp = (yhat * y_true).sum(dim=0)
+    fp = (yhat * (1 - y_true)).sum(dim=0)
+    fn = ((1 - yhat) * y_true).sum(dim=0)
+    f1 = (2 * tp + eps) / (2 * tp + fp + fn + eps)
+    return float(f1.mean().item())
+
+
+def macro_roc_auc(y_true: torch.Tensor, probs: torch.Tensor) -> float:
+    """Manual ROC-AUC per class, mean over classes with both pos and neg samples."""
+    aucs: list[float] = []
+    for c in range(y_true.shape[1]):
+        yt = y_true[:, c].numpy()
+        ps = probs[:, c].numpy()
+        if yt.sum() == 0 or yt.sum() == len(yt):
+            continue
+        order = ps.argsort()[::-1]
+        yt_sorted = yt[order]
+        tp = 0
+        auc = 0.0
+        pos = float(yt.sum())
+        neg = float(len(yt) - pos)
+        for i in range(len(yt_sorted)):
+            if yt_sorted[i] == 1:
+                tp += 1
+            else:
+                auc += tp
+        if pos == 0 or neg == 0:
+            continue
+        aucs.append(auc / (pos * neg))
+    if not aucs:
+        return 0.0
+    return float(sum(aucs) / len(aucs))
+
+
+# ---------- training ----------
+def lr_scheduler(opt, schedule, total_steps):
+    if schedule == "cosine":
+        return torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=total_steps)
+    if schedule == "onecycle":
+        return torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=LR, total_steps=total_steps)
+    return None
+
+
+def _print(msg: str) -> None:
+    print(msg, flush=True)
+
+
+def main():
+    train_loader, val_loader = make_loaders()
+    _print(
+        f"[loader] train_batches={len(train_loader)} val_batches={len(val_loader)} "
+        f"batch_size={BATCH_SIZE} num_workers={NUM_WORKERS} device={DEVICE}"
+    )
+    model = build_model(num_classes=NUM_CLASSES)
+    if CHECKPOINT_IN and Path(CHECKPOINT_IN).exists():
+        model.load_state_dict(torch.load(CHECKPOINT_IN, map_location="cpu"))
+        _print(f"[init] warm-started from {CHECKPOINT_IN}")
+    model.to(DEVICE)
+    n_params = sum(p.numel() for p in model.parameters())
+    _print(f"[model] params={n_params:,} num_classes={NUM_CLASSES}")
+    criterion = nn.BCEWithLogitsLoss()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+    total_steps = max(1, EPOCHS * len(train_loader))
+    sched = lr_scheduler(optimizer, LR_SCHEDULE, total_steps)
+
+    history = []
+    best_score = float("-inf")
+    no_improve = 0
+    t0 = time.time()
+    stopped_early = False
+
+    for epoch in range(1, EPOCHS + 1):
+        epoch_t0 = time.time()
+        model.train()
+        running = 0.0
+        n = 0
+        log_every = max(1, len(train_loader) // 5)
+        for batch_idx, (x, y) in enumerate(train_loader, start=1):
+            x = x.float().to(DEVICE)
+            y = y.float().to(DEVICE)
+            optimizer.zero_grad()
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+            if sched is not None:
+                sched.step()
+            running += loss.item() * x.size(0)
+            n += x.size(0)
+            if batch_idx % log_every == 0:
+                _print(
+                    f"[epoch {epoch}/{EPOCHS}] batch {batch_idx}/{len(train_loader)} "
+                    f"running_loss={running / max(1, n):.4f}"
+                )
+        train_loss = running / max(1, n)
+
+        model.eval()
+        ys: list[torch.Tensor] = []
+        ps: list[torch.Tensor] = []
+        logits_acc: list[torch.Tensor] = []
+        with torch.no_grad():
+            for x, y in val_loader:
+                x = x.float().to(DEVICE)
+                logits = model(x)
+                logits_acc.append(logits.cpu())
+                probs = torch.sigmoid(logits).cpu()
+                ys.append(y.float())
+                ps.append(probs)
+        y_true = torch.cat(ys)
+        probs = torch.cat(ps)
+        val_loss = float(criterion(torch.cat(logits_acc), y_true).item())
+        f1 = macro_f1(y_true, probs)
+        auc = macro_roc_auc(y_true, probs)
+        primary = auc if PRIMARY_METRIC == "roc_auc_macro" else f1
+        history.append(
+            {
+                "epoch": epoch,
+                "loss": float(train_loss),
+                "train_loss": float(train_loss),
+                "val_loss": val_loss,
+                "f1_macro": float(f1),
+                "roc_auc_macro": float(auc),
+            }
+        )
+
+        improved = primary > best_score
+        if improved:
+            best_score = primary
+            no_improve = 0
+            torch.save(model.state_dict(), CHECKPOINT_OUT)
+        else:
+            no_improve += 1
+
+        epoch_dt = time.time() - epoch_t0
+        _print(
+            f"[epoch {epoch}/{EPOCHS}] done in {epoch_dt:.1f}s "
+            f"train_loss={train_loss:.4f} val_loss={val_loss:.4f} "
+            f"f1_macro={f1:.4f} roc_auc_macro={auc:.4f} "
+            f"best={best_score:.4f} {'(NEW BEST)' if improved else f'(no improve {no_improve}/3)'}"
+        )
+
+        if not improved and no_improve >= 3:
+            stopped_early = True
+            _print("[stop] early stopping triggered (3 epochs without improvement)")
+            break
+
+    duration = time.time() - t0
+    _print(
+        f"[done] best {PRIMARY_METRIC}={best_score:.4f} duration={duration:.1f}s "
+        f"epochs_run={len(history)}"
+    )
+    Path("results.json").write_text(
+        json.dumps(
+            {
+                "primary_score": best_score,
+                "primary_metric": PRIMARY_METRIC,
+                "metrics": {
+                    "f1_macro": float(history[-1]["f1_macro"]),
+                    "roc_auc_macro": float(history[-1]["roc_auc_macro"]),
+                },
+                "history": history,
+                "stopped_early": stopped_early,
+                "duration_seconds": duration,
+            },
+            indent=2,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()
