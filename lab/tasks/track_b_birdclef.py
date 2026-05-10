@@ -37,9 +37,16 @@ class BirdclefAdapter(TaskAdapter):
             class_imbalance = meta.get("class_imbalance")
         else:
             num_classes = self.settings.task.expected_num_classes
-            num_train = 0
             shape = tuple(self.settings.task.input_tensor_shape)
             class_imbalance = None
+            # The metadata.parquet sidecar is optional. When it's absent
+            # (the default after `lab preprocess` writes only the lazy
+            # JSON indexes) we still want to surface a non-zero
+            # ``num_train`` to the LLM's EDA prompt — otherwise the
+            # planner sees ``Train samples: 0`` and assumes the dataset
+            # is empty. Read the lazy indexes when present and sum their
+            # sample counts for both train + val (val came from train).
+            num_train = self._count_samples_from_lazy_indexes()
 
         if num_classes != self.settings.task.expected_num_classes:
             # The canonical class set comes from sample_submission.csv and
@@ -81,6 +88,30 @@ class BirdclefAdapter(TaskAdapter):
 
     def model_block_signature(self) -> tuple[str, str]:
         return ("build_model", "num_classes")
+
+    def _count_samples_from_lazy_indexes(self) -> int:
+        """Sum train_index + val_index sample counts when those JSON files
+        are present alongside the (optional) metadata.parquet sidecar.
+
+        Returns 0 when neither side is readable — the EDA layer will then
+        flag the empty dataset to the LLM rather than assuming a value.
+        """
+        import json
+
+        processed = self._metadata_path.parent
+        total = 0
+        for name in ("train_index.json", "val_index.json"):
+            path = processed / name
+            if not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            samples = payload.get("samples")
+            if isinstance(samples, list):
+                total += len(samples)
+        return total
 
     def spawn_triggering_calls(self) -> Iterable[str]:
         return ("DataLoader", "MultiProcessingDataLoaderIter", "torch.multiprocessing")
