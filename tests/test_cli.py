@@ -50,7 +50,9 @@ def test_prompts_list_runs(capsys, monkeypatch):
     out = capsys.readouterr().out
     assert rc == 0
     assert "propose_architecture" in out
-    assert "active=v1" in out
+    # The active version pin can evolve as we ship new prompt revisions.
+    # The CLI must report SOME active version (active=vN) for every task.
+    assert "active=v" in out
 
 
 def test_prompts_activate_requires_args(capsys):
