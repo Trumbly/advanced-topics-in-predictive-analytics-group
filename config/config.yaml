@@ -2,6 +2,8 @@ project: lab
 version: 2.0.0
 default_task: track_b
 llm:
+  api_key: ''
+  timeout_seconds: 600.0
   provider: ollama
   base_url: http://localhost:11434
   model: gemma4:e4b
@@ -10,17 +12,17 @@ llm:
   retry_attempts: 3
   retry_backoff_seconds: 5.0
 compute_budget:
-  max_experiments: 5
-  max_wallclock_minutes: 240
-  max_experiment_seconds: 18000
-  max_epochs_per_run: 10
+  device: mps
+  num_workers: 8
+  batch_size: 256
+  max_experiments: 25
+  max_wallclock_minutes: 2400
+  max_experiment_seconds: 180000
+  max_epochs_per_run: 5
   max_codegen_retries: 5
   max_recovery_attempts: 5
   lr_min: 0.001
   lr_max: 0.1
-  device: mps
-  num_workers: 8
-  batch_size: 64
 agent:
   memory_enabled: false
   personality: exploratory

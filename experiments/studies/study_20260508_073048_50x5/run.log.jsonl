@@ -1,0 +1,2 @@
+{"ts": "2026-05-08T07:30:48.527706+00:00", "study_id": "study_20260508_073048_50x5", "experiment_id": null, "event": "study_start", "level": "info", "fields": {"task": "track_b"}}
+{"ts": "2026-05-08T07:30:48.529148+00:00", "study_id": "study_20260508_073048_50x5", "experiment_id": "exp_0000", "event": "experiment_start", "level": "info", "fields": {"index": 0, "id": "exp_0000"}}
