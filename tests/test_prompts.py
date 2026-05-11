@@ -25,10 +25,16 @@ def _make_empty_registry(tmp_path: Path) -> PromptRegistry:
 
 # -------- shipped prompts --------
 
-def test_all_shipped_tasks_have_v1_active():
+def test_all_shipped_tasks_have_loadable_active():
+    """The active version for every shipped task points at a real, non-empty
+    template. Specific version pins live in `config/prompts/_registry.yaml`
+    and are intentionally allowed to evolve — the test only enforces that
+    whatever is pinned actually exists and renders both system + user
+    blocks."""
     reg = PromptRegistry(SHIPPED_PROMPTS)
     for task in PROMPT_TASKS:
-        assert reg.active_version(task) == "v1", task
+        active = reg.active_version(task)
+        assert active, task
         tmpl = reg.load(task)
         assert isinstance(tmpl, PromptTemplate)
         assert tmpl.system.strip()

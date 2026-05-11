@@ -99,6 +99,13 @@ class TaskConfig(BaseModel):
     input_tensor_shape: list[int]
     valid_architecture_families: list[str]
     task_description: str
+    # Optional embedding-family bookkeeping. Filled in for tasks that
+    # support precomputed-embedding architectures (e.g. perch_embedding).
+    # The skeleton + input shape + processed dir are looked up by the
+    # adapter when a proposal picks an *_embedding family.
+    embedding_skeleton_path: str | None = None
+    embedding_input_shapes: dict[str, list[int]] = Field(default_factory=dict)
+    embedding_processed_dirs: dict[str, str] = Field(default_factory=dict)
 
 
 class Settings(BaseModel):
