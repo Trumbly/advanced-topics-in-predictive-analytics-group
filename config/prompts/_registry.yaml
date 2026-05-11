@@ -2,5 +2,5 @@ analyze_result: v2
 generate_code: v2
 judge_experiment: v2
 judge_study: v2
-propose_architecture: v4
+propose_architecture: v1
 recover_from_error: v2
