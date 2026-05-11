@@ -1,0 +1,29 @@
+name: track_b_birdnet
+kind: audio_embedding_multilabel
+adapter: lab.tasks.track_b_birdclef:BirdclefAdapter
+primary_metric: roc_auc_macro
+skeleton_path: config/skeletons/audio_embedding_multilabel.py.j2
+raw_data_dir: data/raw/birdclef-2026
+processed_data_dir: data/processed/birdnet_emb
+expected_num_classes: 234
+input_tensor_shape:
+  - 1024
+valid_architecture_families:
+  - birdnet_embedding
+task_description: >-
+  Multi-label bird species classification using precomputed BirdNET
+  (Cornell Lab of Ornithology) embeddings as input. Each 5-second window
+  of the Pantanal soundscape recordings is mapped to a 1024-d embedding
+  vector via the BirdNET v2.4 backbone. The agent's only job is to
+  design a classifier head on top of those frozen embeddings. Submission
+  is a Kaggle code competition: the head is trained locally and the
+  trained weights are uploaded as a Kaggle Dataset; the inference
+  notebook computes BirdNET embeddings on test_soundscapes followed by
+  the head forward pass within Kaggle's per-run budget (~90 min CPU or
+  T4 GPU).
+embedding_skeleton_path: config/skeletons/audio_embedding_multilabel.py.j2
+embedding_input_shapes:
+  birdnet_embedding:
+    - 1024
+embedding_processed_dirs:
+  birdnet_embedding: data/processed/birdnet_emb

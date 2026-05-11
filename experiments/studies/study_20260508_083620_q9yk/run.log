@@ -1,0 +1,8 @@
+2026-05-08T08:36:20.279465+00:00 [INFO] study_start task=track_b
+2026-05-08T08:36:20.280293+00:00 [INFO] experiment_start index=0 id=exp_0000
+2026-05-08T08:43:18.444571+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-08T08:48:42.627576+00:00 [INFO] validate attempt=1 ok=True error_type=None
+2026-05-08T08:48:42.628692+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '128', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '1', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260508_083620_q9yk/exp_0000/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '1e-05'}
+2026-05-08T09:07:11.559678+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1108.9074907080503
+2026-05-08T09:10:07.286590+00:00 [INFO] experiment_end id=exp_0000 succeeded=True score=0.9470978798133964
+2026-05-08T09:11:27.677786+00:00 [INFO] study_end status=COMPLETED

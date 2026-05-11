@@ -1,0 +1,29 @@
+name: track_b_perch
+kind: audio_embedding_multilabel
+adapter: lab.tasks.track_b_birdclef:BirdclefAdapter
+primary_metric: roc_auc_macro
+skeleton_path: config/skeletons/audio_embedding_multilabel.py.j2
+raw_data_dir: data/raw/birdclef-2026
+processed_data_dir: data/processed/perch_emb
+expected_num_classes: 234
+input_tensor_shape:
+  - 1280
+valid_architecture_families:
+  - perch_embedding
+task_description: >-
+  Multi-label bird species classification using precomputed Perch (Google
+  bird-vocalization-classifier) embeddings as input. Each 5-second window
+  of the Pantanal soundscape recordings is mapped to a 1280-d embedding
+  vector via the Perch backbone. The agent's only job is to design a
+  classifier head on top of those frozen embeddings. Submission is a
+  Kaggle code competition: the head is trained locally, the trained
+  weights and the cached embeddings are uploaded as a Kaggle Dataset, and
+  the inference notebook computes Perch embeddings on test_soundscapes
+  followed by the head forward pass within Kaggle's per-run budget
+  (~90 min CPU or T4 GPU).
+embedding_skeleton_path: config/skeletons/audio_embedding_multilabel.py.j2
+embedding_input_shapes:
+  perch_embedding:
+    - 1280
+embedding_processed_dirs:
+  perch_embedding: data/processed/perch_emb

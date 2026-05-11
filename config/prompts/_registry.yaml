@@ -1,6 +1,6 @@
-analyze_result: v1
-generate_code: v1
-judge_experiment: v1
-judge_study: v1
+analyze_result: v2
+generate_code: v2
+judge_experiment: v2
+judge_study: v2
 propose_architecture: v1
-recover_from_error: v1
+recover_from_error: v2
