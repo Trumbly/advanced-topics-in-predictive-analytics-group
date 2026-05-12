@@ -16,7 +16,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from lab.config import Settings
-from lab.core.models import Study, ValidationResult
+from lab.core.models import Experiment, Study, ValidationResult
 from lab.core.validator import Validator
 from lab.tasks import get_task_adapter
 from lab.tasks.skeleton import (
@@ -35,36 +35,101 @@ class SubmissionValidationError(Exception):
 _TEMPLATE_DIR = Path(__file__).parent
 
 
-def build_submission_for_study(study: Study, settings: Settings) -> Path:
-    """Build the Kaggle notebook for the study's best experiment."""
-    if not study.best_experiment_id:
-        raise SubmissionValidationError(
-            "study has no best_experiment_id; nothing to submit",
-            remediation=[
-                "Run at least one successful experiment before building a submission."
-            ],
-        )
+def _resolve_target_experiment(
+    study: Study, experiment_id: str | None
+) -> Experiment:
+    """Pick which experiment the submission step should bundle.
 
-    best = next(
-        (e for e in study.experiments if e.id == study.best_experiment_id),
-        None,
-    )
-    if best is None or best.code is None:
+    - ``experiment_id is None`` (default) keeps the historical behaviour:
+      use ``study.best_experiment_id``.
+    - When the caller passes an explicit id, the experiment must exist
+      in the study AND have successfully produced a ``primary_score``.
+      This lets the user submit a non-best experiment that they have
+      reason to prefer (different family, manual review), while
+      protecting against accidentally bundling a failed run.
+    """
+    if experiment_id is None:
+        if not study.best_experiment_id:
+            raise SubmissionValidationError(
+                "study has no best_experiment_id; nothing to submit",
+                remediation=[
+                    "Run at least one successful experiment before "
+                    "building a submission, or pass an explicit "
+                    "experiment id."
+                ],
+            )
+        target_id = study.best_experiment_id
+    else:
+        target_id = experiment_id
+
+    target = next((e for e in study.experiments if e.id == target_id), None)
+    if target is None:
         raise SubmissionValidationError(
-            "best experiment is missing code on disk",
+            f"experiment {target_id!r} not found in study {study.id}",
             remediation=[
-                "Re-run the study or ensure best_experiment_id points at a stored experiment."
+                "Pass an experiment_id that exists in this study, or "
+                "leave it blank to default to the best experiment."
             ],
         )
+    if target.code is None:
+        raise SubmissionValidationError(
+            f"experiment {target_id!r} is missing code on disk",
+            remediation=[
+                "Re-run the experiment so ``experiment.code`` is "
+                "repopulated, or pick another experiment id."
+            ],
+        )
+    if experiment_id is not None and target.primary_score is None:
+        raise SubmissionValidationError(
+            f"experiment {target_id!r} did not complete successfully "
+            "(no primary_score recorded); only successful experiments "
+            "may be submitted individually",
+            remediation=[
+                "Pick an experiment that finished with a score, or "
+                "leave the experiment id blank to use the study's best."
+            ],
+        )
+    return target
+
+
+def _submission_out_dir(
+    study: Study, experiment_id: str | None, settings: Settings
+) -> Path:
+    """Where the submission artifacts land.
+
+    Best-of-study submissions keep writing to the study root (legacy
+    layout); per-experiment submissions land in
+    ``<study_id>/experiments/<exp_id>/`` so they do not clobber the
+    canonical best-experiment files."""
+    root = Path(settings.paths.experiments_dir) / study.id
+    if experiment_id is None or experiment_id == study.best_experiment_id:
+        return root
+    return root / "experiments" / experiment_id
+
+
+def build_submission_for_study(
+    study: Study,
+    settings: Settings,
+    *,
+    experiment_id: str | None = None,
+) -> Path:
+    """Build the Kaggle notebook for a study experiment.
+
+    Default: the study's best experiment (matches the historical
+    behaviour). Pass ``experiment_id`` to bundle a specific successful
+    experiment instead — useful when a non-best run is preferred for
+    submission (different family, manual review).
+    """
+    target = _resolve_target_experiment(study, experiment_id)
 
     adapter = get_task_adapter(settings)
-    _validate_for_submission(best.code, adapter, settings)
+    _validate_for_submission(target.code, adapter, settings)
 
-    out_dir = Path(settings.paths.experiments_dir) / study.id
+    out_dir = _submission_out_dir(study, experiment_id, settings)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     rendered_skeleton = render_skeleton(settings)
-    build_block = _extract_build_block(best.code)
+    build_block = _extract_build_block(target.code)
     prologue = _extract_skeleton_prologue(rendered_skeleton)
     helpers = _extract_post_build_helpers(rendered_skeleton)
 
@@ -74,7 +139,7 @@ def build_submission_for_study(study: Study, settings: Settings) -> Path:
     )
     template = env.get_template("notebook_template.ipynb.j2")
     notebook = template.render(
-        env_cell=_env_cell(settings, study),
+        env_cell=_env_cell(settings, study, experiment=target),
         prologue_cell=prologue,
         build_model_cell=build_block,
         inference_cell=helpers + _model_init_cell(),
@@ -129,15 +194,24 @@ def _validate_for_submission(code: str, adapter, settings: Settings) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _env_cell(settings: Settings, study: Study) -> str:
+def _env_cell(
+    settings: Settings,
+    study: Study,
+    *,
+    experiment: Experiment | None = None,
+) -> str:
     """Notebook environment cell: GPU when available, larger batch for
     inference (no gradients), and an `AGENT_WEIGHTS_PATH` knob the user
     can point at the Kaggle Dataset where they uploaded the trained
     checkpoint -- see header comments below."""
     offline = settings.paths.offline_weights
+    if experiment is not None and experiment.id != study.best_experiment_id:
+        header_label = f"Experiment (manual selection): {experiment.id}"
+    else:
+        header_label = f"Best experiment: {study.best_experiment_id}"
     lines = [
         f"# Submission notebook for study {study.id}",
-        f"# Best experiment: {study.best_experiment_id}",
+        f"# {header_label}",
         "#",
         "# WORKFLOW (BirdCLEF+ 2026 is a code competition — INFERENCE-ONLY):",
         "#  1. Train the model locally (no time limit).",
@@ -394,42 +468,40 @@ def _model_init_cell() -> str:
 # ---------------------------------------------------------------------------
 
 
-def copy_weights_for_study(study: Study, settings: Settings) -> Path:
-    """Copy the best experiment's checkpoint into the study folder as
+def copy_weights_for_study(
+    study: Study,
+    settings: Settings,
+    *,
+    experiment_id: str | None = None,
+) -> Path:
+    """Copy the chosen experiment's checkpoint into a study/exp folder as
     ``weights.pt`` so the UI can serve it as a one-click download.
 
-    The original lives under ``sandbox/<study_id>/<exp_id>/checkpoint.pt``
-    which is private to the run; the copy under
-    ``experiments/studies/<study_id>/weights.pt`` is the canonical
-    "this is what you upload to Kaggle as a Dataset" artifact.
+    Defaults to the study's best experiment; pass ``experiment_id`` to
+    copy a specific successful experiment's weights instead. Best-of
+    weights land in ``experiments/studies/<study_id>/weights.pt``,
+    per-experiment weights land in
+    ``experiments/studies/<study_id>/experiments/<exp_id>/weights.pt``.
     """
-    if not study.best_experiment_id:
+    target = _resolve_target_experiment(study, experiment_id)
+    if not target.checkpoint_path:
         raise SubmissionValidationError(
-            "study has no best_experiment_id; nothing to copy",
-            remediation=["Run at least one successful experiment first."],
-        )
-    best = next(
-        (e for e in study.experiments if e.id == study.best_experiment_id),
-        None,
-    )
-    if best is None or not best.checkpoint_path:
-        raise SubmissionValidationError(
-            "best experiment has no checkpoint_path on record",
+            f"experiment {target.id!r} has no checkpoint_path on record",
             remediation=[
                 "Re-run the experiment so the skeleton writes "
                 "AGENT_CHECKPOINT_OUT.",
             ],
         )
-    src = Path(best.checkpoint_path)
+    src = Path(target.checkpoint_path)
     if not src.exists():
         raise SubmissionValidationError(
             f"checkpoint file is recorded but missing on disk: {src}",
             remediation=[
                 "Sandboxes are not preserved across reboots — re-run the "
-                "best experiment to regenerate the .pt file.",
+                f"experiment {target.id!r} to regenerate the .pt file.",
             ],
         )
-    out_dir = Path(settings.paths.experiments_dir) / study.id
+    out_dir = _submission_out_dir(study, experiment_id, settings)
     out_dir.mkdir(parents=True, exist_ok=True)
     dest = out_dir / "weights.pt"
     import shutil
@@ -438,39 +510,33 @@ def copy_weights_for_study(study: Study, settings: Settings) -> Path:
     return dest
 
 
-def build_local_csv_for_study(study: Study, settings: Settings) -> Path:
-    """Run the best experiment's model locally and write submission.csv.
+def build_local_csv_for_study(
+    study: Study,
+    settings: Settings,
+    *,
+    experiment_id: str | None = None,
+) -> Path:
+    """Run the chosen experiment's model locally and write submission.csv.
 
     Reads ``data/raw/test_soundscapes/*.ogg``, slices each into 5 s windows,
     mel-specs each window with the same params as training, runs the model,
-    and writes a wide-format ``submission.csv`` next to the notebook.
+    and writes a wide-format ``submission.csv`` alongside the notebook.
 
-    Returns the path to the written CSV. Raises ``SubmissionValidationError``
-    when prerequisites (best experiment, checkpoint, raw test dir) are
-    missing -- callers can show those errors to the user without crashing
-    the request.
+    Defaults to the study's best experiment. Pass ``experiment_id`` to
+    run inference with a specific successful experiment instead. Returns
+    the path to the written CSV. Raises ``SubmissionValidationError``
+    when prerequisites (experiment, checkpoint, raw test dir) are
+    missing — callers can show those errors to the user without
+    crashing the request.
 
     The function is import-safe: torch / librosa are loaded lazily inside
     the body so test environments without them can still import the
     builder module.
     """
-    if not study.best_experiment_id:
+    target = _resolve_target_experiment(study, experiment_id)
+    if not target.checkpoint_path or not Path(target.checkpoint_path).exists():
         raise SubmissionValidationError(
-            "study has no best_experiment_id; nothing to submit",
-            remediation=["Run at least one successful experiment first."],
-        )
-    best = next(
-        (e for e in study.experiments if e.id == study.best_experiment_id),
-        None,
-    )
-    if best is None or best.code is None:
-        raise SubmissionValidationError(
-            "best experiment is missing code on disk",
-            remediation=["Re-run the study to repopulate experiment.code."],
-        )
-    if not best.checkpoint_path or not Path(best.checkpoint_path).exists():
-        raise SubmissionValidationError(
-            "best experiment has no usable checkpoint on disk",
+            f"experiment {target.id!r} has no usable checkpoint on disk",
             remediation=[
                 "Make sure training wrote AGENT_CHECKPOINT_OUT and the file "
                 "still exists.",
@@ -510,17 +576,16 @@ def build_local_csv_for_study(study: Study, settings: Settings) -> Path:
             ],
         )
 
-    out_dir = Path(settings.paths.experiments_dir) / study.id
+    out_dir = _submission_out_dir(study, experiment_id, settings)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Load the LLM-built model from the experiment's stored code (the
     # full skeleton with the LLM block already spliced in). We import it
     # as an isolated module so its train-time main() does not run.
     model_path = out_dir / "submission_model.py"
-    model_path.write_text(best.code, encoding="utf-8")
-    spec = importlib.util.spec_from_file_location(
-        f"_submission_{study.id}", model_path
-    )
+    model_path.write_text(target.code, encoding="utf-8")
+    module_name = f"_submission_{study.id}_{target.id}"
+    spec = importlib.util.spec_from_file_location(module_name, model_path)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     assert spec.loader is not None
@@ -532,7 +597,7 @@ def build_local_csv_for_study(study: Study, settings: Settings) -> Path:
         model = module._ensure_channel_compat(
             model, settings.task.input_tensor_shape[0]
         )
-    state = torch.load(best.checkpoint_path, map_location="cpu", weights_only=False)
+    state = torch.load(target.checkpoint_path, map_location="cpu", weights_only=False)
     if isinstance(state, dict) and "state_dict" in state:
         state = state["state_dict"]
     model.load_state_dict(state)

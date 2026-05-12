@@ -149,6 +149,17 @@
     <div style="margin-top:8px">{{ curve | safe }}</div>
     {% endif %}
 
+    {% if e.primary_score is not none %}
+    <form method="post" action="/studies/{{ study.id }}/experiments/{{ e.id }}/submission" style="margin:8px 0 4px 0">
+      <button type="submit" style="background:#1d3a6b;color:#e8f0ff;border:1px solid #3a6cd6;border-radius:6px;padding:4px 10px;font-size:0.85em;cursor:pointer">
+        Build submission for this experiment
+      </button>
+      <span style="opacity:0.7;font-size:0.78em;margin-left:6px">
+        ipynb + csv + weights for {{ e.id }}{% if e.id == study.best_experiment_id %} (current best){% endif %}
+      </span>
+    </form>
+    {% endif %}
+
     {% set r = rates.get(e.id) if rates else None %}
     {% if r and (r.validate_attempts or r.execute_attempts) %}
     <div style="margin-top:8px;font-size:0.83em;display:flex;gap:18px;flex-wrap:wrap;opacity:0.92">

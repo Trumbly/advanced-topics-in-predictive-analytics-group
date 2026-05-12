@@ -338,6 +338,98 @@ def create_app(settings: Settings) -> FastAPI:
 
         return FileResponse(path, media_type="text/csv", filename="submission.csv")
 
+    @app.post(
+        "/studies/{study_id}/experiments/{exp_id}/submission",
+        response_class=HTMLResponse,
+    )
+    def build_experiment_submission(request: Request, study_id: str, exp_id: str):
+        """Build the Kaggle artifacts (ipynb + csv + weights) for ONE
+        successful experiment instead of the study's best one. Outputs
+        land under ``experiments/studies/<study_id>/experiments/<exp_id>/``
+        so they don't clobber the study-level best submission."""
+        from lab.submission.builder import (
+            SubmissionValidationError,
+            build_local_csv_for_study,
+            build_submission_for_study,
+            copy_weights_for_study,
+        )
+
+        try:
+            study = Study.load(studies_root, study_id)
+        except StudyNotFoundError:
+            raise HTTPException(status_code=404, detail="study not found")
+
+        errors: list[str] = []
+        notebook_path: Path | None = None
+        csv_path: Path | None = None
+        weights_path: Path | None = None
+        try:
+            notebook_path = build_submission_for_study(
+                study, settings, experiment_id=exp_id
+            )
+        except SubmissionValidationError as exc:
+            errors.append(f"notebook: {exc}")
+        try:
+            weights_path = copy_weights_for_study(
+                study, settings, experiment_id=exp_id
+            )
+        except SubmissionValidationError as exc:
+            errors.append(f"weights: {exc}")
+        try:
+            csv_path = build_local_csv_for_study(
+                study, settings, experiment_id=exp_id
+            )
+        except SubmissionValidationError as exc:
+            errors.append(f"csv: {exc}")
+
+        return templates.TemplateResponse(
+            request,
+            "submission.html",
+            {
+                "study": study,
+                "experiment_id": exp_id,
+                "notebook_path": notebook_path,
+                "csv_path": csv_path,
+                "weights_path": weights_path,
+                "errors": errors,
+            },
+        )
+
+    @app.get("/studies/{study_id}/experiments/{exp_id}/submission.ipynb")
+    def download_experiment_submission_notebook(study_id: str, exp_id: str):
+        path = studies_root / study_id / "experiments" / exp_id / "submission.ipynb"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="notebook not built yet")
+        from fastapi.responses import FileResponse
+
+        return FileResponse(
+            path,
+            media_type="application/x-ipynb+json",
+            filename=f"submission_{exp_id}.ipynb",
+        )
+
+    @app.get("/studies/{study_id}/experiments/{exp_id}/submission.csv")
+    def download_experiment_submission_csv(study_id: str, exp_id: str):
+        path = studies_root / study_id / "experiments" / exp_id / "submission.csv"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="csv not built yet")
+        from fastapi.responses import FileResponse
+
+        return FileResponse(
+            path, media_type="text/csv", filename=f"submission_{exp_id}.csv"
+        )
+
+    @app.get("/studies/{study_id}/experiments/{exp_id}/weights.pt")
+    def download_experiment_weights(study_id: str, exp_id: str):
+        path = studies_root / study_id / "experiments" / exp_id / "weights.pt"
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="weights not built yet")
+        from fastapi.responses import FileResponse
+
+        return FileResponse(
+            path, media_type="application/octet-stream", filename=f"weights_{exp_id}.pt"
+        )
+
     @app.post("/studies/{study_id}/stop")
     def stop_study(study_id: str):
         """Flip the abort flag on the in-flight runner.

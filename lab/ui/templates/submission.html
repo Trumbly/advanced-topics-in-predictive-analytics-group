@@ -1,8 +1,21 @@
 {% extends "base.html" %}
 {% block title %}submission · {{ study.id }}{% endblock %}
 {% block content %}
+{%- set is_per_exp = experiment_id is defined and experiment_id and experiment_id != study.best_experiment_id -%}
+{%- set base_url = "/studies/" ~ study.id ~ ("/experiments/" ~ experiment_id if is_per_exp else "") -%}
 <p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
-<h1>Submission for {{ study.id }}</h1>
+<h1>Submission for {{ study.id }}
+  {% if is_per_exp %}<small style="opacity:0.7">· experiment {{ experiment_id }}</small>{% endif %}
+</h1>
+
+{% if is_per_exp %}
+<p style="opacity:0.85">
+  Per-experiment build — bundles <b>{{ experiment_id }}</b> instead of the
+  study's current best ({{ study.best_experiment_id }}). Artifacts live
+  under <code>experiments/studies/{{ study.id }}/experiments/{{ experiment_id }}/</code>
+  so the study-level best submission is untouched.
+</p>
+{% endif %}
 
 {% if notebook_path or csv_path or weights_path %}
 <div style="margin:14px 0;padding:10px 14px;border:1px solid #1f6f3a;background:#102018;border-radius:6px">
@@ -10,7 +23,7 @@
   <ul style="margin:8px 0 0 0">
     {% if notebook_path %}
     <li>
-      <a href="/studies/{{ study.id }}/submission.ipynb" style="font-weight:600">
+      <a href="{{ base_url }}/submission.ipynb" style="font-weight:600">
         Download submission.ipynb
       </a>
       <span style="opacity:0.7;font-size:0.85em">— Kaggle-runnable notebook ({{ notebook_path.name }})</span>
@@ -18,7 +31,7 @@
     {% endif %}
     {% if weights_path %}
     <li>
-      <a href="/studies/{{ study.id }}/weights.pt" style="font-weight:600">
+      <a href="{{ base_url }}/weights.pt" style="font-weight:600">
         Download weights.pt
       </a>
       <span style="opacity:0.7;font-size:0.85em">— trained checkpoint ({{ weights_path.name }})</span>
@@ -26,7 +39,7 @@
     {% endif %}
     {% if csv_path %}
     <li>
-      <a href="/studies/{{ study.id }}/submission.csv" style="font-weight:600">
+      <a href="{{ base_url }}/submission.csv" style="font-weight:600">
         Download submission.csv
       </a>
       <span style="opacity:0.7;font-size:0.85em">— locally-inferred predictions over data/raw/test_soundscapes/</span>
