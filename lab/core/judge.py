@@ -13,7 +13,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from lab.core.llm import LLMClient
-from lab.core.memory import Memory, summarize_curve
+from lab.core.memory import Memory, summarize_curve, terminal_error
 from lab.core.models import Experiment, Study, Verdict
 from lab.prompts.engine import PromptEngine
 
@@ -80,11 +80,16 @@ class Judge:
         family = exp.proposal.family if exp.proposal else "unknown"
         score = "n/a" if exp.primary_score is None else f"{exp.primary_score:.4f}"
         curve = summarize_curve(exp.history, exp.primary_metric)
-        err = "(none)"
-        for task in exp.tasks:
-            if task.error is not None:
-                err = f"{task.error.error_type}: {task.error.message[:300]}"
-                break
+        # Use the experiment's *terminal* error rather than the first
+        # one in ``tasks``. A run can fail validate, get recovered by
+        # autofix or by an LLM patch, and then go on to train + score.
+        # Surfacing the recovered codegen error to the judge here used
+        # to trigger the "errored OR score==n/a" branch in the v2
+        # judge prompt and cause a perfectly fine run to be discarded.
+        term = terminal_error(exp)
+        err = (
+            f"{term.error_type}: {term.message[:300]}" if term is not None else "(none)"
+        )
         return {
             "architecture_name": arch,
             "architecture_family": family,
@@ -151,12 +156,15 @@ def _top_table(study: Study, top_n: int = 5) -> str:
 def _failure_breakdown(study: Study) -> str:
     counts: dict[str, int] = {}
     for e in study.experiments:
-        if e.primary_score is not None:
+        # Only count experiments that actually ended in failure (no
+        # ``primary_score``). Transient errors that the recovery layer
+        # cleaned up before training started must not inflate the
+        # failure breakdown — they used to make every successful run
+        # look like a failure to the study-level judge.
+        term = terminal_error(e)
+        if term is None:
             continue
-        for task in e.tasks:
-            if task.error is not None:
-                counts[task.error.error_type] = counts.get(task.error.error_type, 0) + 1
-                break
+        counts[term.error_type] = counts.get(term.error_type, 0) + 1
     if not counts:
         return "(none)"
     return ", ".join(f"{k}: {v}" for k, v in sorted(counts.items()))

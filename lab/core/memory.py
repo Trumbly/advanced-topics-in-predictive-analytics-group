@@ -250,10 +250,37 @@ def _is_success(exp: Experiment) -> bool:
 
 
 def _first_error(exp: Experiment):
-    for task in exp.tasks:
+    """Return the most recent terminal error for ``exp`` or ``None``.
+
+    An experiment can carry ``Task`` entries with errors that were
+    subsequently recovered (autofix patched the build_model block, the
+    next validate attempt passed, training ran to completion). Those
+    transient failures must NOT be surfaced as the experiment's outcome
+    — otherwise the judge sees ``error: BadSignature: ...`` for a run
+    that actually succeeded and incorrectly marks it as discarded.
+
+    Rules:
+      - When the experiment produced a ``primary_score``, the run
+        succeeded end-to-end. Return ``None`` regardless of any
+        transient errors that were later recovered.
+      - Otherwise return the LAST task with a recorded error — that's
+        the failure that aborted the loop, not the first attempt that
+        the recovery layer cleaned up.
+
+    The legacy name is kept so callers do not have to change; the
+    semantics are now "terminal" rather than "first".
+    """
+    if exp.primary_score is not None:
+        return None
+    for task in reversed(exp.tasks):
         if task.error is not None:
             return task.error
     return None
+
+
+# Public alias for the helper above. New call sites should prefer
+# ``terminal_error`` since the name now describes the behaviour.
+terminal_error = _first_error
 
 
 def _recent_epochs(history: list[dict[str, Any]], metric: str, *, n: int = 3) -> str:
