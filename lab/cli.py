@@ -57,6 +57,15 @@ def _build_parser() -> argparse.ArgumentParser:
 
     submit = sub.add_parser("submit", help="build the Kaggle submission notebook")
     submit.add_argument("study_id")
+    submit.add_argument(
+        "--experiment-id",
+        default=None,
+        help=(
+            "build the submission for a specific successful experiment "
+            "instead of the study's best one. The experiment must exist "
+            "in the study and have a recorded primary_score."
+        ),
+    )
 
     prompts = sub.add_parser("prompts", help="prompt registry actions")
     prompts.add_argument("action", choices=["list", "activate", "new"])
@@ -274,7 +283,11 @@ def cmd_submit(args) -> int:
 
     settings = load_settings()
     study = Study.load(Path(settings.paths.experiments_dir), args.study_id)
-    nb = build_submission_for_study(study, settings)
+    nb = build_submission_for_study(
+        study,
+        settings,
+        experiment_id=getattr(args, "experiment_id", None),
+    )
     print(f"submission written: {nb}")
     return 0
 
