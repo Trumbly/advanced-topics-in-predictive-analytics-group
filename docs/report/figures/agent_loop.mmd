@@ -1,0 +1,55 @@
+%% Autonomous research agent loop (Track B, BirdCLEF+ 2026).
+%% Pink nodes are LLM calls; blue nodes are fixed code in the Jinja2 skeleton;
+%% yellow is the markdown memory; grey is the hard-failure terminator.
+flowchart TD
+    S0([Start study]) --> S1
+    S1{{"deadline OR max_experiments<br/>OR verdict = abort_study?"}}
+    S1 -- "yes" --> S3([End study])
+
+    subgraph EXP["run_experiment (one experiment)"]
+        direction TB
+        P["Propose · <i>LLM</i><br/>→ Proposal JSON"]
+        G["Generate · <i>LLM</i><br/>→ build_model block"]
+        V["Validate<br/>AST + smoke forward pass"]
+        E["Execute<br/>subprocess sandbox<br/>→ results.json"]
+        C["Capture<br/>metrics + history"]
+        J["Judge · <i>LLM</i><br/>→ Verdict {promote, keep,<br/>discard, abort_study}"]
+        P --> G --> V --> E --> C --> J
+    end
+
+    S1 -- "no" --> P
+    J -- "verdict" --> S1
+
+    SK["Jinja2 skeleton — <b>fixed</b><br/>data loaders · optimiser · training loop ·<br/>macro-ROC-AUC · results.json writer<br/>(config/skeletons/audio_multilabel.py.j2)"]
+    G -. "splices build_model into" .-> SK
+    SK -. "wraps subprocess body of" .-> E
+
+    subgraph REC["Recovery (≤ max_recovery_attempts)"]
+        direction TB
+        R1{{"deterministic<br/>autofix matches?"}}
+        R2["Apply autofix<br/>e.g. nn.Conv2x2d → nn.Conv2d"]
+        R3["LLM re-prompt<br/>recover_from_error/vN.yaml<br/>+ traceback + broken_code"]
+        R1 -- "yes" --> R2
+        R1 -- "no" --> R3
+    end
+
+    V -- "fail" --> R1
+    E -- "fail (soft)" --> R1
+    R2 -- "retry" --> V
+    R3 -- "retry" --> V
+    E -- "fail (hard)" --> R4(["Hard failure<br/>Timeout / OOM / FileNotFound<br/>→ abort experiment"])
+
+    M[("Memory<br/>top-K wins + recent failures<br/>≤ 3 kB markdown")]
+    M -- "experiment_memory slot" --> P
+    M -- "experiment_memory slot" --> R3
+    J -- "promote / keep adds win" --> M
+    R4 -- "failure" --> M
+
+    classDef llm fill:#fde2e2,stroke:#c53030,stroke-width:1.5px,color:#1a202c;
+    classDef fixed fill:#e6f0ff,stroke:#2c5282,stroke-width:1.5px,color:#1a202c;
+    classDef mem fill:#fef6c7,stroke:#b7791f,stroke-width:1.5px,color:#1a202c;
+    classDef hard fill:#eeeeee,stroke:#444,stroke-width:1.2px,color:#1a202c;
+    class P,G,J,R3 llm;
+    class V,E,C,SK fixed;
+    class M mem;
+    class R4 hard;
