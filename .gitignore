@@ -29,3 +29,4 @@ config/*.yaml.bak
 
 # Orchestrator runtime log — stays local
 experiments/agent.log
+docs/report/report.docx
