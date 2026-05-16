@@ -547,5 +547,14 @@
   },
   "created_at": "2026-05-08T10:10:37.311982Z",
   "finished_at": "2026-05-08T11:06:01.577908Z",
-  "llm_model": "ollama:qwen3-coder:30b"
+  "llm_model": "ollama:qwen3-coder:30b",
+  "kaggle_scores": [
+    {
+      "score": 0.766,
+      "leaderboard": "private",
+      "recorded_at": "2026-05-11T10:04:26.626087Z",
+      "experiment_id": "exp_0002",
+      "notes": null
+    }
+  ]
 }
