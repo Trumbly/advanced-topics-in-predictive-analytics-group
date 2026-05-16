@@ -10,7 +10,9 @@ date: "May 2026"
 
 # Abstract
 
-<!-- 4 lines: what we built, Track B, headline Kaggle public-LB result, key insight. Filled in Task 7. -->
+We built an autonomous research agent that designs, generates, executes, and judges its own deep-learning experiments for the BirdCLEF+ 2026 Kaggle competition (Track B, 234-class multi-label bird species recognition from mel-spectrograms). A locally-hosted Gemma-4 LLM proposes architectures, writes a `build_model` block inside a fixed Jinja2 training skeleton, and a separate judge call decides whether each experiment improves on memory. Over 20 studies and 61 experiments, the agent reached Kaggle public-LB ROC-AUC **0.827** and private-LB **0.817** (best of 4 manual submissions); internal validation reaches 0.998 but we document a 17-point val/leaderboard gap consistent with recorder leakage in the val split. The key design choice is to constrain LLM codegen to a single `build_model` block: this bounds the failure surface and makes experiments comparable, at the cost of the agent never proposing novel training tricks.
+
+**Video presentation (D3):** *TODO — to be replaced with the unlisted YouTube URL before submission. Source: `videos/demo.mp4` in the repository.*
 
 # 1. Agent architecture
 
@@ -108,4 +110,10 @@ The dominant limitation is the gap between our internal validation score and the
 
 # References
 
-<!-- Filled in Task 7. -->
+1. Chollet, F. *Deep Learning with Python*, 2nd ed. Manning, 2021. (Course reference book.)
+2. Kaplan, J. et al. Scaling Laws for Neural Language Models. *arXiv:2001.08361*, 2020.
+3. Hoffmann, J. et al. Training Compute-Optimal Large Language Models. *arXiv:2203.15556*, 2022.
+4. Park, D. S. et al. SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition. *arXiv:1904.08779*, 2019.
+5. Tan, M. and Le, Q. EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks. *arXiv:1905.11946*, 2019.
+6. BirdCLEF+ 2026 Kaggle competition. https://www.kaggle.com/competitions/birdclef-2026. Retrieved 2026-05-15.
+7. Ollama — local LLM runtime. https://ollama.com. Retrieved 2026-05-15.
