@@ -1,0 +1,48 @@
+
+## Trumbly
+    674  docs/PRODUCTION_REVIEW.md
+    668  docs/superpowers/plans/2026-05-15-project-report.md
+    494  lab/ui/learning_curves.py
+    442  docs/ARCHITECTURE.md
+    390  lab/cli.py
+    369  lab/core/experiment.py
+    334  tests/test_learning_curves.py
+    333  lab/ui/templates/_chart_js.html
+    310  lab/tasks/embedding_preprocess.py
+    310  config/skeletons/audio_embedding_multilabel.py.j2
+
+## danish-m-qureshi
+    523  lab/ui/app.py
+    475  lab/submission/builder.py
+    282  lab/core/validator.py
+    270  tests/test_per_experiment_submission.py
+    195  tests/test_dashboard.py
+    181  tests/test_judge.py
+    173  tests/test_validator.py
+    172  tests/test_submission.py
+    161  tests/test_llm_catalog.py
+    157  tests/test_ui.py
+
+## Lorry171717
+    270  lab/tasks/audio_mels.py
+    242  tests/test_codegen_rates.py
+    220  lab/tasks/soundscape_preprocess.py
+    220  lab/core/executor.py
+    217  lab/core/models.py
+    202  tests/test_soundscape_preprocess.py
+    198  lab/ui/templates/study.html
+    197  tests/test_audio_mels.py
+    174  tests/test_models.py
+    165  lab/core/telemetry.py
+
+## SebastianMis23
+    259  config/skeletons/audio_multilabel.py.j2
+    235  lab/core/llm.py
+    224  lab/tasks/real_preprocess.py
+    217  tests/test_llm_client.py
+    198  tests/test_judge_recovery_bug.py
+    170  tests/test_continue_training.py
+    166  tests/test_recovery.py
+    162  tests/test_memory_richness.py
+    157  tests/test_skeleton.py
+    145  lab/prompts/registry.py

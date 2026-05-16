@@ -94,9 +94,17 @@ The dominant limitation is the gap between our internal validation score and the
 
 **GPU executor adapter.** Behind the existing `LocalExecutor` interface, add a Kaggle Notebook API or Modal-backed adapter so the agent can dispatch heavier experiments without changing the lifecycle code. The current 30-minute per-experiment cap on CPU is the binding constraint on architectural depth — a GPU adapter would unlock longer schedules, larger backbones, and richer augmentation pipelines without touching `StudyRunner.run`.
 
-# 6. Individual contributions
+# 6. DRAFT: Individual contributions
 
-<!-- 0.5 pages. Filled in Task 6. -->
+> **DRAFT — pending team sign-off.** Sourced from `scripts/contributions_from_blame.py` + `docs/TEAM_PLAN.md`. Each teammate should confirm or rewrite their own paragraph before final submission.
+
+**Trumbly** — owned the outer experiment loop and CLI (`lab/core/experiment.py`, `lab/cli.py`; issues I-06, I-17) and the reporting/learning-curve dashboard (`lab/ui/learning_curves.py`, `tests/test_learning_curves.py`; I-13). Also wrote the audio-embedding preprocess and skeleton (`lab/tasks/embedding_preprocess.py`, `config/skeletons/audio_embedding_multilabel.py.j2`) and authored `docs/ARCHITECTURE.md` and the project-report plan.
+
+**danish-m-qureshi** — owned the FastAPI UI (`lab/ui/app.py`; I-16), the submission builder (`lab/submission/builder.py`; I-14), the validator (`lab/core/validator.py`; I-07), and the judge role (I-19). Also contributed the per-experiment submission, dashboard, judge, submission, validator, LLM-catalog, and UI test suites.
+
+**Lorry171717** — owned the audio-mels task adapter (`lab/tasks/audio_mels.py`, `tests/test_audio_mels.py`; I-10), the soundscape preprocess (`lab/tasks/soundscape_preprocess.py`, `tests/test_soundscape_preprocess.py`), the local executor (`lab/core/executor.py`; I-08), and the core data models (`lab/core/models.py`; I-02). Also wrote the telemetry layer (`lab/core/telemetry.py`; I-21) and the study HTML template.
+
+**SebastianMis23** — owned the training skeleton (`config/skeletons/audio_multilabel.py.j2`, `tests/test_skeleton.py`; I-11), the LLM client (`lab/core/llm.py`, `tests/test_llm_client.py`; I-03), the prompt registry (`lab/prompts/registry.py`; I-04), and recovery (`tests/test_recovery.py`, `tests/test_judge_recovery_bug.py`; I-09). Also contributed the real-data preprocess and continue-training/memory-richness tests.
 
 # References
 
