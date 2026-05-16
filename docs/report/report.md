@@ -75,7 +75,24 @@ The agent runs a single closed loop: an outer **study** iterates **experiments**
 
 # 5. Limitations and future work
 
-<!-- 1.0 pages. Filled in Task 5. -->
+The dominant limitation is the gap between our internal validation score and the Kaggle public leaderboard: best val macro-ROC-AUC **0.998** vs best public-LB **0.827**, a 17-point spread that §2 and §3 already diagnose as a mixture of recorder-/location-sharing between train and val and a soundscape-vs-clip distribution shift on the hidden test. The downstream consequence is what matters here. Every "what worked" conclusion the agent drew during iteration was conditioned on the optimistic val signal, which places the team mid-pack on BirdCLEF+ rather than near the top and reduces our confidence in the *ranking* of architectures the agent learned to prefer.
+
+1. **Val/leaderboard gap** — internal val 0.998 is ~17 points above public-LB 0.827. Drives every other selection bias listed below.
+2. **CPU-only execution** — `lab/core/executor.py` runs experiments locally; no Kaggle/Modal/GPU dispatch (ADR-010). Limits both per-experiment depth and total experiments per study.
+3. **No Kaggle auto-submit** — submission notebooks are built (`lab/submission/builder.py`) but uploaded by hand; only 4 of 61 experiments reached the leaderboard.
+4. **Weak leaderboard signal during iteration** — because of (3), the agent's "what to try next" decisions are driven by val, not test.
+5. **No automated EDA generation** — the EDA summary fed into prompts is precomputed once per task; the agent never re-runs EDA against new findings.
+6. **Only Track B implemented** — no Track A adapter exists. The task-adapter ABC supports it, but no team member built one.
+7. **Cross-study memory barely tested** — `agent.memory_enabled` is opt-in (ADR-007), used in only one study (`study_20260508_091552_zy0j`); no ablation evidence either way.
+8. **Recovery had known historic false-negatives** — the judge previously treated recovered codegen failures as terminal study errors. Fixed in `65e6f6f`, but earlier studies pre-dating this fix are biased toward early aborts.
+9. **No class-rebalancing strategy** — 28 species are absent from `train.csv` and present only in 739 soundscape windows, so rare classes train poorly.
+10. **Compute budget is per-experiment, not per-study** — the agent cannot reallocate compute from a cheap successful experiment to an expensive promising one.
+
+**Recorder-aware val split.** Highest priority. We would group-K-fold by `recorder_id` (or audio file id) so the val score is no longer inflated by recorder leakage. The 17-point gap implies that several of the agent's "what worked" conclusions might re-order under a recorder-grouped val. Concretely: extend `lab/datasets/track_b.py` to take a `group_by` parameter and rebuild `train_index.json` / `val_index.json` with a grouped split before any further experiments are launched.
+
+**Continuous Kaggle submission.** The agent should auto-submit the best experiment of every study so the iteration loop receives real-test feedback rather than relying on val alone. Concretely: add a Kaggle CLI hook to `lab/submission/builder.py` that fires after each successful judge `promote` verdict, uploads the notebook, polls for the public-LB score, and writes it back into `experiment_memory` so the next propose call can condition on it.
+
+**GPU executor adapter.** Behind the existing `LocalExecutor` interface, add a Kaggle Notebook API or Modal-backed adapter so the agent can dispatch heavier experiments without changing the lifecycle code. The current 30-minute per-experiment cap on CPU is the binding constraint on architectural depth — a GPU adapter would unlock longer schedules, larger backbones, and richer augmentation pipelines without touching `StudyRunner.run`.
 
 # 6. Individual contributions
 
