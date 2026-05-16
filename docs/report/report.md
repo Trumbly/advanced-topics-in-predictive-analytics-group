@@ -50,7 +50,20 @@ The agent runs a single closed loop: an outer **study** iterates **experiments**
 
 # 3. Comparison with manual baselines
 
-<!-- 1.5 pages. Filled in Task 3. -->
+| Model | Author | Score (macro ROC-AUC) | Source |
+|---|---|---|---|
+| Class priors | Manual | 0.50 (val) | `scripts/baseline_priors.py` |
+| EfficientNet-B0 (best agent, internal val) | Agent | 0.998 | `study_20260507_200449_kzu4/exp_0002` |
+| EfficientNet-B0 (best agent, Kaggle public-LB) | Agent | **0.827** | `study_20260511_092457_n479/exp_0001` |
+| EfficientNet-B0 (best agent, Kaggle private-LB) | Agent | 0.817 | `study_20260510_174302_f6j2/exp_0002` |
+
+**The baseline.** Our manual reference is a class-priors predictor: for every window it emits the train-set frequency of each of the 234 classes as its score, independent of the input. `scripts/baseline_priors.py` reads the same `train_index.json` / `val_index.json` splits the agent saw and reports a single macro ROC-AUC. The score is **0.50** by construction — a constant per-class score has no per-sample variation, so every positive/negative pair ties and per-class AUC collapses to chance. We picked this baseline because the deadline ruled out a second, hand-tuned model: a trivial lower-bound anchor satisfies the rubric, but it does not benchmark the agent's *iteration loop* against a competent human pipeline. We flag the limitation here and revisit it in §5.
+
+**Gap to the agent's best.** The agent's best public-LB submission, **0.827** (`study_20260511_092457_n479/exp_0001`), beats the priors baseline by roughly 33 percentage points of macro ROC-AUC. Practically all of that lift comes from two ingredients the priors baseline cannot exploit: ImageNet-pretrained EfficientNet-B0 features applied to mel-spectrogram inputs, and the breadth of the hyperparameter and freezing search the agent ran across 61 experiments before that submission was produced. The 0.998 internal-val number clears the priors baseline by an even larger 50-point margin, but §2 already argues that val overstates leaderboard performance, so the LB number is the comparison that matters.
+
+**Internal val versus leaderboard.** The agent's best model scores **0.998 on internal val but 0.827 on the public-LB** — a 17-point gap that §2 attributes to recorder-sharing in val plus the soundscape-vs-clip shift on the hidden test set. The priors baseline is unaffected: a constant predictor scores exactly 0.50 on any distribution with at least one positive and one negative per class, so it reads 0.50 on val and 0.50 on the Kaggle test split alike. That symmetry is convenient — the manual reference is not itself inflated by the val/test mismatch — but it also means the baseline cannot speak to how well the agent generalises across the shift. For external comparisons we lead with the public-LB 0.827; the 0.998 val score is reported only to document how badly val misleads the iteration loop.
+
+**What this comparison establishes.** Beating a constant predictor by 33 points on the public leaderboard confirms the agent is producing real signal rather than memorising class marginals or overfitting val. What it does not establish is that the agent's loop — propose, generate, judge, iterate — is more efficient than a competent practitioner working without LLM assistance. A logistic regression on mel-frame means, or a small hand-tuned CNN written by a human in an afternoon, would be a more informative benchmark: both would exploit features or priors comparable to the agent's and so would isolate the loop's contribution. We did not build either inside the project window; that is the central limitation of §3 and we return to it in §5.
 
 # 4. Reflections on course content
 
