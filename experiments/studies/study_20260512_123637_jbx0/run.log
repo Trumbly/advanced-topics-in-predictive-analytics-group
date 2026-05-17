@@ -1,0 +1,41 @@
+2026-05-12T12:36:37.078514+00:00 [INFO] study_start task=track_b
+2026-05-12T12:36:37.079466+00:00 [INFO] experiment_start index=0 id=exp_0000
+2026-05-12T12:39:18.659877+00:00 [INFO] validate attempt=0 ok=False error_type=BadSignature
+2026-05-12T12:40:50.947768+00:00 [INFO] validate attempt=1 ok=False error_type=BadSignature
+2026-05-12T12:42:20.925295+00:00 [INFO] validate attempt=2 ok=False error_type=BadSignature
+2026-05-12T12:43:37.415335+00:00 [INFO] validate attempt=3 ok=False error_type=BadSignature
+2026-05-12T12:45:10.713119+00:00 [INFO] validate attempt=4 ok=False error_type=BadSignature
+2026-05-12T12:46:44.086931+00:00 [INFO] validate attempt=5 ok=False error_type=BadSignature
+2026-05-12T12:46:44.088474+00:00 [ERROR] experiment_end id=exp_0000 succeeded=False
+2026-05-12T12:46:44.088999+00:00 [INFO] experiment_start index=1 id=exp_0001
+2026-05-12T12:48:34.832557+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T12:49:24.651742+00:00 [INFO] validate attempt=1 ok=False error_type=SmokeFailed
+2026-05-12T12:51:05.144757+00:00 [INFO] validate attempt=2 ok=False error_type=SmokeFailed
+2026-05-12T12:51:56.535168+00:00 [INFO] validate attempt=3 ok=True error_type=None
+2026-05-12T12:51:56.536218+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '3', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_123637_jbx0/exp_0001/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '0.0001'}
+2026-05-12T13:17:18.409475+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1521.9066534170415
+2026-05-12T13:18:06.030912+00:00 [INFO] experiment_end id=exp_0001 succeeded=True score=0.981004982593492
+2026-05-12T13:18:06.033737+00:00 [INFO] experiment_start index=2 id=exp_0002
+2026-05-12T13:20:31.976637+00:00 [INFO] validate attempt=0 ok=False error_type=BadSignature
+2026-05-12T13:22:17.492742+00:00 [INFO] validate attempt=1 ok=False error_type=BadSignature
+2026-05-12T13:23:33.129226+00:00 [INFO] validate attempt=2 ok=False error_type=BadSignature
+2026-05-12T13:24:54.591127+00:00 [INFO] validate attempt=3 ok=False error_type=BadSignature
+2026-05-12T13:25:52.367462+00:00 [INFO] validate attempt=4 ok=False error_type=BadSignature
+2026-05-12T13:27:11.582042+00:00 [INFO] validate attempt=5 ok=False error_type=BadSignature
+2026-05-12T13:27:11.584657+00:00 [ERROR] experiment_end id=exp_0002 succeeded=False
+2026-05-12T13:27:11.586024+00:00 [INFO] experiment_start index=3 id=exp_0003
+2026-05-12T13:29:25.119439+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T13:30:58.548905+00:00 [INFO] validate attempt=1 ok=False error_type=SmokeFailed
+2026-05-12T13:32:11.270123+00:00 [INFO] validate attempt=2 ok=True error_type=None
+2026-05-12T13:32:11.272472+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_123637_jbx0/exp_0003/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '0.0001'}
+2026-05-12T13:58:51.895641+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1600.648260749993
+2026-05-12T13:59:35.127450+00:00 [INFO] experiment_end id=exp_0003 succeeded=True score=0.9933099214954975
+2026-05-12T13:59:35.131797+00:00 [INFO] experiment_start index=4 id=exp_0004
+2026-05-12T14:02:06.338323+00:00 [INFO] validate attempt=0 ok=False error_type=BadSignature
+2026-05-12T14:03:54.347640+00:00 [INFO] validate attempt=1 ok=False error_type=BadSignature
+2026-05-12T14:05:17.151188+00:00 [INFO] validate attempt=2 ok=False error_type=BadSignature
+2026-05-12T14:06:22.429172+00:00 [INFO] validate attempt=3 ok=False error_type=BadSignature
+2026-05-12T14:07:53.301762+00:00 [INFO] validate attempt=4 ok=False error_type=BadSignature
+2026-05-12T14:09:15.954712+00:00 [INFO] validate attempt=5 ok=False error_type=BadSignature
+2026-05-12T14:09:15.957970+00:00 [ERROR] experiment_end id=exp_0004 succeeded=False
+2026-05-12T14:09:58.023623+00:00 [INFO] study_end status=COMPLETED
