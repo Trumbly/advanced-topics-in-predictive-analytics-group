@@ -11,6 +11,8 @@ sandbox/
 !sandbox/.gitkeep
 *.zip
 
+superpowers/
+
 # Raw data never goes into git (Kaggle terms)
 data/raw/
 

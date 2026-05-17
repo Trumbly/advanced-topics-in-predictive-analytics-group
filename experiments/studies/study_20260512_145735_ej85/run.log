@@ -1,0 +1,104 @@
+2026-05-12T14:57:35.441973+00:00 [INFO] study_start task=track_b
+2026-05-12T14:57:35.442481+00:00 [INFO] experiment_start index=0 id=exp_0000
+2026-05-12T14:58:11.108775+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T14:58:37.010074+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T14:58:56.239949+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T14:59:10.961177+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T14:59:26.073112+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T14:59:44.167901+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T14:59:44.169991+00:00 [ERROR] experiment_end id=exp_0000 succeeded=False
+2026-05-12T14:59:44.171563+00:00 [INFO] experiment_start index=1 id=exp_0001
+2026-05-12T15:00:12.150589+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T15:00:22.423451+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:01:30.285448+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:01:41.218173+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:01:55.323364+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:02:14.021399+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:02:14.022961+00:00 [ERROR] experiment_end id=exp_0001 succeeded=False
+2026-05-12T15:02:14.024048+00:00 [INFO] experiment_start index=2 id=exp_0002
+2026-05-12T15:03:21.378936+00:00 [INFO] validate attempt=0 ok=False error_type=BadSignature
+2026-05-12T15:03:37.983750+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:03:52.446076+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:04:04.966637+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:04:15.939838+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:04:26.701505+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:04:26.704833+00:00 [ERROR] experiment_end id=exp_0002 succeeded=False
+2026-05-12T15:04:26.707729+00:00 [INFO] experiment_start index=3 id=exp_0003
+2026-05-12T15:04:52.809384+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T15:05:03.700931+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:05:20.500804+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:05:32.682477+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:05:45.610272+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:06:02.389200+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:06:02.393684+00:00 [ERROR] experiment_end id=exp_0003 succeeded=False
+2026-05-12T15:06:02.397374+00:00 [INFO] experiment_start index=4 id=exp_0004
+2026-05-12T15:06:28.715410+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T15:06:51.678813+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:07:57.813716+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:08:20.182621+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:08:39.035016+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:08:56.434160+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:08:56.439151+00:00 [ERROR] experiment_end id=exp_0004 succeeded=False
+2026-05-12T15:08:56.442435+00:00 [INFO] experiment_start index=5 id=exp_0005
+2026-05-12T15:09:35.406307+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T15:10:05.459226+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:11:10.950116+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:11:31.739980+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:11:43.006603+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:12:08.652171+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:12:08.656668+00:00 [ERROR] experiment_end id=exp_0005 succeeded=False
+2026-05-12T15:12:08.659984+00:00 [INFO] experiment_start index=6 id=exp_0006
+2026-05-12T15:12:30.337437+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T15:12:53.450826+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T15:13:20.139531+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T15:13:38.091392+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T15:13:53.955193+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T15:15:07.489485+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T15:15:07.495398+00:00 [ERROR] experiment_end id=exp_0006 succeeded=False
+2026-05-12T15:15:07.499754+00:00 [INFO] experiment_start index=7 id=exp_0007
+2026-05-12T15:15:37.124493+00:00 [INFO] validate attempt=0 ok=True error_type=None
+2026-05-12T15:15:37.128332+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0007/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '0.0001'}
+2026-05-12T15:32:55.929297+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1038.7791883749887
+2026-05-12T15:33:16.417475+00:00 [INFO] experiment_end id=exp_0007 succeeded=True score=0.8523774353443382
+2026-05-12T15:33:16.424030+00:00 [INFO] experiment_start index=8 id=exp_0008
+2026-05-12T15:33:24.059004+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0008/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '0.0001', 'AGENT_CHECKPOINT_IN': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0007/checkpoint.pt'}
+2026-05-12T15:51:04.953168+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1060.8861473749857
+2026-05-12T15:51:36.396549+00:00 [INFO] experiment_end id=exp_0008 succeeded=True score=0.9473992938398936
+2026-05-12T15:51:36.403103+00:00 [INFO] experiment_start index=9 id=exp_0009
+2026-05-12T15:51:46.038047+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0009/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '0.0001', 'AGENT_CHECKPOINT_IN': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0008/checkpoint.pt'}
+2026-05-12T16:10:08.604332+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1102.5790116250282
+2026-05-12T16:10:25.007619+00:00 [INFO] experiment_end id=exp_0009 succeeded=True score=0.9609631012424822
+2026-05-12T16:10:25.014566+00:00 [INFO] experiment_start index=10 id=exp_0010
+2026-05-12T16:10:35.052372+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0010/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '1e-05', 'AGENT_CHECKPOINT_IN': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0009/checkpoint.pt'}
+2026-05-12T16:28:37.924793+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=1082.8850813750178
+2026-05-12T16:28:55.071729+00:00 [INFO] experiment_end id=exp_0010 succeeded=True score=0.9677923664142472
+2026-05-12T16:28:55.077603+00:00 [INFO] experiment_start index=11 id=exp_0011
+2026-05-12T16:29:23.786182+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T16:30:42.689373+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T16:31:32.980059+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T16:32:42.556536+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T16:33:30.500316+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T16:33:58.719242+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T16:33:58.763604+00:00 [ERROR] experiment_end id=exp_0011 succeeded=False
+2026-05-12T16:33:58.774986+00:00 [INFO] experiment_start index=12 id=exp_0012
+2026-05-12T16:34:56.390574+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T16:36:08.834211+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T16:36:51.101416+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T16:37:32.455088+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T16:38:30.543664+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T16:39:08.719411+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T16:39:08.732707+00:00 [ERROR] experiment_end id=exp_0012 succeeded=False
+2026-05-12T16:39:08.751151+00:00 [INFO] experiment_start index=13 id=exp_0013
+2026-05-12T16:40:29.729962+00:00 [INFO] validate attempt=0 ok=True error_type=None
+2026-05-12T16:40:29.742952+00:00 [INFO] execute phase=started attempt=0 timeout_s=180000 cmd_env={'AGENT_DEVICE': 'mps', 'AGENT_BATCH_SIZE': '256', 'AGENT_NUM_WORKERS': '8', 'AGENT_EPOCHS': '5', 'AGENT_PROCESSED_DIR': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/data/processed/mels', 'AGENT_CHECKPOINT_OUT': '/Users/max/Documents/Master/Courses/Advanced Predictive Analytics/Group Work/advanced-topics-in-predictive-analytics-group/sandbox/study_20260512_145735_ej85/exp_0013/checkpoint.pt', 'AGENT_SEED': '42', 'AGENT_LR': '0.001', 'AGENT_LR_SCHEDULE': 'cosine', 'AGENT_WEIGHT_DECAY': '1e-06'}
+2026-05-12T16:47:15.845161+00:00 [INFO] execute phase=finished attempt=0 succeeded=True error_type=None duration_s=406.09627324994653
+2026-05-12T16:47:49.585794+00:00 [INFO] experiment_end id=exp_0013 succeeded=True score=0.9675800613681224
+2026-05-12T16:47:49.657771+00:00 [INFO] experiment_start index=14 id=exp_0014
+2026-05-12T16:49:18.186039+00:00 [INFO] validate attempt=0 ok=False error_type=SmokeFailed
+2026-05-12T16:49:47.456894+00:00 [INFO] validate attempt=1 ok=False error_type=Syntax
+2026-05-12T16:50:35.482759+00:00 [INFO] validate attempt=2 ok=False error_type=Syntax
+2026-05-12T16:51:02.182772+00:00 [INFO] validate attempt=3 ok=False error_type=Syntax
+2026-05-12T16:51:25.255019+00:00 [INFO] validate attempt=4 ok=False error_type=Syntax
+2026-05-12T16:52:09.026777+00:00 [INFO] validate attempt=5 ok=False error_type=Syntax
+2026-05-12T16:52:09.040415+00:00 [ERROR] experiment_end id=exp_0014 succeeded=False
+2026-05-12T16:52:13.027698+00:00 [INFO] study_end status=COMPLETED

@@ -419,22 +419,27 @@ git commit -m "docs(report): write baseline comparison section + priors baseline
 **Files:**
 - Modify: `docs/report/report.tex` — fill `\section{Reflections on course content}`
 
-**Course chapters → agent techniques mapping (verified against `study.json` files and `config/skeletons/audio_multilabel.py.j2`):**
+**Course chapters → agent techniques mapping (verified against `config/skeletons/audio_multilabel.py.j2` AND sampled generated `build_model` code under `sandbox/exp_*/kernel/code.py`):**
 
-| Course chapter | Technique | Where in the agent |
-|---|---|---|
-| Signal preprocessing | Mel-spectrogram (sr=32k, n_mels=128, hop=512, dB) | `lab/tasks/audio_mels.py:MelParams` |
-| CNNs (2D) | Conv2D + pooling stacks | `cnn_scratch` family proposals |
-| Transfer learning | ImageNet-pretrained EfficientNet/MobileNet | `efficientnet_pretrained`, `mobilenet_pretrained` families |
-| Pretrained domain models | YAMNet, BirdNET, Perch audio embeddings | `yamnet_feature`, `birdnet_embedding`, `perch_embedding` families |
-| Data augmentation | SpecAugment (time + frequency masks) | skeleton augmentation block |
-| Regularization | Dropout, weight decay, freezing backbones | proposal fields `dropout`, `weight_decay`, `freeze_stages` |
-| Optimization | Constant / cosine / one-cycle LR schedules | proposal `lr_schedule` |
-| Multi-label heads | BCEWithLogitsLoss, sigmoid output, macro-AUC | skeleton `train_one_epoch` + metrics |
+| Course chapter | Technique | Where in the agent | Verified |
+|---|---|---|---|
+| Signal preprocessing | Mel-spectrogram (sr=32k, n_mels=128, hop=512, dB) | `lab/tasks/audio_mels.py:MelParams` | yes |
+| CNNs (2D) | Conv2D + pooling stacks | `cnn_scratch` family proposals | yes |
+| Transfer learning | ImageNet-pretrained EfficientNet / MobileNet / ResNet | `efficientnet_pretrained`, `mobilenet_pretrained` families | yes |
+| Pretrained domain models | YAMNet, BirdNET, Perch audio embeddings | `yamnet_feature`, `birdnet_embedding`, `perch_embedding` families | yes |
+| Regularization (dropout) | `nn.Dropout` layers inserted by LLM in `build_model` | LLM-generated code (most experiments have 2-4 dropout layers) | yes |
+| Regularization (freezing) | Selectively requires_grad=False on backbone stages | LLM-generated code | yes |
+| Optimization (LR schedules) | Constant / cosine / one-cycle via env knobs | skeleton + `AGENT_LR_SCHEDULE` | yes |
+| Multi-label heads | `BCEWithLogitsLoss`, sigmoid output, macro-ROC-AUC | skeleton `train_one_epoch` + metrics | yes |
 
-- [ ] **Step 1: Verify the mapping against the skeleton**
+**Honest accounting (key correction):**
+- **The skeleton contains NO data augmentation.** `grep -c "augment" config/skeletons/audio_multilabel.py.j2 = 0`.
+- **SpecAugment appears only in 5 of 61 generated `build_model` blocks** (the LLM occasionally adds `MaskAlongAxis` / `FrequencyMask` / `TimeMask` inside its model code). It is not part of the agent's standard training recipe.
+- Several experiment **names** contain `specaug` (e.g., `efficientnet_b0_specaug_dropout03`), but the corresponding code typically does NOT implement SpecAugment — the suffix is aspirational LLM naming. **Do not cite SpecAugment as a course-content technique exercised by the agent; cite dropout-based regularization instead.**
 
-Read `config/skeletons/audio_multilabel.py.j2` and `config/skeletons/audio_embedding_multilabel.py.j2` end to end. Confirm every row in the table above is actually wired up. If a row is *not* present in the skeleton (e.g., if SpecAugment is missing), cross it out — the report must reflect what the agent really did.
+- [ ] **Step 1: Re-verify the mapping**
+
+Read `config/skeletons/audio_multilabel.py.j2` and `config/skeletons/audio_embedding_multilabel.py.j2` end to end. Sample 3-5 successful generated `build_model` blocks from `sandbox/exp_*/kernel/code.py`. Confirm every row in the table above is actually wired up. If a row is *not* implemented anywhere (skeleton OR sample of generated code), cross it out — the report must reflect what the agent really did, not what proposal names imply.
 
 - [ ] **Step 2: Write the prose (≈600 words)**
 
@@ -442,7 +447,7 @@ Three paragraphs:
 
 1. **Coverage paragraph:** the agent exercised every major chapter listed in the table. Reference Figure 2 (family distribution) — the search prioritized transfer learning over scratch CNNs, which mirrors the course's emphasis on pretrained backbones for limited-data audio problems.
 
-2. **What proved most effective and why:** ImageNet-pretrained EfficientNet-B0 + SpecAug dominated. Three reasons: (i) 128×313 mels are visually similar to ImageNet inputs in low-frequency texture, so feature transfer is non-trivial but works; (ii) the small effective dataset (~233 k single-label + 739 soundscape windows for 234 classes) means random initialization underfits — pretraining is the cheapest source of inductive bias; (iii) SpecAugment is a stronger regularizer than dropout alone for spectrogram inputs, matching results in the course's audio classification chapter.
+2. **What proved most effective and why:** ImageNet-pretrained EfficientNet-B0 dominated. Three reasons: (i) 128×313 mels are visually similar to ImageNet inputs in low-frequency texture, so feature transfer is non-trivial but works; (ii) the small effective dataset (~233 k single-label + 739 soundscape windows for 234 classes) means random initialization underfits — pretraining is the cheapest source of inductive bias; (iii) regularization via dropout layers added inside `build_model` plus selective backbone freezing prevented the pretrained features from being overwritten on the small dataset.
 
 3. **What course topics were not exercised:** RNNs and Transformers were absent — the chosen task is 2D image-like, not sequential, so the agent never proposed them. This is a deliberate restriction of the search space, not an oversight; if the team had chosen Track A (Disaster Tweets), the family list would shift accordingly.
 
