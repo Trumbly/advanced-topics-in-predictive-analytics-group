@@ -11,6 +11,16 @@ sandbox/
 !sandbox/.gitkeep
 *.zip
 
+# Legacy scaffolding from the rewrite (kept for git history only)
+max_development_2/
+agent/
+pipelines/
+
+# Build / cache artefacts
+lab.egg-info/
+.pytest_cache/
+.DS_Store
+
 superpowers/
 
 # Raw data never goes into git (Kaggle terms)
