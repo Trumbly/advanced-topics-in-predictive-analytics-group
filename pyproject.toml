@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lab"
 version = "2.0.0"
-description = "Task-agnostic LLM research agent (max_development_2)"
+description = "Autonomous research agent for the BirdCLEF+ 2026 Kaggle competition (Advanced Predictive Analytics, Track B)."
 requires-python = ">=3.10"
 readme = "README.md"
 authors = [{ name = "Advanced Topics in Predictive Analytics — Group" }]
