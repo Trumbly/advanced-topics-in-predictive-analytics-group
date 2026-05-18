@@ -1,48 +1,72 @@
-# Autonomous Research Agent — Track B (BirdCLEF+ 2026)
+# Autonomous Research Agent — BirdCLEF+ 2026
 
-Advanced Predictive Analytics 2025/2026 — group project.
-
-This package (`lab/`) implements an autonomous research agent that designs,
-trains, evaluates, and iterates on deep learning models for the
+An autonomous research agent that designs, trains, evaluates, and iterates on
+deep-learning models for the
 [BirdCLEF+ 2026](https://www.kaggle.com/competitions/birdclef-2026) Kaggle
-competition, driven by a locally-hosted Large Language Model.
+competition, driven by a locally-hosted Large Language Model (Ollama).
+Built for the *Advanced Topics in Predictive Analytics* course, 2025/2026.
 
-> **Status:** rewrite implemented across 24 GitHub issues
-> (`docs/issues/I-01..I-21` + `I-DELETE` + `I-DEMO` + #40 + #41), every
-> component covered by tests. See `docs/REDESIGN_PLAN.md` for the rewrite
-> blueprint, `docs/TEAM_PLAN.md` for issue ownership, and the merged PRs
-> on the `feature/rewrite` branch for the work.
+The agent runs a closed loop:
 
-## Setup
+1. **Propose** a new architecture (LLM prompt grounded in EDA + memory of past runs).
+2. **Generate** the training code by filling a Jinja2 skeleton.
+3. **Validate** the code (AST checks + smoke forward pass).
+4. **Execute** the experiment in a subprocess sandbox with a watchdog.
+5. **Recover** from common failures by auto-fix or LLM re-prompt.
+6. **Judge** the result, update memory, repeat.
 
-### 1. Python environment
+Reports, Kaggle submission notebooks, and a live FastAPI dashboard fall out the other side.
 
-The project uses `uv` to manage a venv that lives next to the source tree at
-`.venv/`.
+> **Course report:** the 10-page project report lives at `docs/report/report.md`
+> (Word build: `docs/report/report.docx`). It is the D4 deliverable and complements
+> this README.
+
+## Quickstart (≤5 minutes, no Kaggle data needed)
 
 ```bash
-# install uv if you don't have it
+# 1. Install uv + create the venv
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# in the repo root: create the venv + install lab + all deps from pyproject.toml
 uv venv .venv
 uv pip install -e .
 
-# verify (must report librosa+soundfile too -- needed for mel generation)
+# 2. Start a local Ollama server in another terminal
+ollama pull gemma4:e4b      # the default; any chat-capable Ollama model works
+ollama serve
+
+# 3. End-to-end smoke against synthetic shards
+bash scripts/demo_run.sh
+```
+
+`demo_run.sh` runs `preprocess --synthetic` + a 2-experiment study + report + submission
+build, end-to-end, in ≤5 minutes on a fresh CPU clone. Open
+[http://127.0.0.1:8000](http://127.0.0.1:8000) after `python -m lab ui` for the dashboard.
+
+## Setup with real BirdCLEF+ 2026 data
+
+### 1. Python environment
+
+```bash
+uv venv .venv
+uv pip install -e .
+
+# verify (must report librosa+soundfile too — needed for mel generation)
 .venv/bin/python -c "import torch, librosa, soundfile; print('ok')"
 ```
 
 If you prefer conda, any 3.10+ env with the `pyproject.toml` deps installed
-works. Substitute the python path in `PYTHON=...` for any command below.
+works. Substitute the python path in `PYTHON=...` for the mel build script.
 
 ### 2. Local LLM (Ollama)
 
 ```bash
-ollama pull gemma4                # default; any chat-capable Ollama model works
-ollama serve                      # leave running in another terminal
+ollama pull gemma4:e4b       # default — set in config/config.yaml
+ollama serve                 # leave running in another terminal
 ```
 
-### 3. BirdCLEF+ 2026 raw data
+Switch model per-run with `--llm-model <tag>` or globally in
+`config/config.yaml:llm.model`.
+
+### 3. Raw data
 
 Download the competition dump from Kaggle and place it under `data/raw/`:
 
@@ -56,14 +80,7 @@ data/raw/
   train_soundscapes/<filename>.ogg     # ~10 k 60s soundscape recordings
 ```
 
-(For the synthetic smoke path you can skip this and run with `--synthetic`.)
-
 ### 4. Build the mel cache + label index
-
-The per-clip cache from the off-repo legacy pipeline does **not** include the
-739 soundscape windows that cover the 28 species which are absent from
-`train.csv` (Insect sonotypes + 3 Amphibia). The script below rebuilds the
-full cache so all 234 target species appear in training:
 
 ```bash
 ./scripts/build_all_mels.sh
@@ -73,97 +90,129 @@ What it runs:
 
 | Step | Command | Output | Time |
 |---|---|---|---|
-| 1 | `lab preprocess --train-audio` | ~233 k per-clip mels under `data/processed/spectrograms/` | ~2-4 h CPU |
-| 2 | `lab preprocess --soundscapes` | 739 soundscape window mels (closes 28-species gap) | ~5-15 min |
+| 1 | `lab preprocess --train-audio` | ~233 k per-clip mels under `data/processed/spectrograms/` | ~2–4 h CPU |
+| 2 | `lab preprocess --soundscapes` | 739 soundscape window mels (closes the 28-species gap) | ~5–15 min |
 | 3 | `lab preprocess --unify-labels` | `data/processed/labels.csv` with canonical 234-class union | ~5 s |
 | 4 | `lab preprocess --overwrite` | `train_index.json` + `val_index.json` lazy index | ~30 s |
+
+Why step 2 matters: the legacy per-clip cache misses 28 species that only
+appear in soundscapes. Step 2 closes that gap so all 234 target species
+show up in training.
 
 Useful env vars:
 
 ```bash
-SKIP_TRAIN_AUDIO=1 ./scripts/build_all_mels.sh   # keep existing per-clip cache, rebuild only soundscapes + labels
-OVERWRITE=1 ./scripts/build_all_mels.sh           # force-rewrite every step
-PYTHON=/opt/miniconda3/envs/birdclef/bin/python ./scripts/build_all_mels.sh   # different interpreter
+SKIP_TRAIN_AUDIO=1 ./scripts/build_all_mels.sh                                   # rebuild only soundscapes + labels
+OVERWRITE=1 ./scripts/build_all_mels.sh                                           # force-rewrite every step
+PYTHON=/opt/miniconda3/envs/birdclef/bin/python ./scripts/build_all_mels.sh       # different interpreter
 ```
 
-Mel parameters are pinned in `lab.tasks.audio_mels.MelParams`
-(sr=32 kHz, n_fft=2048, hop=512, n_mels=128, fmin=20, fmax=16 kHz, dB scaling)
-and produce shape `(128, 313)` for a 5 s window. New mels are interchangeable
-with anything the legacy pipeline produced.
+Mel parameters are pinned in `lab.tasks.audio_mels.MelParams` (sr=32 kHz,
+n_fft=2048, hop=512, n_mels=128, fmin=20, fmax=16 kHz, dB scaling) and
+produce shape `(128, 313)` for a 5 s window.
 
-## Run
+## CLI reference
 
-```bash
-python -m lab run --task track_b --max-experiments 5 # autonomous study
-python -m lab report <study_id>                      # build report
-python -m lab submit <study_id>                      # build Kaggle notebook
-python -m lab benchmark                              # cross-study leaderboard
-python -m lab ui                                     # FastAPI dashboard
-```
+`python -m lab <subcommand>` (or simply `lab <subcommand>` after `pip install -e .`).
 
-### One-shot smoke
-
-```bash
-bash scripts/demo_run.sh
-```
-
-Runs preprocess (synthetic shards) + a 2-experiment study + report + submission
-build, end-to-end, in ≤5 minutes on a fresh clone.
-
-Full CLI reference lives in `docs/issues/I-17-cli.md`.
-
-## Grading rubric mapping
-
-| PDF rubric component | Where to look |
+| Subcommand | What it does |
 |---|---|
-| Agent design & implementation (40%) | `lab/core/{lifecycle,experiment,parsing,recovery,judge}.py`, `docs/ARCHITECTURE.md` |
-| Model performance (20%) | `experiments/studies/<id>/study.json`, `lab.core.benchmark` |
-| Use of course content (15%) | `config/skeletons/audio_multilabel.py.j2`, `docs/REDESIGN_PLAN.md` §11 |
-| Report & video (25%) | `lab/reporting/`, `scripts/demo_run.sh`, `docs/issues/I-DEMO-end-to-end.md` |
+| `lab run --task track_b --max-experiments N` | launch an autonomous study with N experiments |
+| `lab report <study_id>` | render the study's Markdown + HTML report under `experiments/studies/<id>/` |
+| `lab submit <study_id> [--experiment-id <eid>]` | build the Kaggle submission notebook for the study's best (or a chosen) experiment |
+| `lab prompts list` | list every prompt task and its active version |
+| `lab prompts activate <task> <version>` | set the active version for a prompt task |
+| `lab prompts new <task> --system-file SYS --user-file USR` | save a new prompt version |
+| `lab preprocess [flags…]` | one-off mel + label-index build (see `--help` for every flag) |
+| `lab benchmark` | print a cross-study leaderboard grouped by (architecture family, name) |
+| `lab ui [--host H] [--port P]` | start the FastAPI dashboard |
 
-## Architecture
+Run any subcommand with `--help` for the full flag set.
+
+### Common `lab run` flags
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--task` | `track_b` | which `config/tasks/*.yaml` to load |
+| `--predecessor <id>` | — | seed memory from a previous study |
+| `--use-best-prompts` | off | pick the highest-scoring prompt version per task |
+| `--agent-memory` | off | enable top-K wins + recent-failures memory |
+| `--personality` | `exploratory` | `exploratory` vs `conservative` proposal style |
+| `--max-experiments` | from config | hard cap on the experiment count |
+| `--max-wallclock-min` | from config | hard cap on wall-clock minutes |
+| `--llm-model <tag>` | from config | override the Ollama model for this run only |
+
+## UI tour
+
+`python -m lab ui` starts a FastAPI + HTMX dashboard on
+[http://127.0.0.1:8000](http://127.0.0.1:8000). Key pages:
+
+| Path | What it shows |
+|---|---|
+| `/` and `/studies` | every study under `experiments/studies/`, newest first |
+| `/studies/<id>` | study detail: per-experiment cards, learning curves, judge verdicts |
+| `/experiments/<study_id>/<exp_id>` | full experiment detail incl. live stdout tail |
+| `/prompts` | prompt registry: list versions per task, set active, view A/B scores |
+| `/prompts/<task>/<version>` | edit a prompt version |
+| `/benchmark` | cross-study (family, architecture) leaderboard |
+| `/dashboard` | KPIs over all studies (success rate, mean score, etc.) |
+| `/settings` | edit `config/config.yaml` from the browser |
+| `/new` | launch form: pick task, personality, prompt versions, model |
+| `/live/<study_id>` | Server-Sent Events stream tailing `run.log.jsonl` |
+| `/studies/<id>/submission` (POST) | build the Kaggle notebook + local CSV + weights for the study's best experiment |
+
+The UI is read-mostly over the JSON study state on disk, so the same data is
+also exposed under `/api/*` for scripted access.
+
+## Architecture (one-screen overview)
 
 | Layer | Module | Responsibility |
 |---|---|---|
-| Config | `lab.config` | Single typed `Settings` from `config/*.yaml` |
-| LLM | `lab.core.llm` | Provider-agnostic `chat()` (Ollama/OpenAI/Anthropic) |
-| Prompts | `lab.prompts.*` | Versioned registry, slot-filled engine, A/B scoring |
-| Memory | `lab.core.memory` | Top-K wins + recent failures, ≤3 kB markdown |
+| Config | `lab.config` | single typed `Settings` from `config/*.yaml` |
+| LLM | `lab.core.llm` | provider-agnostic `chat()` (Ollama/OpenAI/Anthropic) |
+| Prompts | `lab.prompts.*` | versioned registry, slot-filled engine, A/B scoring |
+| Memory | `lab.core.memory` | top-K wins + recent failures, ≤3 kB markdown |
 | Tasks | `lab.tasks.*` | `TaskAdapter` ABC + BirdCLEF implementation |
 | Validation | `lab.core.validator` | AST checks + smoke forward pass |
-| Execution | `lab.core.executor` | Subprocess sandbox + error classification |
-| Recovery | `lab.core.recovery` | Auto-fix + LLM re-prompt |
-| Loop | `lab.core.lifecycle` | Study runner + experiment orchestration |
-| Judge | `lab.core.judge` | Per-experiment + per-study verdicts |
-| Reporting | `lab.reporting.*` | Figures + Jinja2 markdown report |
+| Execution | `lab.core.executor` | subprocess sandbox + error classification |
+| Recovery | `lab.core.recovery` | auto-fix + LLM re-prompt |
+| Loop | `lab.core.lifecycle` | study runner + experiment orchestration |
+| Judge | `lab.core.judge` | per-experiment + per-study verdicts |
+| Reporting | `lab.reporting.*` | figures + Jinja2 markdown report |
 | Submission | `lab.submission.*` | CPU-only Kaggle notebook builder |
 | UI | `lab.ui.*` | FastAPI + HTMX dashboard, SSE live log |
-| CLI | `lab.cli` | argparse entrypoint |
+| CLI | `lab.cli` | argparse entry point |
 
-See `docs/ARCHITECTURE.md` for the full design and ADRs.
+Full design rationale: `docs/ARCHITECTURE.md`. Per-component contracts and
+ADRs are in the same file.
 
-## Video plan (5 min)
+## Tests
 
-0:00–0:45 — architecture diagram (`docs/ARCHITECTURE.md` §3)
-0:45–2:30 — live `lab run` showing memory, judge, recovery
-2:30–3:30 — report page: best learning curve + per-class AUC
-3:30–4:30 — prompt dashboard, "use best prompts" + benchmark page
-4:30–5:00 — honest limitations (CPU, no Track A, no Kaggle auto-push)
+```bash
+.venv/bin/python -m pytest -q
+```
 
-## Project Documents
+The suite covers every layer above. ~400 tests, runs in under a minute.
 
-- `docs/REDESIGN_PLAN.md` — rewrite blueprint and design principles
-- `docs/PRODUCTION_REVIEW.md` — gap analysis vs PDF rubric
-- `docs/ARCHITECTURE.md` — current architecture and contracts
-- `docs/TEAM_PLAN.md` — issue assignment across team accounts
-- `docs/issues/` — per-issue specifications (one PR each)
+## Repository layout
 
-## Team
+```
+config/           # YAML configs: global, per-task, prompt registry, code skeletons
+data/             # raw/ (gitignored) and processed/ (gitignored) data caches
+docs/             # ARCHITECTURE.md, REDESIGN_PLAN.md, report/, issues/, PROJECT_NOTES.md
+experiments/      # study artefacts (study.json, reports, submissions) — tracked
+lab/              # the package: cli.py, config.py, core/, prompts/, tasks/, reporting/, submission/, ui/
+sandbox/          # gitignored subprocess scratch (per-experiment stdout, weights, etc.)
+scripts/          # build_all_mels.sh, demo_run.sh, plus the project-report helper scripts
+tests/            # the test suite
+```
 
-- Trumbly
-- danish-m-qureshi
-- Lorry171717
-- SebastianMis23
+## Further reading
+
+- `docs/ARCHITECTURE.md` — design, ADRs, every contract
+- `docs/report/report.md` — the 10-page project report (D4 deliverable)
+- `docs/PROJECT_NOTES.md` — internal status, rubric mapping, team table
+- `docs/issues/` — per-issue specifications, one PR per issue
 
 ## License
 
