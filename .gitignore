@@ -29,6 +29,11 @@ data/raw/
 # Processed caches are local-only
 data/processed/
 
+# Derived study artefacts — regeneratable by `lab report`/`lab submit`
+experiments/studies/*/*.png
+experiments/studies/*/report.md
+experiments/studies/*/report.html
+
 # Reports / bundles
 reports/bundles/
 
