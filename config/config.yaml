@@ -6,24 +6,24 @@ llm:
   timeout_seconds: 600.0
   provider: ollama
   base_url: http://localhost:11434
-  model: gemma4:e4b
+  model: qwen3-coder:30b
   temperature: 0.2
   max_tokens: 4096
   retry_attempts: 3
   retry_backoff_seconds: 5.0
 compute_budget:
   device: mps
-  num_workers: 8
-  batch_size: 256
-  max_experiments: 25
-  max_wallclock_minutes: 2400
-  max_experiment_seconds: 180000
-  max_epochs_per_run: 5
-  max_codegen_retries: 5
-  max_recovery_attempts: 5
-  lr_min: 0.001
-  lr_max: 0.1
-  data_subset_percent: 100
+  num_workers: 4
+  batch_size: 64
+  max_experiments: 6
+  max_wallclock_minutes: 55
+  max_experiment_seconds: 600
+  max_epochs_per_run: 3
+  max_codegen_retries: 3
+  max_recovery_attempts: 3
+  lr_min: 0.0001
+  lr_max: 0.01
+  data_subset_percent: 10
 agent:
   memory_enabled: false
   personality: exploratory
