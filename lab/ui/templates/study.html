@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ study.id }}{% endblock %}
+{% block title %}{{ study_label(study.id, ordinals[study.id]) }}{% endblock %}
 {% block content %}
 <style>
   .pipeline { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
@@ -24,7 +24,9 @@
   .io-toggle.open { transform: rotate(90deg); }
 </style>
 
-<h1>{{ study.id }} <span class="pill" id="status-pill">{{ study.status }}</span></h1>
+<h1>{{ study_label(study.id, ordinals[study.id]) }} <span class="pill" id="status-pill">{{ study.status }}</span> <span class="pill" style="background:{% if study.data_subset_percent < 100 %}#3a2c00;color:#e6c200{% else %}#1c2129;color:#9ca3af{% endif %}">{{ study.data_subset_percent }}% data</span>
+  <code style="opacity:0.55;font-size:0.6em;font-weight:normal">{{ study.id }}</code>
+</h1>
 
 <div style="margin:8px 0 14px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 {% if study.status == "RUNNING" %}
@@ -58,7 +60,8 @@
   {% if study.predecessor_id %}· predecessor <a href="/studies/{{ study.predecessor_id }}">{{ study.predecessor_id }}</a>{% endif %}
 </p>
 {% if study.best_experiment_id %}
-<p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ study.best_experiment_id }}</a> — <b>{{ "%.4f"|format(study.best_score) }}</b></p>
+{% set best_exp = study.experiments | selectattr("id", "equalto", study.best_experiment_id) | first %}
+<p>Best: <a href="/experiments/{{ study.id }}/{{ study.best_experiment_id }}">{{ exp_label(best_exp) if best_exp else study.best_experiment_id }}</a> — <b>{{ "%.4f"|format(study.best_score) }}</b></p>
 <form method="post" action="/studies/{{ study.id }}/submission" style="margin:6px 0 14px 0">
   <button type="submit" style="background:#1d3a6b;color:#e8f0ff;border:1px solid #3a6cd6;border-radius:6px;padding:6px 14px;font-size:0.95em;cursor:pointer">
     Build Kaggle submission (csv + ipynb)
@@ -121,7 +124,8 @@
       {%- set outcome_label = e.status -%}{% set outcome_bg = "#1c2129" %}{% set outcome_fg = "#cfd6df" %}
     {%- endif %}
     <h3 style="margin:0 0 6px 0;font-size:1.05em;">
-      #{{ e.index }} · <a href="/experiments/{{ study.id }}/{{ e.id }}">{{ e.id }}</a>
+      <a href="/experiments/{{ study.id }}/{{ e.id }}">{{ exp_label(e) }}</a>
+      <code style="opacity:0.55;font-size:0.85em">{{ e.id }}</code>
       <span class="pill" style="background:{{ outcome_bg }};color:{{ outcome_fg }}">{{ outcome_label }}</span>
       {% if e.proposal %}<span style="opacity:0.8">— {{ e.proposal.architecture_name }} ({{ e.proposal.family }})</span>{% endif %}
       {% if e.primary_score is not none %}<span style="float:right">{{ e.primary_metric }} = <b>{{ "%.4f"|format(e.primary_score) }}</b></span>{% endif %}

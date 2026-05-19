@@ -23,6 +23,7 @@ compute_budget:
   max_recovery_attempts: 5
   lr_min: 0.001
   lr_max: 0.1
+  data_subset_percent: 100
 agent:
   memory_enabled: false
   personality: exploratory

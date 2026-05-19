@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _STRICT = ConfigDict(extra="forbid")
 
@@ -42,6 +42,16 @@ class ComputeBudget(BaseModel):
     device: Literal["cpu", "cuda", "mps"] = "cpu"
     num_workers: int = Field(ge=0, default=0)
     batch_size: int = Field(gt=0, default=8)
+    data_subset_percent: int = Field(default=100, ge=10, le=100)
+
+    @field_validator("data_subset_percent")
+    @classmethod
+    def _step_of_ten(cls, v: int) -> int:
+        if v < 10 or v > 100:
+            raise ValueError("data_subset_percent must be between 10 and 100 inclusive")
+        if v % 10 != 0:
+            raise ValueError(f"data_subset_percent must be a multiple of 10, got {v}")
+        return v
 
 
 class AgentConfig(BaseModel):
