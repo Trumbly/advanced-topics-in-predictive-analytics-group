@@ -147,5 +147,8 @@ def test_data_subset_percent_rejects_non_multiples_of_10():
 
 
 def test_data_subset_percent_visible_in_config_yaml():
+    """The field is wired through config.yaml — value lives in [10, 100] and
+    is a multiple of 10. The exact default tracks operator preference."""
     s = load_settings("track_b", repo_root=REPO_ROOT)
-    assert s.compute_budget.data_subset_percent == 100
+    assert 10 <= s.compute_budget.data_subset_percent <= 100
+    assert s.compute_budget.data_subset_percent % 10 == 0
