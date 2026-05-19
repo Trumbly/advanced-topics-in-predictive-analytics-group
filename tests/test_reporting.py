@@ -119,8 +119,63 @@ def test_generate_report_writes_md_and_html(tmp_path):
     assert html_path.exists()
 
     md = md_path.read_text()
-    assert "exp_0001" in md  # best
+    # The top-experiments table now shows human-readable labels like "Exp 1 (0001)"
+    assert "Exp 1 (0001)" in md  # best experiment label
     assert "ShapeMismatch" in md  # failure summary
+
+
+def test_report_html_renders_table_for_top_experiments(tmp_path):
+    """Regression: the 'Top experiments' pipe-table must come out as a real
+    <table> element. markdown-it's commonmark profile does not enable the
+    table extension by default, so we explicitly enable it in the generator."""
+    settings = load_settings("track_b", repo_root=REPO_ROOT)
+    new_paths = settings.paths.model_copy(
+        update={"experiments_dir": str(tmp_path / "studies")}
+    )
+    s = settings.model_copy(update={"paths": new_paths})
+
+    md_path = generate_report(_study(), s)
+    html = md_path.with_suffix(".html").read_text()
+    assert "<table>" in html
+    assert "<th>id</th>" in html
+    # report.md.j2 routes experiment ids through exp_label_for, so the
+    # rendered cell carries the human-readable label rather than the raw id.
+    assert "<td>Exp 1 (0001)</td>" in html
+
+
+def test_report_html_inlines_figures_as_data_uris(tmp_path):
+    """Regression: <img src="score_progression.png"> would 404 when served
+    by the UI route /reports/<id>. We inline every figure as a base64 data
+    URI so the file is self-contained."""
+    settings = load_settings("track_b", repo_root=REPO_ROOT)
+    new_paths = settings.paths.model_copy(
+        update={"experiments_dir": str(tmp_path / "studies")}
+    )
+    s = settings.model_copy(update={"paths": new_paths})
+
+    md_path = generate_report(_study(), s)
+    html = md_path.with_suffix(".html").read_text()
+    # No relative image references survive into the served HTML
+    assert 'src="score_progression.png"' not in html
+    # Each figure is embedded as a data: URI
+    assert 'src="data:image/png;base64,' in html
+
+
+def test_report_html_is_self_contained_document(tmp_path):
+    """Regression: the served HTML must include the <head><style> wrapper so
+    the report doesn't render as an unstyled plain-serif page."""
+    settings = load_settings("track_b", repo_root=REPO_ROOT)
+    new_paths = settings.paths.model_copy(
+        update={"experiments_dir": str(tmp_path / "studies")}
+    )
+    s = settings.model_copy(update={"paths": new_paths})
+
+    md_path = generate_report(_study(), s)
+    html = md_path.with_suffix(".html").read_text()
+    assert html.lstrip().lower().startswith("<!doctype html>")
+    assert "<style>" in html
+    assert "</style>" in html
+    assert "<body>" in html
 
 
 def test_report_renders_with_no_score_history(tmp_path):

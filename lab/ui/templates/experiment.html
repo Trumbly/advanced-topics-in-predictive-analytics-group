@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ exp.id }}{% endblock %}
+{% block title %}{{ exp_label(exp) }} — {{ study_label(study.id, ordinals[study.id]) }}{% endblock %}
 {% block content %}
-<p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
+<p><a href="/studies/{{ study.id }}">← back to {{ study_label(study.id, ordinals[study.id]) }}</a></p>
 {%- set v = exp.verdict.verdict if exp.verdict else None -%}
 {%- if exp.status == "FAILED" -%}
   {%- set outcome_label = "FAILED" -%}{% set outcome_bg = "#3d1616" %}{% set outcome_fg = "#ffb6b6" %}
@@ -14,7 +14,9 @@
 {%- else -%}
   {%- set outcome_label = exp.status -%}{% set outcome_bg = "#1c2129" %}{% set outcome_fg = "#cfd6df" %}
 {%- endif %}
-<h1>{{ exp.id }} <span class="pill" style="background:{{ outcome_bg }};color:{{ outcome_fg }}">{{ outcome_label }}</span></h1>
+<h1>{{ exp_label(exp) }} <span class="pill" style="background:{{ outcome_bg }};color:{{ outcome_fg }}">{{ outcome_label }}</span>
+  <code style="opacity:0.55;font-size:0.6em;font-weight:normal">{{ exp.id }}</code>
+</h1>
 
 {% if exp.proposal %}
 <p>{{ exp.proposal.architecture_name }} ({{ exp.proposal.family }}) lr={{ exp.proposal.lr }} schedule={{ exp.proposal.lr_schedule }} epochs={{ exp.proposal.epochs }}</p>

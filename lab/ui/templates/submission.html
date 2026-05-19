@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}submission · {{ study.id }}{% endblock %}
+{% block title %}submission · {{ study_label(study.id, ordinals[study.id]) }}{% endblock %}
 {% block content %}
 {%- set is_per_exp = experiment_id is defined and experiment_id and experiment_id != study.best_experiment_id -%}
 {%- set base_url = "/studies/" ~ study.id ~ ("/experiments/" ~ experiment_id if is_per_exp else "") -%}
-<p><a href="/studies/{{ study.id }}">← back to {{ study.id }}</a></p>
-<h1>Submission for {{ study.id }}
+<p><a href="/studies/{{ study.id }}">← back to {{ study_label(study.id, ordinals[study.id]) }}</a></p>
+<h1>Submission for {{ study_label(study.id, ordinals[study.id]) }}
   {% if is_per_exp %}<small style="opacity:0.7">· experiment {{ experiment_id }}</small>{% endif %}
 </h1>
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
@@ -23,13 +24,28 @@ from lab.core.models import Study, StudyNotFoundError
 from lab.prompts.engine import PromptEngine
 from lab.prompts.registry import PromptRegistry
 from lab.prompts.scoring import aggregate_prompt_scores
+from lab.ui.display import build_study_ordinals, exp_label, study_label, study_suffix
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+@dataclass
+class _BuildState:
+    started_at: float
+    error: str | None = None
+    thread: threading.Thread | None = None
+
+
+_report_builds: dict[str, _BuildState] = {}
+_report_builds_lock = threading.Lock()
 
 
 def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="lab dashboard")
     templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
+    templates.env.globals["study_label"] = study_label
+    templates.env.globals["exp_label"] = exp_label
+    templates.env.globals["study_suffix"] = study_suffix
     studies_root = Path(settings.paths.experiments_dir)
     prompts_root = Path(settings.paths.prompts_dir)
 
@@ -40,12 +56,13 @@ def create_app(settings: Settings) -> FastAPI:
     def studies_list(request: Request, launched: int = 0):
         ids = list_studies(studies_root)
         studies = load_many(studies_root, ids)
+        ordinals = build_study_ordinals(studies)
         # Most recent first so a freshly-launched run is at the top.
         studies.sort(key=lambda s: s.created_at, reverse=True)
         return templates.TemplateResponse(
             request,
             "studies.html",
-            {"studies": studies, "launched": launched},
+            {"studies": studies, "launched": launched, "ordinals": ordinals},
         )
 
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
@@ -72,6 +89,8 @@ def create_app(settings: Settings) -> FastAPI:
             study = Study.load(studies_root, study_id)
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         rates = {r.experiment_id: r for r in study_rates(study)}
         llm_summary = study_summary(study).to_dict()
         exp_llm = {e.id: experiment_summary(e).to_dict() for e in study.experiments}
@@ -97,6 +116,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "exp_llm": exp_llm,
                 "exp_curves": exp_curves,
                 "study_chart_data": study_to_chart_data(study.experiments),
+                "ordinals": ordinals,
             },
         )
 
@@ -119,6 +139,8 @@ def create_app(settings: Settings) -> FastAPI:
         exp = next((e for e in study.experiments if e.id == exp_id), None)
         if exp is None:
             raise HTTPException(status_code=404, detail="experiment not in study")
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         series = collect_series(exp.history, exp.primary_metric)
         return templates.TemplateResponse(
             request,
@@ -129,6 +151,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "llm_summary": experiment_summary(exp).to_dict(),
                 "exp_chart_data": history_to_chart_data(exp.history, exp.primary_metric),
                 "last_epoch": last_epoch_summary(exp.history, exp.primary_metric),
+                "ordinals": ordinals,
             },
         )
 
@@ -260,11 +283,57 @@ def create_app(settings: Settings) -> FastAPI:
         )
 
     @app.get("/reports/{study_id}", response_class=HTMLResponse)
-    def report_view(study_id: str):
-        path = studies_root / study_id / "report.html"
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="report not built; run `lab report`")
-        return HTMLResponse(path.read_text(encoding="utf-8"))
+    def report_view(request: Request, study_id: str):
+        from lab.reporting.generator import generate_report
+
+        report_path = studies_root / study_id / "report.html"
+        if report_path.exists():
+            return HTMLResponse(report_path.read_text(encoding="utf-8"))
+
+        # Confirm the study itself exists — 404 if the user typed a bad id.
+        try:
+            study = Study.load(studies_root, study_id)
+        except StudyNotFoundError:
+            raise HTTPException(status_code=404, detail="study not found")
+
+        with _report_builds_lock:
+            state = _report_builds.get(study_id)
+            if state is None or (state.thread and not state.thread.is_alive() and state.error is None):
+                # Either no build yet, or a previous build finished without
+                # writing the file (race: report wasn't where we expected,
+                # so just retry).
+                state = _BuildState(started_at=time.time())
+                _report_builds[study_id] = state
+
+                def _run_build(sid: str = study_id, st: _BuildState = state) -> None:
+                    try:
+                        generate_report(Study.load(studies_root, sid), settings)
+                        with _report_builds_lock:
+                            # Successful build: drop the entry so future
+                            # invalidations (e.g. user re-runs the study and
+                            # wants a fresh report) re-trigger the build path.
+                            _report_builds.pop(sid, None)
+                    except Exception as exc:  # pragma: no cover - defensive
+                        with _report_builds_lock:
+                            st.error = f"{type(exc).__name__}: {exc}"
+
+                t = threading.Thread(target=_run_build, daemon=True)
+                state.thread = t
+                t.start()
+
+            elapsed_s = int(time.time() - state.started_at)
+            last_error = state.error
+
+        return templates.TemplateResponse(
+            request,
+            "report_building.html",
+            {
+                "study": study,
+                "elapsed_s": elapsed_s,
+                "last_error": last_error,
+            },
+            status_code=202 if last_error is None else 500,
+        )
 
     # ---- submission ----
 
@@ -289,6 +358,8 @@ def create_app(settings: Settings) -> FastAPI:
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
 
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         errors: list[str] = []
         notebook_path: Path | None = None
         csv_path: Path | None = None
@@ -315,6 +386,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "csv_path": csv_path,
                 "weights_path": weights_path,
                 "errors": errors,
+                "ordinals": ordinals,
             },
         )
 
@@ -359,6 +431,8 @@ def create_app(settings: Settings) -> FastAPI:
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
 
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         errors: list[str] = []
         notebook_path: Path | None = None
         csv_path: Path | None = None
@@ -392,6 +466,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "csv_path": csv_path,
                 "weights_path": weights_path,
                 "errors": errors,
+                "ordinals": ordinals,
             },
         )
 
@@ -493,6 +568,7 @@ def create_app(settings: Settings) -> FastAPI:
         args.max_experiments = None
         args.max_wallclock_min = None
         args.llm_model = None
+        args.data_subset = source.data_subset_percent
         threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
         return RedirectResponse(url="/studies?launched=1", status_code=303)
 
@@ -585,8 +661,48 @@ def create_app(settings: Settings) -> FastAPI:
         from lab.core.dashboard import compute_kpis
 
         kpis = compute_kpis(studies_root)
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
+        best_study_label: str | None = None
+        best_exp_label_str: str | None = None
+        if kpis.best_model:
+            sid = kpis.best_model.study_id
+            ord_n = ordinals.get(sid, len(ordinals) + 1)
+            best_study_label = study_label(sid, ord_n)
+            eid = kpis.best_model.experiment_id
+            # Try to look up the real experiment to get the correct index.
+            # Fall back to a heuristic (last numeric segment) if unavailable.
+            try:
+                best_study_obj = Study.load(studies_root, sid)
+                best_exp_obj = next(
+                    (e for e in best_study_obj.experiments if e.id == eid), None
+                )
+                if best_exp_obj is not None:
+                    best_exp_label_str = exp_label(best_exp_obj)
+            except Exception:
+                best_exp_obj = None
+            if best_exp_label_str is None:
+                # Heuristic: parse trailing digits from experiment id
+                try:
+                    idx = int(eid.rsplit("_", 1)[-1])
+                except (ValueError, IndexError):
+                    idx = 0
+
+                class _FakeExp:
+                    pass
+
+                _FakeExp.id = eid
+                _FakeExp.index = idx
+                best_exp_label_str = exp_label(_FakeExp())
         return templates.TemplateResponse(
-            request, "dashboard.html", {"kpis": kpis}
+            request,
+            "dashboard.html",
+            {
+                "kpis": kpis,
+                "ordinals": ordinals,
+                "best_study_label": best_study_label,
+                "best_exp_label_str": best_exp_label_str,
+            },
         )
 
     @app.get("/api/dashboard")
@@ -682,11 +798,13 @@ def create_app(settings: Settings) -> FastAPI:
                 "llm_models": candidate_models(
                     settings.llm.model, base_url=settings.llm.base_url
                 ),
+                "data_subset_percentages": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                 "defaults": {
                     "task": settings.default_task,
                     "max_experiments": settings.compute_budget.max_experiments,
                     "max_wallclock_min": settings.compute_budget.max_wallclock_minutes,
                     "llm_model": settings.llm.model,
+                    "data_subset": settings.compute_budget.data_subset_percent,
                 },
             },
         )
@@ -702,6 +820,7 @@ def create_app(settings: Settings) -> FastAPI:
             max_experiments=payload.get("max_experiments"),
             max_wallclock_min=payload.get("max_wallclock_min"),
             llm_model=payload.get("llm_model"),
+            data_subset=payload.get("data_subset"),
         )
 
     @app.post("/run-form")
@@ -714,6 +833,7 @@ def create_app(settings: Settings) -> FastAPI:
         max_experiments: int | None = Form(default=None),
         max_wallclock_min: int | None = Form(default=None),
         llm_model: str | None = Form(default=None),
+        data_subset: int = Form(default=100),
     ):
         _launch_study(
             task=task,
@@ -724,6 +844,7 @@ def create_app(settings: Settings) -> FastAPI:
             max_experiments=max_experiments,
             max_wallclock_min=max_wallclock_min,
             llm_model=llm_model or None,
+            data_subset=data_subset,
         )
         # cmd_run generates its own study id; redirect to the list and let the
         # user pick the just-started run (it appears once StudyRunner.run()
@@ -740,6 +861,7 @@ def create_app(settings: Settings) -> FastAPI:
         max_experiments: int | None,
         max_wallclock_min: int | None,
         llm_model: str | None = None,
+        data_subset: int | None = None,
     ) -> dict:
         # Pre-flight: refuse to launch if neither lazy index nor eager
         # shards are present.
@@ -771,6 +893,7 @@ def create_app(settings: Settings) -> FastAPI:
         args.max_experiments = max_experiments
         args.max_wallclock_min = max_wallclock_min
         args.llm_model = llm_model
+        args.data_subset = data_subset
 
         study_id = new_study_id()
         threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
