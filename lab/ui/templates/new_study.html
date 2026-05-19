@@ -34,6 +34,15 @@
     <input type="number" name="max_wallclock_min" min="1" value="{{ defaults.max_wallclock_min }}" />
   </label>
 
+  <label>Data subset
+    <select name="data_subset">
+      {% for pct in data_subset_percentages %}
+      <option value="{{ pct }}" {% if pct == defaults.data_subset %}selected{% endif %}>{{ pct }}%</option>
+      {% endfor %}
+    </select>
+    <span style="font-size:0.78em;opacity:0.7">100% trains on the full corpus; lower = faster but noisier scores.</span>
+  </label>
+
   <label>Predecessor (resume from)
     <select name="predecessor_id">
       <option value="">— none —</option>

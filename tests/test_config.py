@@ -97,3 +97,55 @@ def test_individual_models_are_strict():
         ComputeBudget(max_experiments=-1, max_wallclock_minutes=1, max_experiment_seconds=1, max_epochs_per_run=1, max_codegen_retries=0, max_recovery_attempts=0, lr_min=1e-5, lr_max=1e-3)
     with pytest.raises(ValidationError):
         AgentConfig(personality="rogue")  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# data_subset_percent tests
+# ---------------------------------------------------------------------------
+
+def _make_cb(**kwargs):
+    """Helper: build a minimal valid ComputeBudget with kwargs overrides."""
+    base = dict(
+        max_experiments=1,
+        max_wallclock_minutes=1,
+        max_experiment_seconds=60,
+        max_epochs_per_run=1,
+        max_codegen_retries=0,
+        max_recovery_attempts=0,
+        lr_min=1e-5,
+        lr_max=1e-3,
+    )
+    base.update(kwargs)
+    return ComputeBudget(**base)
+
+
+def test_data_subset_percent_defaults_to_100():
+    cb = _make_cb()
+    assert cb.data_subset_percent == 100
+
+
+def test_data_subset_percent_accepts_valid_multiples():
+    for pct in (10, 50, 100):
+        cb = _make_cb(data_subset_percent=pct)
+        assert cb.data_subset_percent == pct
+
+
+def test_data_subset_percent_rejects_below_10():
+    with pytest.raises(ValidationError):
+        _make_cb(data_subset_percent=9)
+
+
+def test_data_subset_percent_rejects_above_100():
+    with pytest.raises(ValidationError):
+        _make_cb(data_subset_percent=101)
+
+
+def test_data_subset_percent_rejects_non_multiples_of_10():
+    for bad in (15, 33, 99):
+        with pytest.raises(ValidationError):
+            _make_cb(data_subset_percent=bad)
+
+
+def test_data_subset_percent_visible_in_config_yaml():
+    s = load_settings("track_b", repo_root=REPO_ROOT)
+    assert s.compute_budget.data_subset_percent == 100

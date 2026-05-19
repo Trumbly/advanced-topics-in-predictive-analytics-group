@@ -6,7 +6,12 @@ Render-time (Jinja) variables filled in by the orchestrator:
 Run-time (env) knobs read from os.environ:
 - AGENT_DEVICE, AGENT_BATCH_SIZE, AGENT_EPOCHS, AGENT_PROCESSED_DIR,
   AGENT_CHECKPOINT_IN (optional), AGENT_CHECKPOINT_OUT, AGENT_SEED,
-  AGENT_LR, AGENT_LR_SCHEDULE.
+  AGENT_LR, AGENT_LR_SCHEDULE, AGENT_DATA_SUBSET_PCT (default 100).
+
+AGENT_DATA_SUBSET_PCT: integer in {10,20,...,100}. When < 100 both train
+and val are wrapped in a seeded torch.utils.data.Subset so wall-clock time
+scales down proportionally. The subset is deterministic: same seed ->
+same indices.
 
 The LLM owns ONLY the build_model block between the START/END markers.
 Everything else is fixed.
@@ -21,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset, TensorDataset, random_split
+from torch.utils.data import DataLoader, Dataset, Subset, TensorDataset, random_split
 
 # ---------- runtime knobs ----------
 NUM_CLASSES = {{ num_classes }}
@@ -39,6 +44,7 @@ SEED = int(os.environ.get("AGENT_SEED", "42"))
 LR = float(os.environ.get("AGENT_LR", "1e-3"))
 LR_SCHEDULE = os.environ.get("AGENT_LR_SCHEDULE", "constant")
 WEIGHT_DECAY = float(os.environ.get("AGENT_WEIGHT_DECAY", "0.0"))
+DATA_SUBSET_PCT = int(os.environ.get("AGENT_DATA_SUBSET_PCT", "100"))
 
 torch.manual_seed(SEED)
 
@@ -88,15 +94,36 @@ def load_audio_dataset(processed_dir: Path, split: str):
       1. ``<split>_index.json`` -> LazyMelDataset (recommended; full corpus)
       2. ``<split>.pt`` -> eager TensorDataset (used by the smoke path)
       3. None when neither file is present (caller falls back to split).
+
+    When AGENT_DATA_SUBSET_PCT < 100 the returned dataset is wrapped in a
+    seeded Subset so wall-clock time scales down proportionally.
     """
     index_path = processed_dir / f"{split}_index.json"
     if index_path.exists():
-        return LazyMelDataset(index_path)
+        return _maybe_subset(LazyMelDataset(index_path), split)
     pt_path = processed_dir / f"{split}.pt"
     if not pt_path.exists():
         return None
     blob = torch.load(pt_path, map_location="cpu", weights_only=False)
-    return TensorDataset(blob["x"], blob["y"])
+    return _maybe_subset(TensorDataset(blob["x"], blob["y"]), split)
+
+
+def _maybe_subset(dataset, split: str):
+    """Return a ``Subset(dataset, indices)`` when AGENT_DATA_SUBSET_PCT < 100.
+
+    The subset is deterministic: same SEED + split offset -> same indices,
+    so reruns of the same study always see the same data. Train and val
+    receive different seeds (val seed = SEED + 1) so they pick independent
+    subsets.
+    """
+    if DATA_SUBSET_PCT >= 100 or len(dataset) == 0:
+        return dataset
+    n_keep = max(1, len(dataset) * DATA_SUBSET_PCT // 100)
+    # Seed per-split so train and val pick different subsets but the same
+    # seed always produces the same subset for reproducibility.
+    g = torch.Generator().manual_seed(SEED + (1 if split == "val" else 0))
+    indices = torch.randperm(len(dataset), generator=g)[:n_keep].tolist()
+    return Subset(dataset, indices)
 
 
 def make_loaders():
