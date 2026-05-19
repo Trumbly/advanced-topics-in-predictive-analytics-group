@@ -510,6 +510,7 @@ def create_app(settings: Settings) -> FastAPI:
         args.max_experiments = None
         args.max_wallclock_min = None
         args.llm_model = None
+        args.data_subset = source.data_subset_percent
         threading.Thread(target=cmd_run, args=(args,), daemon=True).start()
         return RedirectResponse(url="/studies?launched=1", status_code=303)
 
@@ -739,11 +740,13 @@ def create_app(settings: Settings) -> FastAPI:
                 "llm_models": candidate_models(
                     settings.llm.model, base_url=settings.llm.base_url
                 ),
+                "data_subset_percentages": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
                 "defaults": {
                     "task": settings.default_task,
                     "max_experiments": settings.compute_budget.max_experiments,
                     "max_wallclock_min": settings.compute_budget.max_wallclock_minutes,
                     "llm_model": settings.llm.model,
+                    "data_subset": settings.compute_budget.data_subset_percent,
                 },
             },
         )
@@ -759,6 +762,7 @@ def create_app(settings: Settings) -> FastAPI:
             max_experiments=payload.get("max_experiments"),
             max_wallclock_min=payload.get("max_wallclock_min"),
             llm_model=payload.get("llm_model"),
+            data_subset=payload.get("data_subset"),
         )
 
     @app.post("/run-form")
@@ -771,6 +775,7 @@ def create_app(settings: Settings) -> FastAPI:
         max_experiments: int | None = Form(default=None),
         max_wallclock_min: int | None = Form(default=None),
         llm_model: str | None = Form(default=None),
+        data_subset: int = Form(default=100),
     ):
         _launch_study(
             task=task,
@@ -781,6 +786,7 @@ def create_app(settings: Settings) -> FastAPI:
             max_experiments=max_experiments,
             max_wallclock_min=max_wallclock_min,
             llm_model=llm_model or None,
+            data_subset=data_subset,
         )
         # cmd_run generates its own study id; redirect to the list and let the
         # user pick the just-started run (it appears once StudyRunner.run()
@@ -797,6 +803,7 @@ def create_app(settings: Settings) -> FastAPI:
         max_experiments: int | None,
         max_wallclock_min: int | None,
         llm_model: str | None = None,
+        data_subset: int | None = None,
     ) -> dict:
         # Pre-flight: refuse to launch if neither lazy index nor eager
         # shards are present.
@@ -828,6 +835,7 @@ def create_app(settings: Settings) -> FastAPI:
         args.max_experiments = max_experiments
         args.max_wallclock_min = max_wallclock_min
         args.llm_model = llm_model
+        args.data_subset = data_subset
 
         study_id = new_study_id()
         threading.Thread(target=cmd_run, args=(args,), daemon=True).start()

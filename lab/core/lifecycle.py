@@ -57,6 +57,7 @@ class StudyRunner:
             experiments=[],
             created_at=datetime.now(timezone.utc),
             llm_model=f"{self.ctx.settings.llm.provider}:{self.ctx.settings.llm.model}",
+            data_subset_percent=self.ctx.settings.compute_budget.data_subset_percent,
         )
 
         telemetry.configure(self.ctx.settings, study_id=study.id)

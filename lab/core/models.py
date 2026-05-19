@@ -195,6 +195,7 @@ class Study(BaseModel):
     created_at: datetime
     finished_at: datetime | None = None
     llm_model: str | None = None  # provider:model used to drive the loop
+    data_subset_percent: int = Field(default=100, ge=10, le=100)
 
     # ----- I/O helpers -----
 
