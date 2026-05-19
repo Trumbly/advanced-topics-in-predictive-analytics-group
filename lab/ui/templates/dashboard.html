@@ -51,8 +51,8 @@
   <div class="kpi-sub">family <b>{{ kpis.best_model.family }}</b></div>
   <div class="kpi-sub">{{ kpis.best_model.primary_metric }} = <b>{{ "%.4f"|format(kpis.best_model.primary_score) }}</b></div>
   <div class="kpi-sub">
-    <a href="/experiments/{{ kpis.best_model.study_id }}/{{ kpis.best_model.experiment_id }}">{{ kpis.best_model.experiment_id }}</a>
-    in <a href="/studies/{{ kpis.best_model.study_id }}">{{ kpis.best_model.study_id }}</a>
+    <a href="/experiments/{{ kpis.best_model.study_id }}/{{ kpis.best_model.experiment_id }}">{{ best_exp_label_str or kpis.best_model.experiment_id }}</a>
+    in <a href="/studies/{{ kpis.best_model.study_id }}">{{ best_study_label or kpis.best_model.study_id }}</a>
   </div>
 </div>
 {% else %}

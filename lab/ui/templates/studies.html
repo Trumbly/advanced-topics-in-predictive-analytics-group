@@ -16,7 +16,8 @@
   <tbody>
   {% for s in studies %}
     <tr>
-      <td><a href="/studies/{{ s.id }}">{{ s.id }}</a></td>
+      <td><a href="/studies/{{ s.id }}">{{ study_label(s.id, ordinals[s.id]) }}</a>
+          <code style="opacity:0.55;font-size:0.85em">{{ s.id }}</code></td>
       <td>{{ s.task_name }}</td>
       <td style="font-family:ui-monospace,monospace;font-size:0.88em;opacity:0.9">{{ s.llm_model or "—" }}</td>
       <td><span class="pill">{{ s.status }}</span></td>

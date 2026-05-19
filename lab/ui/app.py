@@ -23,6 +23,7 @@ from lab.core.models import Study, StudyNotFoundError
 from lab.prompts.engine import PromptEngine
 from lab.prompts.registry import PromptRegistry
 from lab.prompts.scoring import aggregate_prompt_scores
+from lab.ui.display import build_study_ordinals, exp_label, study_label, study_suffix
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -30,6 +31,9 @@ _TEMPLATE_DIR = Path(__file__).parent / "templates"
 def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="lab dashboard")
     templates = Jinja2Templates(directory=str(_TEMPLATE_DIR))
+    templates.env.globals["study_label"] = study_label
+    templates.env.globals["exp_label"] = exp_label
+    templates.env.globals["study_suffix"] = study_suffix
     studies_root = Path(settings.paths.experiments_dir)
     prompts_root = Path(settings.paths.prompts_dir)
 
@@ -40,12 +44,13 @@ def create_app(settings: Settings) -> FastAPI:
     def studies_list(request: Request, launched: int = 0):
         ids = list_studies(studies_root)
         studies = load_many(studies_root, ids)
+        ordinals = build_study_ordinals(studies)
         # Most recent first so a freshly-launched run is at the top.
         studies.sort(key=lambda s: s.created_at, reverse=True)
         return templates.TemplateResponse(
             request,
             "studies.html",
-            {"studies": studies, "launched": launched},
+            {"studies": studies, "launched": launched, "ordinals": ordinals},
         )
 
     @app.get("/studies/{study_id}", response_class=HTMLResponse)
@@ -72,6 +77,8 @@ def create_app(settings: Settings) -> FastAPI:
             study = Study.load(studies_root, study_id)
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         rates = {r.experiment_id: r for r in study_rates(study)}
         llm_summary = study_summary(study).to_dict()
         exp_llm = {e.id: experiment_summary(e).to_dict() for e in study.experiments}
@@ -97,6 +104,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "exp_llm": exp_llm,
                 "exp_curves": exp_curves,
                 "study_chart_data": study_to_chart_data(study.experiments),
+                "ordinals": ordinals,
             },
         )
 
@@ -119,6 +127,8 @@ def create_app(settings: Settings) -> FastAPI:
         exp = next((e for e in study.experiments if e.id == exp_id), None)
         if exp is None:
             raise HTTPException(status_code=404, detail="experiment not in study")
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         series = collect_series(exp.history, exp.primary_metric)
         return templates.TemplateResponse(
             request,
@@ -129,6 +139,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "llm_summary": experiment_summary(exp).to_dict(),
                 "exp_chart_data": history_to_chart_data(exp.history, exp.primary_metric),
                 "last_epoch": last_epoch_summary(exp.history, exp.primary_metric),
+                "ordinals": ordinals,
             },
         )
 
@@ -289,6 +300,8 @@ def create_app(settings: Settings) -> FastAPI:
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
 
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         errors: list[str] = []
         notebook_path: Path | None = None
         csv_path: Path | None = None
@@ -315,6 +328,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "csv_path": csv_path,
                 "weights_path": weights_path,
                 "errors": errors,
+                "ordinals": ordinals,
             },
         )
 
@@ -359,6 +373,8 @@ def create_app(settings: Settings) -> FastAPI:
         except StudyNotFoundError:
             raise HTTPException(status_code=404, detail="study not found")
 
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
         errors: list[str] = []
         notebook_path: Path | None = None
         csv_path: Path | None = None
@@ -392,6 +408,7 @@ def create_app(settings: Settings) -> FastAPI:
                 "csv_path": csv_path,
                 "weights_path": weights_path,
                 "errors": errors,
+                "ordinals": ordinals,
             },
         )
 
@@ -585,8 +602,48 @@ def create_app(settings: Settings) -> FastAPI:
         from lab.core.dashboard import compute_kpis
 
         kpis = compute_kpis(studies_root)
+        all_study_ids = list_studies(studies_root)
+        ordinals = build_study_ordinals(load_many(studies_root, all_study_ids))
+        best_study_label: str | None = None
+        best_exp_label_str: str | None = None
+        if kpis.best_model:
+            sid = kpis.best_model.study_id
+            ord_n = ordinals.get(sid, len(ordinals) + 1)
+            best_study_label = study_label(sid, ord_n)
+            eid = kpis.best_model.experiment_id
+            # Try to look up the real experiment to get the correct index.
+            # Fall back to a heuristic (last numeric segment) if unavailable.
+            try:
+                best_study_obj = Study.load(studies_root, sid)
+                best_exp_obj = next(
+                    (e for e in best_study_obj.experiments if e.id == eid), None
+                )
+                if best_exp_obj is not None:
+                    best_exp_label_str = exp_label(best_exp_obj)
+            except Exception:
+                best_exp_obj = None
+            if best_exp_label_str is None:
+                # Heuristic: parse trailing digits from experiment id
+                try:
+                    idx = int(eid.rsplit("_", 1)[-1])
+                except (ValueError, IndexError):
+                    idx = 0
+
+                class _FakeExp:
+                    pass
+
+                _FakeExp.id = eid
+                _FakeExp.index = idx
+                best_exp_label_str = exp_label(_FakeExp())
         return templates.TemplateResponse(
-            request, "dashboard.html", {"kpis": kpis}
+            request,
+            "dashboard.html",
+            {
+                "kpis": kpis,
+                "ordinals": ordinals,
+                "best_study_label": best_study_label,
+                "best_exp_label_str": best_exp_label_str,
+            },
         )
 
     @app.get("/api/dashboard")

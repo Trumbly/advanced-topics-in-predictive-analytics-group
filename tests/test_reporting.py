@@ -119,7 +119,8 @@ def test_generate_report_writes_md_and_html(tmp_path):
     assert html_path.exists()
 
     md = md_path.read_text()
-    assert "exp_0001" in md  # best
+    # The top-experiments table now shows human-readable labels like "Exp 1 (0001)"
+    assert "Exp 1 (0001)" in md  # best experiment label
     assert "ShapeMismatch" in md  # failure summary
 
 
