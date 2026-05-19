@@ -56,15 +56,42 @@ if [ ! -x "$PYTHON" ]; then
     exit 1
 fi
 
-if [ ! -d "data/raw" ]; then
-    echo "ERROR: data/raw is missing. Place the BirdCLEF+ 2026 raw dump at" >&2
-    echo "       data/raw/ before running this script." >&2
-    exit 1
-fi
+# Create the expected raw-data subdirectories up front so the Python steps
+# below get a "dir exists, files missing" error instead of "dir missing".
+# The user is still responsible for placing the Kaggle dump into them.
+mkdir -p data/raw/train_audio data/raw/train_soundscapes
 
 if ! "$PYTHON" -c "import librosa, soundfile" >/dev/null 2>&1; then
     echo "ERROR: librosa+soundfile missing. Run:" >&2
     echo "    uv pip install -e .   # picks up pyproject deps" >&2
+    exit 1
+fi
+
+# Sanity-check that the user actually populated the raw dir before we burn
+# minutes spinning up the Python entry points.
+missing=()
+[ -f "data/raw/train.csv" ] || missing+=("data/raw/train.csv")
+[ -f "data/raw/sample_submission.csv" ] || missing+=("data/raw/sample_submission.csv")
+[ -f "data/raw/train_soundscapes_labels.csv" ] || missing+=("data/raw/train_soundscapes_labels.csv")
+if [ -z "$(find data/raw/train_audio -name '*.ogg' -print -quit 2>/dev/null)" ] \
+   && [ "$SKIP_TRAIN_AUDIO" != "1" ]; then
+    missing+=("data/raw/train_audio/<class_id>/<sid>.ogg  (no .ogg files found)")
+fi
+if [ -z "$(find data/raw/train_soundscapes -name '*.ogg' -print -quit 2>/dev/null)" ]; then
+    missing+=("data/raw/train_soundscapes/<filename>.ogg  (no .ogg files found)")
+fi
+
+if [ "${#missing[@]}" -gt 0 ]; then
+    echo "ERROR: raw BirdCLEF+ 2026 data is incomplete. Missing:" >&2
+    for item in "${missing[@]}"; do echo "  - $item" >&2; done
+    echo "" >&2
+    echo "Download the competition dump from" >&2
+    echo "  https://www.kaggle.com/competitions/birdclef-2026/data" >&2
+    echo "and unzip it under data/raw/ so the layout matches the README." >&2
+    echo "" >&2
+    echo "If you only have the soundscape windows on disk and want to skip" >&2
+    echo "the ~35 k per-clip train_audio build, rerun with:" >&2
+    echo "  SKIP_TRAIN_AUDIO=1 ./scripts/build_all_mels.sh" >&2
     exit 1
 fi
 
