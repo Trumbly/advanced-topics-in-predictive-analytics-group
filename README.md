@@ -30,7 +30,7 @@ uv venv .venv
 uv pip install -e .
 
 # 2. Start a local Ollama server in another terminal
-ollama pull gemma4:e4b      # the default; any chat-capable Ollama model works
+ollama pull qwen3-coder:30b   # default — 79 % code-success across our runs (any chat-capable model works)
 ollama serve
 
 # 3. End-to-end smoke against synthetic shards
@@ -59,12 +59,15 @@ works. Substitute the python path in `PYTHON=...` for the mel build script.
 ### 2. Local LLM (Ollama)
 
 ```bash
-ollama pull gemma4:e4b       # default — set in config/config.yaml
-ollama serve                 # leave running in another terminal
+ollama pull qwen3-coder:30b   # default — set in config/config.yaml
+ollama serve                  # leave running in another terminal
 ```
 
-Switch model per-run with `--llm-model <tag>` or globally in
-`config/config.yaml:llm.model`.
+We default to `qwen3-coder:30b` because it had the highest code-generation
+success rate across our runs (79 % vs 25–67 % for Gemma 4 variants on
+identical prompts). The 30B model is MoE with ~3B active params and runs
+comfortably on a 16+ GB Apple-Silicon laptop. Switch model per-run with
+`--llm-model <tag>` or globally in `config/config.yaml:llm.model`.
 
 ### 3. Raw data
 
