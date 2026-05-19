@@ -114,5 +114,5 @@ def test_apply_run_overrides_leaves_default_when_not_specified():
     parser = _build_parser()
     args = parser.parse_args(["run"])
     updated = _apply_run_overrides(settings, args)
-    # Default from config.yaml is 100
-    assert updated.compute_budget.data_subset_percent == 100
+    # No CLI override → whatever sits in config.yaml passes through unchanged
+    assert updated.compute_budget.data_subset_percent == settings.compute_budget.data_subset_percent
