@@ -9,8 +9,10 @@ from typing import Iterable
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from lab.config import Settings
+from lab.core.loaders import list_studies, load_many
 from lab.core.models import Study
 from lab.reporting.figures import render_figures
+from lab.ui.display import build_study_ordinals, exp_label, study_label
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
 
@@ -23,6 +25,11 @@ def generate_report(study: Study, settings: Settings) -> Path:
     figures = render_figures(study, out_dir)
     figures_relative = {k: v.name for k, v in figures.items()}
 
+    experiments_root = Path(settings.paths.experiments_dir)
+    all_studies = load_many(experiments_root, list_studies(experiments_root))
+    ordinals = build_study_ordinals(all_studies)
+    ord_n = ordinals.get(study.id, len(ordinals) + 1)
+
     env = Environment(
         loader=FileSystemLoader(_TEMPLATE_DIR),
         autoescape=select_autoescape([]),
@@ -33,6 +40,8 @@ def generate_report(study: Study, settings: Settings) -> Path:
 
     md = template.render(
         study=study,
+        study_label=study_label(study.id, ord_n),
+        exp_label_for=exp_label,
         figures=figures_relative,
         top_experiments=_top_experiments(study, n=5),
         failure_breakdown=_failure_breakdown(study),

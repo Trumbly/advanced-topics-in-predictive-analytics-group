@@ -199,7 +199,9 @@
         });
         sortedExps.forEach(e => {
           const x = xToPx(e.x);
-          appendText(svg, x, height - padB + 26, e.id, "#7a8493", "middle", 9);
+          // use the human-readable label from the chart data if available
+          const expData = data.experiments.find(d => d.id === e.id);
+          appendText(svg, x, height - padB + 26, (expData && expData.label) ? expData.label : e.id, "#7a8493", "middle", 9);
         });
       }
 
@@ -255,7 +257,7 @@
             color: exp.color,
             points: shifted,
             dashed: METRIC_DASHED[metric] || false,
-            label: `${exp.id}/${metric}`,
+            label: `${exp.label || exp.id}/${metric}`,
           });
         });
       });

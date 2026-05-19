@@ -1,4 +1,4 @@
-# Study report — {{ study.id }}
+# Study report — {{ study_label }}
 
 **Task:** {{ study.task_name }} · **Personality:** {{ study.personality }} · **Agent memory:** {{ study.agent_memory_enabled }}
 {% if study.predecessor_id %}**Predecessor:** {{ study.predecessor_id }}{% endif %}
@@ -12,7 +12,7 @@
 | # | id | architecture | family | score |
 |---|----|--------------|--------|-------|
 {% for exp in top_experiments -%}
-| {{ loop.index }} | {{ exp.id }} | {{ exp.proposal.architecture_name if exp.proposal else "?" }} | {{ exp.proposal.family if exp.proposal else "?" }} | {{ "%.4f"|format(exp.primary_score or 0.0) }} |
+| {{ loop.index }} | {{ exp_label_for(exp) }} | {{ exp.proposal.architecture_name if exp.proposal else "?" }} | {{ exp.proposal.family if exp.proposal else "?" }} | {{ "%.4f"|format(exp.primary_score or 0.0) }} |
 {% endfor %}
 
 ## Failure summary
@@ -35,7 +35,7 @@ No study-level verdict.
 
 {% for exp in study.experiments -%}
 {% if exp.verdict -%}
-- {{ exp.id }} → **{{ exp.verdict.verdict }}** ({{ "%.2f"|format(exp.verdict.score) }}) — {{ exp.verdict.rationale }}
+- {{ exp_label_for(exp) }} → **{{ exp.verdict.verdict }}** ({{ "%.2f"|format(exp.verdict.score) }}) — {{ exp.verdict.rationale }}
 {% endif -%}
 {% endfor %}
 
