@@ -15,7 +15,7 @@ from lab.ui.app import create_app
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _study(sid: str = "study_test_xxxx") -> Study:
+def _study(sid: str = "study_test_xxxx", data_subset_percent: int = 100) -> Study:
     proposal = Proposal(
         architecture_name="EffNetB0",
         family="efficientnet_pretrained",
@@ -44,6 +44,7 @@ def _study(sid: str = "study_test_xxxx") -> Study:
         best_score=0.55,
         created_at=datetime(2026, 5, 4, tzinfo=timezone.utc),
         llm_model="ollama:gemma4:e4b",
+        data_subset_percent=data_subset_percent,
     )
 
 
@@ -228,3 +229,56 @@ def test_api_log_endpoint_404_silent(client):
     r = client.get("/api/studies/study_missing_xxxx/log")
     assert r.status_code == 200
     assert r.json() == []
+
+
+# ---------------------------------------------------------------------------
+# data_subset UI tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def client_with_subset_study(tmp_path):
+    """A client that has two studies: one with 50% subset and one with 100%."""
+    s = load_settings("track_b", repo_root=REPO_ROOT)
+    new_paths = s.paths.model_copy(
+        update={"experiments_dir": str(tmp_path / "studies")}
+    )
+    s = s.model_copy(update={"paths": new_paths})
+
+    studies_root = Path(new_paths.experiments_dir)
+    studies_root.mkdir(parents=True)
+    _study(sid="study_subset_50xx", data_subset_percent=50).save(studies_root)
+    _study(sid="study_full_100xx", data_subset_percent=100).save(studies_root)
+
+    return TestClient(create_app(s))
+
+
+def test_studies_list_shows_subset_percent(client_with_subset_study):
+    r = client_with_subset_study.get("/studies")
+    assert r.status_code == 200
+    # 50% row should be visible
+    assert "50%" in r.text
+    # 100% row should also be visible
+    assert "100%" in r.text
+
+
+def test_study_detail_shows_pill_when_subset_less_than_100(client_with_subset_study):
+    r = client_with_subset_study.get("/studies/study_subset_50xx")
+    assert r.status_code == 200
+    assert "50% data" in r.text
+
+
+def test_study_detail_no_pill_when_subset_is_100(client_with_subset_study):
+    r = client_with_subset_study.get("/studies/study_full_100xx")
+    assert r.status_code == 200
+    # The pill should NOT appear for a full 100% study
+    assert "100% data" not in r.text
+
+
+def test_new_study_form_has_data_subset_dropdown(client):
+    r = client.get("/new")
+    assert r.status_code == 200
+    assert 'name="data_subset"' in r.text
+    # All 10 options should render (10%, 20%, ..., 100%)
+    for pct in range(10, 110, 10):
+        assert f'value="{pct}"' in r.text

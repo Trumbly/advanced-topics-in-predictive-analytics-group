@@ -170,6 +170,25 @@ def test_study_runs_two_experiments_end_to_end(isolated_settings):
     assert saved.exists()
 
 
+def test_study_inherits_data_subset_percent_from_settings(isolated_settings):
+    """The Study model should store data_subset_percent from compute_budget."""
+    cb = isolated_settings.compute_budget.model_copy(
+        update={"data_subset_percent": 50}
+    )
+    settings_50 = isolated_settings.model_copy(update={"compute_budget": cb})
+    scripted = [_PROPOSAL_JSON, _BUILD_BLOCK, _VERDICT_ABORT, _VERDICT_KEEP]
+    ctx, _ = _build_ctx(settings_50, scripted)
+
+    study = StudyRunner(ctx).run()
+    assert study.data_subset_percent == 50
+
+    # Also check the saved JSON round-trips the value.
+    saved = Path(settings_50.paths.experiments_dir) / study.id / "study.json"
+    from lab.core.models import Study as StudyModel
+    loaded = StudyModel.load(Path(settings_50.paths.experiments_dir), study.id)
+    assert loaded.data_subset_percent == 50
+
+
 def test_abort_study_verdict_halts_loop(isolated_settings):
     """A judge verdict of abort_study after exp 1 stops the loop early."""
     scripted = [

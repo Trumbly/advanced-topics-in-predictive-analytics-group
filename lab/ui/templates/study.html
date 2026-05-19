@@ -24,7 +24,7 @@
   .io-toggle.open { transform: rotate(90deg); }
 </style>
 
-<h1>{{ study_label(study.id, ordinals[study.id]) }} <span class="pill" id="status-pill">{{ study.status }}</span>
+<h1>{{ study_label(study.id, ordinals[study.id]) }} <span class="pill" id="status-pill">{{ study.status }}</span>{% if study.data_subset_percent < 100 %} <span class="pill" style="background:#3a2c00;color:#e6c200">{{ study.data_subset_percent }}% data</span>{% endif %}
   <code style="opacity:0.55;font-size:0.6em;font-weight:normal">{{ study.id }}</code>
 </h1>
 
