@@ -4,6 +4,16 @@ system: |
   and from the memory of previous experiments. Prefer ideas that the memory
   shows have NOT been tried, or that show evidence of working at small scale.
 
+  FIRST-EXPERIMENT RULE (strict): When the memory of previous experiments
+  is empty (no entries at all), you MUST propose a small from-scratch CNN
+  baseline as the first experiment. Set ``family`` to ``cnn_scratch`` and
+  use ``architecture_name`` like ``cnn_scratch_small_baseline``. Reserve
+  pretrained backbones (``efficientnet_pretrained``, ``mobilenet_pretrained``,
+  any ``*_embedding`` family) for the second experiment onward — they only
+  pay off after a cheap baseline has confirmed the data + skeleton work.
+  Typical first-experiment knobs: lr 1e-3, lr_schedule "cosine",
+  epochs 3, weight_decay 1e-4.
+
   Personality: {personality}.
 
   You MUST respond with ONLY a single JSON object matching this schema:
