@@ -64,6 +64,9 @@ def client(tmp_path):
 def test_studies_list_renders(client):
     r = client.get("/studies")
     assert r.status_code == 200
+    # The label "Study 1 (xxxx)" should appear in the link text
+    assert "Study 1 (xxxx)" in r.text
+    # The raw id must still appear as the faded code span
     assert "study_test_xxxx" in r.text
     # llm column carries the provider:model tag
     assert "ollama:gemma4:e4b" in r.text
@@ -72,6 +75,11 @@ def test_studies_list_renders(client):
 def test_study_detail_renders_and_no_500_on_completed(client):
     r = client.get("/studies/study_test_xxxx")
     assert r.status_code == 200
+    # Label appears in heading; raw id appears in the code span
+    assert "Study 1 (xxxx)" in r.text
+    assert "study_test_xxxx" in r.text
+    # Experiment label appears; raw id in code span
+    assert "Exp 1 (0001)" in r.text
     assert "exp_0001" in r.text
     # llm shown in the header row
     assert "ollama:gemma4:e4b" in r.text
@@ -80,6 +88,9 @@ def test_study_detail_renders_and_no_500_on_completed(client):
 def test_experiment_detail_renders(client):
     r = client.get("/experiments/study_test_xxxx/exp_0001")
     assert r.status_code == 200
+    # Label in heading; raw id still present
+    assert "Exp 1 (0001)" in r.text
+    assert "exp_0001" in r.text
     assert "EffNetB0" in r.text
     assert "keep" in r.text
 
