@@ -253,13 +253,14 @@ def client_with_subset_study(tmp_path):
     return TestClient(create_app(s))
 
 
-def test_studies_list_shows_subset_percent(client_with_subset_study):
+def test_studies_list_shows_subset_pill_only_when_below_100(client_with_subset_study):
     r = client_with_subset_study.get("/studies")
     assert r.status_code == 200
-    # 50% row should be visible
-    assert "50%" in r.text
-    # 100% row should also be visible
-    assert "100%" in r.text
+    # 50% row renders the yellow pill, matching the detail page style
+    assert "50% data" in r.text
+    # 100% row does NOT render a pill — it shows a plain dash so the column
+    # stays visually quiet for studies that ran on the full corpus
+    assert "100% data" not in r.text
 
 
 def test_study_detail_shows_pill_when_subset_less_than_100(client_with_subset_study):
@@ -273,6 +274,29 @@ def test_study_detail_no_pill_when_subset_is_100(client_with_subset_study):
     assert r.status_code == 200
     # The pill should NOT appear for a full 100% study
     assert "100% data" not in r.text
+
+
+def test_study_detail_keeps_subset_pill_after_completion(tmp_path):
+    """Regression: the data-subset pill is server-rendered on the h1, so a
+    completed study must still surface it. The polling JS that updates the
+    status pill must not knock the subset pill out of the DOM."""
+    s = load_settings("track_b", repo_root=REPO_ROOT)
+    new_paths = s.paths.model_copy(
+        update={"experiments_dir": str(tmp_path / "studies")}
+    )
+    s = s.model_copy(update={"paths": new_paths})
+
+    studies_root = Path(new_paths.experiments_dir)
+    studies_root.mkdir(parents=True)
+    finished = _study(sid="study_done_30xx", data_subset_percent=30)
+    finished.status = "COMPLETED"
+    finished.save(studies_root)
+
+    client = TestClient(create_app(s))
+    r = client.get("/studies/study_done_30xx")
+    assert r.status_code == 200
+    assert "30% data" in r.text
+    assert "COMPLETED" in r.text
 
 
 def test_new_study_form_has_data_subset_dropdown(client):
