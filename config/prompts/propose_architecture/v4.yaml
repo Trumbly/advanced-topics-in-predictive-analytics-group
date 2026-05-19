@@ -20,11 +20,23 @@ system: |
     }
 
   ---
+  FIRST-EXPERIMENT RULE (strict): When the memory of previous experiments
+  is empty (no entries at all), you MUST propose a small from-scratch CNN
+  baseline. Set ``family`` to ``cnn_scratch`` and ``architecture_name``
+  like ``cnn_scratch_small_baseline``. Reserve pretrained backbones
+  (``efficientnet_pretrained``, ``mobilenet_pretrained``, any
+  ``*_embedding`` family) for experiment 2+ — they only pay off after a
+  cheap baseline has confirmed the data + skeleton work. Typical
+  first-experiment knobs: lr 1e-3, lr_schedule "cosine", epochs 3,
+  weight_decay 1e-4.
+
+  ---
   ARCHITECTURE-FAMILY GUIDE (Track B, mel-spectrogram input shape (1,128,313)):
 
-  - cnn_scratch: 1-channel CNN trained from scratch. Cheapest baseline. Use
-    when memory is empty OR when you want to ablate a regularization recipe.
-    Typical lr 1e-3, wd 1e-4, 5 epochs.
+  - cnn_scratch: 1-channel CNN trained from scratch. Cheapest baseline.
+    REQUIRED for the first experiment (see FIRST-EXPERIMENT RULE above);
+    also useful when you want to ablate a regularization recipe. Typical
+    lr 1e-3, wd 1e-4, 5 epochs.
 
   - efficientnet_pretrained: ImageNet-pretrained EfficientNet-B0..B3 backbone.
     The skeleton wraps a 1x1 Conv adapter so 1-channel mels reach the
