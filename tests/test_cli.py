@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from lab.cli import _build_parser, cmd_prompts, cmd_preprocess, main
+from lab.cli import _build_parser, _apply_run_overrides, cmd_prompts, cmd_preprocess, main
+from lab.config import load_settings
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -24,6 +25,7 @@ def test_run_help_lists_all_flags(capsys):
         "--personality",
         "--max-experiments",
         "--max-wallclock-min",
+        "--data-subset",
     ):
         assert flag in out
 
@@ -75,3 +77,42 @@ def test_preprocess_synthetic_writes_shards(tmp_path, monkeypatch):
     rc = cmd_preprocess(args)
     assert rc == 0
     # The default config writes to data/processed/mels - we just confirm exit code.
+
+
+# ---------------------------------------------------------------------------
+# --data-subset flag tests
+# ---------------------------------------------------------------------------
+
+def test_data_subset_flag_accepted_by_parser():
+    parser = _build_parser()
+    args = parser.parse_args(["run", "--data-subset", "30"])
+    assert args.data_subset == 30
+
+
+def test_data_subset_flag_default_is_none():
+    parser = _build_parser()
+    args = parser.parse_args(["run"])
+    assert args.data_subset is None
+
+
+def test_data_subset_rejects_invalid_value():
+    parser = _build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["run", "--data-subset", "15"])
+
+
+def test_apply_run_overrides_propagates_data_subset():
+    settings = load_settings("track_b", repo_root=REPO_ROOT)
+    parser = _build_parser()
+    args = parser.parse_args(["run", "--data-subset", "30"])
+    updated = _apply_run_overrides(settings, args)
+    assert updated.compute_budget.data_subset_percent == 30
+
+
+def test_apply_run_overrides_leaves_default_when_not_specified():
+    settings = load_settings("track_b", repo_root=REPO_ROOT)
+    parser = _build_parser()
+    args = parser.parse_args(["run"])
+    updated = _apply_run_overrides(settings, args)
+    # Default from config.yaml is 100
+    assert updated.compute_budget.data_subset_percent == 100

@@ -51,6 +51,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="override the LLM model (Ollama tag) for this study only.",
     )
+    run.add_argument(
+        "--data-subset",
+        type=int,
+        choices=[10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+        default=None,
+        help="percentage of train+val to use (default 100; reduces wallclock proportionally)",
+    )
 
     report = sub.add_parser("report", help="render a study report")
     report.add_argument("study_id")
@@ -538,6 +545,8 @@ def _apply_run_overrides(settings, args):
         cb = cb.model_copy(update={"max_experiments": args.max_experiments})
     if args.max_wallclock_min is not None:
         cb = cb.model_copy(update={"max_wallclock_minutes": args.max_wallclock_min})
+    if getattr(args, "data_subset", None) is not None:
+        cb = cb.model_copy(update={"data_subset_percent": args.data_subset})
 
     agent = settings.agent
     if args.personality is not None:
