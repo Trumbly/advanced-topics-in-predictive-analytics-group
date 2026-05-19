@@ -253,14 +253,17 @@ def client_with_subset_study(tmp_path):
     return TestClient(create_app(s))
 
 
-def test_studies_list_shows_subset_pill_only_when_below_100(client_with_subset_study):
+def test_studies_list_shows_subset_pill_for_every_study(client_with_subset_study):
     r = client_with_subset_study.get("/studies")
     assert r.status_code == 200
-    # 50% row renders the yellow pill, matching the detail page style
+    # Every row gets a "X% data" pill so legacy studies (no field in JSON,
+    # Pydantic-defaulted to 100) read consistently against new subset runs.
     assert "50% data" in r.text
-    # 100% row does NOT render a pill — it shows a plain dash so the column
-    # stays visually quiet for studies that ran on the full corpus
-    assert "100% data" not in r.text
+    assert "100% data" in r.text
+    # The <100 pill uses the warning-yellow palette; the 100% pill uses the
+    # muted grey palette. Both share the .pill class.
+    assert "#e6c200" in r.text  # yellow foreground (subset rows)
+    assert "#9ca3af" in r.text  # muted foreground (100% rows)
 
 
 def test_study_detail_shows_pill_when_subset_less_than_100(client_with_subset_study):
@@ -269,11 +272,13 @@ def test_study_detail_shows_pill_when_subset_less_than_100(client_with_subset_st
     assert "50% data" in r.text
 
 
-def test_study_detail_no_pill_when_subset_is_100(client_with_subset_study):
+def test_study_detail_shows_pill_when_subset_is_100(client_with_subset_study):
     r = client_with_subset_study.get("/studies/study_full_100xx")
     assert r.status_code == 200
-    # The pill should NOT appear for a full 100% study
-    assert "100% data" not in r.text
+    # 100% studies render the muted-grey pill so legacy studies without the
+    # field in their JSON still display the badge instead of going missing.
+    assert "100% data" in r.text
+    assert "#9ca3af" in r.text
 
 
 def test_study_detail_keeps_subset_pill_after_completion(tmp_path):

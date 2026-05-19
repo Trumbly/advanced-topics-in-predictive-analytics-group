@@ -23,11 +23,7 @@
       <td><span class="pill">{{ s.status }}</span></td>
       <td>{{ s.experiments|length }}</td>
       <td>
-        {% if s.data_subset_percent < 100 %}
-          <span class="pill" style="background:#3a2c00;color:#e6c200">{{ s.data_subset_percent }}% data</span>
-        {% else %}
-          <span style="opacity:0.4">—</span>
-        {% endif %}
+        <span class="pill" style="background:{% if s.data_subset_percent < 100 %}#3a2c00;color:#e6c200{% else %}#1c2129;color:#9ca3af{% endif %}">{{ s.data_subset_percent }}% data</span>
       </td>
       <td>{{ "%.4f"|format(s.best_score) if s.best_score is not none else "—" }}</td>
     </tr>
