@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Building report — {{ study.id }}{% endblock %}
+{% block head_extra %}
+  <meta http-equiv="refresh" content="2">
+{% endblock %}
+{% block content %}
+<p><a href="/studies/{{ study.id }}">← back to study</a></p>
+
+<h1>Building report…</h1>
+<p style="opacity:0.8">
+  Study <code>{{ study.id }}</code>.
+  {% if elapsed_s is not none %}
+  Elapsed: {{ elapsed_s }}s.
+  {% endif %}
+</p>
+
+{% if last_error %}
+<div style="background:#3a1818;border-left:3px solid #d04040;padding:10px 14px;margin:14px 0;">
+  <strong>Last build attempt failed:</strong>
+  <pre style="margin:6px 0 0;white-space:pre-wrap;font-size:0.88em">{{ last_error }}</pre>
+  <p style="margin:8px 0 0;font-size:0.9em">Reload this page to retry.</p>
+</div>
+{% else %}
+<div style="background:#1c2129;border-left:3px solid #2c5cdd;padding:10px 14px;margin:14px 0;">
+  Generating figures + rendering markdown. This page auto-refreshes every 2 seconds and will switch to the rendered report as soon as it's ready.
+</div>
+{% endif %}
+
+<noscript>
+<p style="opacity:0.6">If the page doesn't refresh on its own, reload manually.</p>
+</noscript>
+{% endblock %}
