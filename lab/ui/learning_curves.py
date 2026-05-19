@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
+from lab.ui.display import exp_label
+
 
 @dataclass(frozen=True)
 class Series:
@@ -462,10 +464,16 @@ def study_to_chart_data(experiments) -> dict:
             default=0.0,
         )
 
+        # Build a display label; guard against objects that lack .index
+        # (e.g. stub objects used in tests or legacy data).
+        try:
+            display_label = exp_label(exp)
+        except AttributeError:
+            display_label = exp.id
         out.append(
             {
                 "id": exp.id,
-                "label": exp.id,
+                "label": display_label,
                 "x_offset": offset,
                 "color": _exp_color(idx),
                 "primary_metric": exp.primary_metric,
