@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
@@ -26,6 +27,17 @@ from lab.prompts.scoring import aggregate_prompt_scores
 from lab.ui.display import build_study_ordinals, exp_label, study_label, study_suffix
 
 _TEMPLATE_DIR = Path(__file__).parent / "templates"
+
+
+@dataclass
+class _BuildState:
+    started_at: float
+    error: str | None = None
+    thread: threading.Thread | None = None
+
+
+_report_builds: dict[str, _BuildState] = {}
+_report_builds_lock = threading.Lock()
 
 
 def create_app(settings: Settings) -> FastAPI:
@@ -271,11 +283,57 @@ def create_app(settings: Settings) -> FastAPI:
         )
 
     @app.get("/reports/{study_id}", response_class=HTMLResponse)
-    def report_view(study_id: str):
-        path = studies_root / study_id / "report.html"
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="report not built; run `lab report`")
-        return HTMLResponse(path.read_text(encoding="utf-8"))
+    def report_view(request: Request, study_id: str):
+        from lab.reporting.generator import generate_report
+
+        report_path = studies_root / study_id / "report.html"
+        if report_path.exists():
+            return HTMLResponse(report_path.read_text(encoding="utf-8"))
+
+        # Confirm the study itself exists — 404 if the user typed a bad id.
+        try:
+            study = Study.load(studies_root, study_id)
+        except StudyNotFoundError:
+            raise HTTPException(status_code=404, detail="study not found")
+
+        with _report_builds_lock:
+            state = _report_builds.get(study_id)
+            if state is None or (state.thread and not state.thread.is_alive() and state.error is None):
+                # Either no build yet, or a previous build finished without
+                # writing the file (race: report wasn't where we expected,
+                # so just retry).
+                state = _BuildState(started_at=time.time())
+                _report_builds[study_id] = state
+
+                def _run_build(sid: str = study_id, st: _BuildState = state) -> None:
+                    try:
+                        generate_report(Study.load(studies_root, sid), settings)
+                        with _report_builds_lock:
+                            # Successful build: drop the entry so future
+                            # invalidations (e.g. user re-runs the study and
+                            # wants a fresh report) re-trigger the build path.
+                            _report_builds.pop(sid, None)
+                    except Exception as exc:  # pragma: no cover - defensive
+                        with _report_builds_lock:
+                            st.error = f"{type(exc).__name__}: {exc}"
+
+                t = threading.Thread(target=_run_build, daemon=True)
+                state.thread = t
+                t.start()
+
+            elapsed_s = int(time.time() - state.started_at)
+            last_error = state.error
+
+        return templates.TemplateResponse(
+            request,
+            "report_building.html",
+            {
+                "study": study,
+                "elapsed_s": elapsed_s,
+                "last_error": last_error,
+            },
+            status_code=202 if last_error is None else 500,
+        )
 
     # ---- submission ----
 
