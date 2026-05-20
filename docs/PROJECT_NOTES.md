@@ -7,9 +7,8 @@ README but is useful for graders and future maintainers.
 
 Rewrite implemented across 24 GitHub issues (`docs/issues/I-01..I-21` +
 `I-DELETE` + `I-DEMO` + #40 + #41), every component covered by tests.
-See `docs/REDESIGN_PLAN.md` for the rewrite blueprint, `docs/TEAM_PLAN.md`
-for issue ownership, and the merged PRs on the `feature/rewrite` branch
-for the work.
+See `docs/REDESIGN_PLAN.md` for the rewrite blueprint and the merged PRs on
+the `feature/rewrite` branch for the work.
 
 ## Grading rubric mapping
 
@@ -40,6 +39,5 @@ for the work.
 - `docs/REDESIGN_PLAN.md` — rewrite blueprint and design principles
 - `docs/PRODUCTION_REVIEW.md` — gap analysis vs the PDF rubric
 - `docs/ARCHITECTURE.md` — current architecture and ADRs
-- `docs/TEAM_PLAN.md` — issue assignment across team accounts
 - `docs/issues/` — per-issue specifications (one PR each)
 - `docs/report/report.md` — the D4 deliverable report
